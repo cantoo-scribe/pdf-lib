@@ -26,6 +26,8 @@ type Box = Position & Size;
 interface SVGSizeConverter {
   point: (x: number, y: number) => Position;
   size: (w: number, h: number) => Size;
+  xAxisDirection?: number;
+  yAxisDirection?: number;
 }
 
 type SVGStyle = Record<string, string>;
@@ -180,7 +182,7 @@ const runnersToPage = (
     if (!element.svgAttributes.fill && !element.svgAttributes.stroke) return;
     page.drawRectangle({
       x: element.svgAttributes.x,
-      y: (element.svgAttributes.y || 0) - element.svgAttributes.height,// The origin is in the opposite side of the rectangle
+      y: (element.svgAttributes.y || 0),
       width: element.svgAttributes.width,
       height: element.svgAttributes.height,
       borderColor: element.svgAttributes.stroke,
@@ -231,6 +233,8 @@ const transform = (
           converter.point(x * xScale, y * yScale),
         size: (w: number, h: number) =>
           converter.size(Math.abs(w * xScale), Math.abs(h * yScale)),
+        xAxisDirection: (converter?.xAxisDirection || 1)* (xScale >= 0 ? 1 : -1),
+        yAxisDirection: (converter?.yAxisDirection || 1) * (yScale >= 0 ? 1 : -1)
       };
     case 'translateX':
       return transform(converter, 'translate', [args[0], 0]);
@@ -239,6 +243,7 @@ const transform = (
     case 'translate':
       const [dx, dy = dx] = args;
       return {
+        ...converter,
         point: (x: number, y: number) => converter.point(x + dx, y + dy),
         size: converter.size,
       };
@@ -252,6 +257,7 @@ const transform = (
         const [a] = args;
         const angle = degreesToRadians(a);
         return {
+          ...converter,
           point: (x, y) =>
             converter.point(
               x * Math.cos(angle) - y * Math.sin(angle),
@@ -268,6 +274,7 @@ const transform = (
     case 'skewX': {
       const angle = degreesToRadians(args[0]);
       return {
+        ...converter,
         point: (x: number, y: number) =>
           converter.point((1 + x) * Math.tan(angle), y),
         size: converter.size,
@@ -276,6 +283,7 @@ const transform = (
     case 'skewY': {
       const angle = degreesToRadians(args[0]);
       return {
+        ...converter,
         point: (x: number, y: number) =>
           converter.point(x, (1 + y) * Math.tan(angle)),
         size: converter.size,
@@ -487,6 +495,17 @@ const parseAttributes = (
       height || inherited.height,
     );
     svgAttributes.width = size.width;
+  
+    /**
+     * The svg draws rects from the top to the bottom but this lib draws the rects upsidedown
+     * Therefore, it's necessary to invert the height to fix the incompatible behavior
+     * This code also takes into account that the rect might be inside a transformation group, this information is kept on the converter attribute yAxisDirection
+     */
+    if (element.tagName === 'rect') {
+      svgAttributes.height = size.height * (newConverter.yAxisDirection || 1) * -1;
+    } else {
+      svgAttributes.height = size.height;
+    }
     svgAttributes.height = size.height;
   }
   // We convert all the points from the path
