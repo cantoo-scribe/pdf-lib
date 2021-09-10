@@ -87,8 +87,8 @@ const inRange = (v: number, min: number, max: number) => {
   return Math.min(Math.trunc(v), Math.trunc(min)) === Math.trunc(min) && Math.max(Math.trunc(v), Math.trunc(max)) === Math.trunc(max)
 }
 
-const isDotInsideTheRect  = (dot: Coordinates, rect: RectangleTranslatable, padding = 1) => {
-  return inRange(dot.x, rect.getStart().x - padding, rect.getEnd().x + padding) && inRange(dot.y, rect.getEnd().y - padding, rect.getEnd().y + padding)
+const isCoordinateInsideTheRect  = (dot: Coordinates, rect: RectangleTranslatable, padding = 1) => {
+  return inRange(dot.x, rect.getStart().x - padding, rect.getEnd().x + padding) && inRange(dot.y, rect.getEnd().y - padding, rect.getStart().y + padding)
 }
 
 
@@ -129,18 +129,22 @@ const runnersToPage = (
     const textWidth = (text.length * fontSize) / 2; // We try to approx the width of the text
     const offset =
       anchor === 'middle' ? textWidth / 2 : anchor === 'end' ? textWidth : 0;
-    page.drawText(text, {
-      x: (element.svgAttributes.x || 0) - offset,
-      y: element.svgAttributes.y || 0,
-      font:
-        options.fonts && element.svgAttributes.fontFamily
-          ? options.fonts[element.svgAttributes.fontFamily]
-          : undefined,
-      size: fontSize,
-      color: element.svgAttributes.fill,
-      opacity: element.svgAttributes.fillOpacity,
-      rotate: element.svgAttributes.rotate,
-    });
+    const point = { x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 }
+
+    if (isCoordinateInsideTheRect(point, svgRect)) {
+      page.drawText(text, {
+        x: point.x,
+        y: point.y,
+        font:
+          options.fonts && element.svgAttributes.fontFamily
+            ? options.fonts[element.svgAttributes.fontFamily]
+            : undefined,
+        size: fontSize,
+        color: element.svgAttributes.fill,
+        opacity: element.svgAttributes.fillOpacity,
+        rotate: element.svgAttributes.rotate,
+      });
+    }
   },
   async line(element) {
     let start =  {
@@ -153,8 +157,8 @@ const runnersToPage = (
       y: element.svgAttributes.y2!,
     }
 
-    const isStartInside = isDotInsideTheRect(start, svgRect)
-    const isEndInside = isDotInsideTheRect(end, svgRect)
+    const isStartInside = isCoordinateInsideTheRect(start, svgRect)
+    const isEndInside = isCoordinateInsideTheRect(end, svgRect)
 
     if (!(isStartInside && isEndInside)) {
       const lineStart = new PointXY(start)
