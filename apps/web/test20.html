@@ -56,7 +56,10 @@
       const fontSize = 20;
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="542" height="609" viewBox="-12.63679245283019 -9.532281839622643 16.77358490566038 18.952830188679243" style="width:542px;height:609px;"><g transform="scale(1 -1) translate(0 -9.401183626602595)"><circle cx="-3.6809271217712167" cy="9.028482472324727" r="3" stroke-width="0.1971348667549198" stroke="#000000ff" fill="none"></circle> <rect x="-8.25" y="4.620407566885847" rx="0.911107922838356" ry="1.0629592433114152" width="9.11107922838356" height="10.629592433114153" stroke="#000000ff" fill="none" stroke-width="0.1971348667549198"></rect> <line id="6708bf71-f4a9-49f8-a3bc-350a01d85900" x1="-10.25" x2="2.2308466938719143" y1="16.25" y2="3.279708337740953" stroke-width="0.1971348667549198" stroke-linecap="round" stroke="#000000ff"></line></g></svg>`;
-      // const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="16.77358490566038" height="18.952830188679243" viewBox="-12.63679245283019 -9.532281839622643 16.77358490566038 18.952830188679243" style="width:542px;height:609px;"><g transform="scale(1 -1) translate(0 -9.401183626602595)"><circle cx="-3.6809271217712167" cy="9.028482472324727" r="3" stroke-width="0.1971348667549198" stroke="#000000ff" fill="none"></circle> <rect x="-8.25" y="4.620407566885847" rx="0.911107922838356" ry="1.0629592433114152" width="9.11107922838356" height="10.629592433114153" stroke="#000000ff" fill="none" stroke-width="0.1971348667549198"></rect> <line id="6708bf71-f4a9-49f8-a3bc-350a01d85900" x1="-10.25" x2="2.2308466938719143" y1="16.25" y2="3.279708337740953" stroke-width="0.1971348667549198" stroke-linecap="round" stroke="#000000ff"></line></g></svg>`;
+      const svg3 = `<svg width="100" height="100">
+  <rect y="0" x="0" width="100" height="100" fill="none" stroke="black"/>
+  <rect y="50" x="50" width="50" height="50" fill="black"/>
+</svg>`;
       const svg2 = `<svg
       xmlns="http://www.w3.org/2000/svg"
       xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -624,6 +627,10 @@
         x: 100,
         y: 1000
       }); */
+      firstPage.drawSvg(svg3, {
+        x: 100,
+        y: 950,
+      });
       firstPage.drawSvg(svg2, {
         x: 100,
         y: 800,

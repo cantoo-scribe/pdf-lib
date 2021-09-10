@@ -10,6 +10,9 @@ import { Degrees, degreesToRadians, RotationTypes } from './rotations';
 import PDFPage from './PDFPage';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle } from './operators';
+import { RectangleTranslatable, PointXY, LineTranslatable } from 'src/utils/elements';
+import { getIntersections } from 'src/utils/intersections';
+import { Coordinates } from 'src/types';
 
 interface Position {
   x: number;
@@ -26,8 +29,6 @@ type Box = Position & Size;
 interface SVGSizeConverter {
   point: (x: number, y: number) => Position;
   size: (w: number, h: number) => Size;
-  xAxisDirection?: number;
-  yAxisDirection?: number;
 }
 
 type SVGStyle = Record<string, string>;
@@ -77,67 +78,8 @@ export type SVGElement = HTMLElement & {
 interface SVGElementToDrawMap {
   [cmd: string]: (a: SVGElement) => Promise<void>;
 }
-class Vector {
-  x: number
-  y: number
-  constructor (x: number, y: number) {
-    this.x = x
-    this.y = y
-  }
 
-  copy () {
-    return new Vector(this.x, this.y)
-  }
-
-  rotate (degrees: number, inplace = false) {
-    const radians = degrees * (Math.PI / 180)
-    const newX = (Math.cos(radians) * this.x) + ((-Math.sin(radians)) * this.y)
-    const newY = (Math.sin(radians) * this.x) + (Math.cos(radians) * this.y)
-    if (inplace) {
-      this.x = newX
-      this.y = newY
-    } else {
-      return new Vector(newX, newY)
-    }
-    return this
-  }
-
-  getLength () {
-    return Math.sqrt(this.x ** 2 + this.y ** 2)
-  }
-
-  normalize () {
-    const length = this.getLength()
-    this.x = this.x / length
-    this.y = this.y / length
-    return this
-  }
-
-  dot (v: Vector) {
-    return this.x * v.x + this.y * v.y
-  }
-
-  scale (k: number, inplace = false) {
-    const newX = this.x * k
-    const newY = this.y * k
-    if (inplace) {
-      this.x = newX * k
-      this.y = newY * k
-    } else {
-      return new Vector(newX, newY)
-    }
-    return this
-  }
-  
-  angleTo (v: Vector) {
-    return Math.acos(this.dot(v) / (this.getLength() * v.getLength()))
-  }
-}
-
-type Dot = { x: number, y: number }
-type Rect = { x: number, y: number, width: number, height: number }
-
-const computeDotDistance = (d1: Dot, d2: Dot) => {
+const computeDotDistance = (d1: Coordinates, d2: Coordinates) => {
   return Math.sqrt((d1.x - d2.x) ** 2 + (d1.y - d2.y) ** 2)
 }
 
@@ -145,44 +87,10 @@ const inRange = (v: number, min: number, max: number) => {
   return Math.min(Math.trunc(v), Math.trunc(min)) === Math.trunc(min) && Math.max(Math.trunc(v), Math.trunc(max)) === Math.trunc(max)
 }
 
-const isDotInsideTheRect  = (dot: Dot, rect: Rect, padding = 1) => {
-  return inRange(dot.x, rect.x - padding, rect.x + rect.width + padding) && inRange(dot.y, rect.y - rect.height - padding, rect.y + padding)
+const isDotInsideTheRect  = (dot: Coordinates, rect: RectangleTranslatable, padding = 1) => {
+  return inRange(dot.x, rect.getStart().x - padding, rect.getEnd().x + padding) && inRange(dot.y, rect.getEnd().y - padding, rect.getEnd().y + padding)
 }
 
-// TODO: add comments explaining geometrically what is happening
-// this function uses the formula to compute the projection of a point on a bidimentional plane
-const getLineIntersection = (v1: Vector, p1: Dot, v2: Vector, p2: Dot) => {
-  // the lines are parallel and they don't have an intersection point
-  if (v1.angleTo(v2) === 0) return
-  const orthogonalVector = v1.rotate(90).normalize()
-  const v3 = new Vector(p1.x - p2.x, p1.y - p2.y)
-  const v4 = v2.scale(v3.dot(orthogonalVector) / orthogonalVector.dot(v2))
-  const result: Dot = { x: p2.x + v4.x, y: p2.y + v4.y }
-  return result
-}
-// TODO: add comments
-const getLineIntersectionWithRect = (v: Vector, p: Dot, rect: Rect) => {
-  // used for top and bottom
-  const horizontalVector = new Vector(rect.width, 0)
-  // used for left and right
-  const verticalVector = new Vector(0, rect.height)
-
-  const topPoint = { x: rect.x, y: rect.y }
-  const bottomPoint = { x: rect.x + rect.width, y: rect.y - rect.height }
-  // top
-  const topInterPoint = getLineIntersection(horizontalVector, topPoint, v, p)
-  // bottom
-  const bottomInterPoint = getLineIntersection(horizontalVector, bottomPoint, v, p)
-  // left
-  const leftInterPoint = getLineIntersection(verticalVector, topPoint, v, p)
-  // right
-  const rightInterPoint = getLineIntersection(verticalVector, bottomPoint, v, p)
-  console.log([topInterPoint, bottomInterPoint, leftInterPoint, rightInterPoint])
-  const result = [topInterPoint, bottomInterPoint, leftInterPoint, rightInterPoint].filter(p => !!p && isDotInsideTheRect(p, rect))
-  
-  // result.length sould always be less or equal to 2 
-  return result as Dot[]
-}
 
 const StrokeLineCapMap: Record<string, LineCapStyle> = {
   butt: LineCapStyle.Butt,
@@ -210,7 +118,7 @@ const matchAll = (str: string) => (re: RegExp) => {
 // TODO: Improve type system to require the correct props for each tagName.
 /** methods to draw SVGElements onto a PDFPage */
 const runnersToPage = (
-  svgRect: Rect,
+  svgRect: RectangleTranslatable,
   page: PDFPage,
   options: PDFPageDrawSVGElementOptions,
 ): SVGElementToDrawMap => ({
@@ -244,16 +152,16 @@ const runnersToPage = (
       x: element.svgAttributes.x2!,
       y: element.svgAttributes.y2!,
     }
-    // check if the line limits are inside the svg reactangle
+
     const isStartInside = isDotInsideTheRect(start, svgRect)
     const isEndInside = isDotInsideTheRect(end, svgRect)
-    // if there is some point outside the svgRect we need to move it to the rect limit
+
     if (!(isStartInside && isEndInside)) {
-      // to compute the intersections we need to represent the line as an vector and a point. The vection is v and the point is the starting point
-      const v = new Vector(end.x - start.x, end.y - start.y)
-      // compute an array of intersections of the line with the svg rectangle
-      const intersection = getLineIntersectionWithRect(v, start, svgRect)
-    
+      const lineStart = new PointXY(start)
+      const lineEnd = new PointXY(end)
+      const line = new LineTranslatable(lineStart, lineEnd)
+      const intersection = getIntersections([svgRect, line])
+
       // if there's no intersection it means that the line doesn't intersects the svgRect and isn't visible
       if (intersection.length === 0) return
 
@@ -318,7 +226,7 @@ const runnersToPage = (
       x: element.svgAttributes.x,
       y: (element.svgAttributes.y || 0),
       width: element.svgAttributes.width,
-      height: element.svgAttributes.height,
+      height: element.svgAttributes.height * -1,
       borderColor: element.svgAttributes.stroke,
       borderWidth: element.svgAttributes.strokeWidth,
       borderOpacity: element.svgAttributes.strokeOpacity,
@@ -366,9 +274,7 @@ const transform = (
         point: (x: number, y: number) =>
           converter.point(x * xScale, y * yScale),
         size: (w: number, h: number) =>
-          converter.size(Math.abs(w * xScale), Math.abs(h * yScale)),
-        xAxisDirection: (converter?.xAxisDirection || 1)* (xScale >= 0 ? 1 : -1),
-        yAxisDirection: (converter?.yAxisDirection || 1) * (yScale >= 0 ? 1 : -1)
+          converter.size(w * xScale, h * yScale)
       };
     case 'translateX':
       return transform(converter, 'translate', [args[0], 0]);
@@ -377,7 +283,6 @@ const transform = (
     case 'translate':
       const [dx, dy = dx] = args;
       return {
-        ...converter,
         point: (x: number, y: number) => converter.point(x + dx, y + dy),
         size: converter.size,
       };
@@ -391,7 +296,6 @@ const transform = (
         const [a] = args;
         const angle = degreesToRadians(a);
         return {
-          ...converter,
           point: (x, y) =>
             converter.point(
               x * Math.cos(angle) - y * Math.sin(angle),
@@ -408,7 +312,6 @@ const transform = (
     case 'skewX': {
       const angle = degreesToRadians(args[0]);
       return {
-        ...converter,
         point: (x: number, y: number) =>
           converter.point((1 + x) * Math.tan(angle), y),
         size: converter.size,
@@ -417,7 +320,6 @@ const transform = (
     case 'skewY': {
       const angle = degreesToRadians(args[0]);
       return {
-        ...converter,
         point: (x: number, y: number) =>
           converter.point(x, (1 + y) * Math.tan(angle)),
         size: converter.size,
@@ -629,17 +531,7 @@ const parseAttributes = (
       height || inherited.height,
     );
     svgAttributes.width = size.width;
-  
-    /**
-     * The svg draws rects from the top to the bottom but this lib draws the rects upsidedown
-     * Therefore, it's necessary to invert the height to fix the incompatible behavior
-     * This code also takes into account that the rect might be inside a transformation group, this information is kept on the converter attribute yAxisDirection
-     */
-    if (element.tagName === 'rect') {
-      svgAttributes.height = size.height * (newConverter.yAxisDirection || 1) * -1;
-    } else {
-      svgAttributes.height = size.height;
-    }
+    svgAttributes.height = size.height;
   }
   // We convert all the points from the path
   if (attributes.d) {
@@ -907,7 +799,7 @@ export const drawSvg = async (
   const y = options.y !== undefined ? options.y : parseFloat(firstChild.attributes.y)
   const width = options.width !== undefined ? options.width : parseFloat(firstChild.attributes.width)
   const height = options.height !== undefined ? options.height : parseFloat(firstChild.attributes.height)
-  const svgRect: Rect = { x, y, width, height }
+  const svgRect = new RectangleTranslatable(new PointXY({x, y}), new PointXY({ x: x + width, y: y - height }))
   const runners = runnersToPage(svgRect, page, options);
   const elements = parse(svg, options, size, defaultConverter);
   elements.forEach((elt) => runners[elt.tagName]?.(elt));
