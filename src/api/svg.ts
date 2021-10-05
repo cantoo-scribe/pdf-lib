@@ -10,10 +10,9 @@ import { Degrees, degreesToRadians, RotationTypes } from './rotations';
 import PDFPage from './PDFPage';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle } from './operators';
-import { RectangleTranslatable, PointXY, LineTranslatable } from 'src/utils/elements';
+import { RectangleTranslatable, PointXY, LineTranslatable, SegmentAB } from 'src/utils/elements';
 import { getIntersections } from 'src/utils/intersections';
-import { Coordinates } from 'src/types';
-
+import { distanceCoords, isEqual, distance } from 'src/utils/maths';
 interface Position {
   x: number;
   y: number;
@@ -79,18 +78,7 @@ interface SVGElementToDrawMap {
   [cmd: string]: (a: SVGElement) => Promise<void>;
 }
 
-const computeDotDistance = (d1: Coordinates, d2: Coordinates) => {
-  return Math.sqrt((d1.x - d2.x) ** 2 + (d1.y - d2.y) ** 2)
-}
-
-const inRange = (v: number, min: number, max: number) => {
-  return Math.min(Math.trunc(v), Math.trunc(min)) === Math.trunc(min) && Math.max(Math.trunc(v), Math.trunc(max)) === Math.trunc(max)
-}
-
-const isCoordinateInsideTheRect  = (dot: Coordinates, rect: RectangleTranslatable, padding = 1) => {
-  return inRange(dot.x, rect.getStart().x - padding, rect.getEnd().x + padding) && inRange(dot.y, rect.getEnd().y - padding, rect.getStart().y + padding)
-}
-
+const isCoordinateInsideTheRect  = (dot: PointXY, rect: RectangleTranslatable) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
 
 const StrokeLineCapMap: Record<string, LineCapStyle> = {
   butt: LineCapStyle.Butt,
@@ -129,7 +117,7 @@ const runnersToPage = (
     const textWidth = (text.length * fontSize) / 2; // We try to approx the width of the text
     const offset =
       anchor === 'middle' ? textWidth / 2 : anchor === 'end' ? textWidth : 0;
-    const point = { x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 }
+    const point = new PointXY({ x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 })
 
     if (isCoordinateInsideTheRect(point, svgRect)) {
       page.drawText(text, {
@@ -147,15 +135,15 @@ const runnersToPage = (
     }
   },
   async line(element) {
-    let start =  {
+    let start =  new PointXY({
       x: element.svgAttributes.x1!,
       y: element.svgAttributes.y1!,
-    }
+    })
 
-    let end = {
+    let end = new PointXY({
       x: element.svgAttributes.x2!,
       y: element.svgAttributes.y2!,
-    }
+    })
 
     const isStartInside = isCoordinateInsideTheRect(start, svgRect)
     const isEndInside = isCoordinateInsideTheRect(end, svgRect)
@@ -170,13 +158,15 @@ const runnersToPage = (
       if (intersection.length === 0) return
 
       if (!isStartInside) {
-        // replace the line start pointo by the nearest intersection
-        start = intersection.sort((p1, p2) => computeDotDistance(start, p1) - computeDotDistance(start, p2))[0]
+        // replace the line start point by the nearest intersection
+        const nearestPoint = intersection.sort((p1, p2) => distanceCoords(start, p1) - distanceCoords(start, p2))[0]
+        start = new PointXY(nearestPoint)
       }
 
       if (!isEndInside) {
-        // replace the line start pointo by the nearest intersection
-        end = intersection.sort((p1, p2) => computeDotDistance(end, p1) - computeDotDistance(end, p2))[0]
+        // replace the line start point by the nearest intersection
+        const nearestPoint = intersection.sort((p1, p2) => distanceCoords(end, p1) - distanceCoords(end, p2))[0]
+        end = new PointXY(nearestPoint)
       }
     }
 
@@ -190,8 +180,106 @@ const runnersToPage = (
     });
   },
   async path(element) {
+    // the path origin coordinate
+    const basePoint = new PointXY({x: element.svgAttributes.x || 0, y: element.svgAttributes.y || 0})
+    const normalizePoint = (p: PointXY) => new PointXY({ x: p.x - basePoint.x, y:  p.y - basePoint.y})
+
+    /**
+     * 
+     * @param currentPoint is the global point of the current drawing
+     * @param command the path instruction 
+     * @param params the instrction params
+     * @returns the point where the next instruction starts and the new instruction text
+     */
+    const handlePath = (currentPoint: PointXY, command: string, params: number[]) => {
+      switch(command) {
+        case 'm':
+        case 'M':
+          {
+            const nextPoint = new PointXY({
+                x: basePoint.x + params[0],
+                y: basePoint.y + params[1]
+              })
+            return {
+              point: nextPoint,
+              command: `${command}${params[0]},${params[1]}`
+            }
+          }
+        case 'l':
+        case 'L':
+          {
+            const isLocalInstruction = command === 'l'
+            const nextPoint = new PointXY({
+              x: (isLocalInstruction ? currentPoint.x : basePoint.x) + params[0],
+              y: (isLocalInstruction ? currentPoint.y : basePoint.y) + params[1],
+            })
+            const normalizedNext = normalizePoint(nextPoint)
+
+            let endPoint = new PointXY({ x: nextPoint.x, y: nextPoint.y })
+            let startPoint = new PointXY({ x: currentPoint.x, y: currentPoint.y })
+
+            const isStartInside = isCoordinateInsideTheRect(startPoint, svgRect)
+            const isEndInside = isCoordinateInsideTheRect(endPoint, svgRect)
+
+            if (!(isStartInside && isEndInside)) {
+              const line = new SegmentAB(currentPoint, nextPoint)
+              const intersection = getIntersections([svgRect, line])
+
+              // if there's no intersection it means that the line doesn't intersects the svgRect and isn't visible
+              if (intersection.length === 0) {
+                return {
+                  point: nextPoint,
+                  command: isLocalInstruction ? `M${normalizedNext.x},${normalizedNext.y}` : `M${params[0]},${params[1]}`
+                }
+              }
+
+              if (!isStartInside) {
+                // replace the line start point by the nearest intersection
+                const nearesPoint = intersection.sort((p1, p2) => distanceCoords(startPoint, p1) - distanceCoords(startPoint, p2))[0]
+                startPoint = new PointXY(nearesPoint)
+              }
+              if (!isEndInside) {
+                // replace the line end point by the nearest intersection
+                const nearesPoint = intersection.sort((p1, p2) => distanceCoords(nextPoint, p1) - distanceCoords(nextPoint, p2))[0]
+                endPoint = new PointXY(nearesPoint)
+              }
+            }
+            // the intersection points are referencing the pdf coordinates, it's necessary to convert these points to the path's origin point
+            endPoint = normalizePoint(endPoint)
+            startPoint = normalizePoint(startPoint)
+            const startInstruction = isStartInside ? '' : `M${startPoint.x},${startPoint.y}`
+            const endInstruction = isEndInside ? '' : isLocalInstruction ? `M${normalizedNext.x},${normalizedNext.y}` : `M${params[0]},${params[1]}`
+            return {
+              point: nextPoint,
+              command: `${startInstruction} L${endPoint.x},${endPoint.y} ${endInstruction} `
+            }
+          }
+        // TODO: Handle the remaining svg instructions: v,h,a,t,q,c
+        default:
+          return {
+            point: currentPoint,
+            command: `${command} ${params.map(p => `${p}`).join()}`
+          }
+      }
+    }
+
+    const commands = element.svgAttributes.d!.match(/(v|h|a|l|t|m|q|c)([0-9,e\s.-]*)(?=z|v|h|a|l|t|m|q|c)*/gi)
+    let currentPoint = new PointXY({x: basePoint.x, y: basePoint.y })
+    const newPath = commands?.map(command => {
+      const letter = command.match(/[a-z]/i)?.[0]
+      const params = command.match(/([0-9e.-]*)/ig)?.filter(m => m !== '').map(v => parseFloat(v))
+      if (letter && params) {
+        const result = handlePath(currentPoint, letter, params)
+        if (result) {
+          currentPoint = result.point
+          return result.command
+        }
+      }
+      return command
+    }).join(' ')
+
     // See https://jsbin.com/kawifomupa/edit?html,output and
-    page.drawSvgPath(element.svgAttributes.d!, {
+    page.drawSvgPath(newPath!, {
       x: element.svgAttributes.x || 0,
       y: element.svgAttributes.y || 0,
       borderColor: element.svgAttributes.stroke,
@@ -599,7 +687,7 @@ const parseAttributes = (
               const yReal = parseFloatValue(b, inherited.height) || 0;
               if (letter === letter.toLowerCase()) {
                 const { width: dx, height: dy } = converter.size(xReal, yReal);
-                return [dx, dy].join(',');
+                return [dx, -dy].join(',');
               } else {
                 const { x: xPixel, y: yPixel } = converter.point(xReal, yReal);
                 return [xPixel - xOrigin, yPixel - yOrigin].join(',');
