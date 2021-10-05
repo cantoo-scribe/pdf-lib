@@ -732,6 +732,11 @@ const parseAttributes = (
     const inner = newInherited.fontFamily.match(/^"(.*?)"|^'(.*?)'/);
     if (inner) newInherited.fontFamily = inner[1] || inner[2];
   }
+  
+  if (newInherited.strokeWidth) {
+    newInherited.strokeWidth = newConverter.size(newInherited.strokeWidth, newInherited.strokeWidth).width
+  }
+
   return {
     inherited: newInherited,
     svgAttributes,
