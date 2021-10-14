@@ -1,18 +1,10 @@
-import { Coordinates, DrawConfig, Resizable, Translatable } from '../../types'
-
-import { angleABC, distance, distanceCoords, rotate, vector, isTranslatable } from '../maths'
+import { angleABC, distance, distanceCoords, rotate, vector } from '../maths'
 
 import { CircleORay } from './Circle'
-import GraphElement, { GraphOptions } from './GraphElement'
+import GraphElement from './GraphElement'
 import Point, { PointXY, Projected } from './Point'
-type ArcAttributes = {
-  d: string
-  strokeWidth: string | number
-  strokeLinecap: string
-  stroke: string
-  fill: string
-}
-export default abstract class Arc extends GraphElement<ArcAttributes> {
+
+export default abstract class Arc extends GraphElement {
   abstract center(): Point
   abstract origin(): Point
   abstract sweep(): number
@@ -21,30 +13,11 @@ export default abstract class Arc extends GraphElement<ArcAttributes> {
     const dest = this.center().plus(
       rotate(vector(this.center(), this.origin()), this.sweep())
     )
-    dest.setDrawConfigOf(this)
     return dest
   }
 
   ray() {
     return distance(this.center(), this.origin())
-  }
-
-  getDrawingAttributesImpl() {
-    const { strokeScale }: Pick<DrawConfig, 'strokeScale'> = this.getDrawConfig()
-    const A = this.origin().toCoords()
-    const r = this.ray()
-    const B = this.destination().toCoords()
-    const sweep = this.sweep()
-    const sweepFlag = sweep > 0 ? 1 : 0
-    const largeArcFlag = Math.abs(sweep) > Math.PI ? 1 : 0
-    const attrs: ArcAttributes = {
-      d: `M ${A.x},${A.y} A ${r},${r} 0 ${largeArcFlag} ${sweepFlag} ${B.x} ${B.y}`,
-      stroke: this.color,
-      strokeWidth: (this.strokeWidth || 1) * strokeScale,
-      strokeLinecap: 'round',
-      fill: 'none',
-    }
-    return attrs
   }
 
   isEqual(element: GraphElement): boolean {
@@ -61,7 +34,6 @@ export default abstract class Arc extends GraphElement<ArcAttributes> {
 
   getCircle() {
     const circle = new CircleORay(this.center(), this.ray())
-    circle.setDrawConfigOf(this)
     return circle
   }
 
@@ -72,7 +44,6 @@ export default abstract class Arc extends GraphElement<ArcAttributes> {
   middle() {
     const halfSweep = this.sweep() / 2
     const mid = this.center().plus(rotate(vector(this.center(), this.origin()), halfSweep))
-    mid.setDrawConfigOf(this)
     return mid
   }
 
@@ -100,7 +71,7 @@ export default abstract class Arc extends GraphElement<ArcAttributes> {
   }
 }
 
-export class ArcOAB extends Arc implements Resizable {
+export class ArcOAB extends Arc {
   static type = 'ArcOAB' as 'ArcOAB' | 'ArcTranslatable'
   O: Point
   A: Point
@@ -112,34 +83,25 @@ export class ArcOAB extends Arc implements Resizable {
     O: Point = new PointXY(),
     A: Point = new PointXY(),
     B: Point = new PointXY(),
-    lastSweep = 0,
-    options?: GraphOptions
+    lastSweep = 0
   ) {
-    super(options)
+    super()
     this.O = O
     this.A = A
     this.B = B
     this.lastSweep = lastSweep
   }
 
-  getHandles(): (Point & Translatable)[] {
-    return [this.A, this.B, this.O].filter(elt => isTranslatable(elt)) as (Point &
-      Translatable)[]
-  }
-
   center() {
-    this.O.setDrawConfigOf(this)
     return this.O
   }
 
   origin() {
-    this.A.setDrawConfigOf(this)
     return this.A
   }
 
   destination() {
     const dest = new Projected(this.getCircle(), this.B)
-    dest.setDrawConfigOf(this)
     return dest
   }
 
@@ -159,13 +121,10 @@ export class ArcDependant extends Arc {
   static type = 'ArcDependant' as const
   arc: Arc
   P: Point
-  constructor(arc: Arc = new ArcOAB(), P: Point = new PointXY(), options?: GraphOptions) {
-    super(options)
+  constructor(arc: Arc = new ArcOAB(), P: Point = new PointXY()) {
+    super()
     this.arc = arc
-    arc.dependants.push(this)
-    arc.origin().dependants.push(this)
     this.P = P
-    P.dependants.push(this)
   }
 
   getDependencies() {
@@ -174,36 +133,15 @@ export class ArcDependant extends Arc {
 
   center(): Point {
     const center = this.arc.center()
-    center.setDrawConfigOf(this)
     return center
   }
 
   origin(): Point {
     const origin = this.arc.origin()
-    origin.setDrawConfigOf(this)
     return origin
   }
 
   sweep(): number {
     return angleABC(this.origin(), this.center(), this.P, this.arc.sweep())
-  }
-}
-
-export class ArcTranslatable extends ArcOAB implements Translatable, Resizable {
-  static type = 'ArcTranslatable' as const
-  constructor(
-    O: Point & Translatable = new PointXY(),
-    A: Point & Translatable = new PointXY(),
-    B: Point & Translatable = new PointXY(),
-    lastSweep = 0,
-    options?: GraphOptions
-  ) {
-    super(O, A, B, lastSweep, options)
-  }
-
-  translate(vector: Coordinates): void {
-    ;(this.O as PointXY).translate(vector)
-    ;(this.A as PointXY).translate(vector)
-    ;(this.B as PointXY).translate(vector)
   }
 }

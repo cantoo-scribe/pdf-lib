@@ -1,16 +1,11 @@
-import AngleMark from '../utils/elements/AngleMark'
 import Arc from '../utils/elements/Arc'
-import Arrow from '../utils/elements/Arrow'
 import Circle from '../utils/elements/Circle'
 import Ellipse from '../utils/elements/Ellipse'
-import HalfLine from '../utils/elements/HalfLine'
-import Image from '../utils/elements/Image'
 import Line from '../utils/elements/Line'
 import Plot from '../utils/elements/Plot'
 import Point from '../utils/elements/Point'
 import Rectangle from '../utils/elements/Rectangle'
 import Segment from '../utils/elements/Segment'
-import Text from '../utils/elements/Text'
 export { TransformationMatrix } from 'src/types/matrix';
 
 export type Size = {
@@ -24,19 +19,14 @@ export type Coordinates = {
 }
 
 export type GraphicElement =
-  | AngleMark
   | Arc
-  | Arrow
   | Circle
   | Ellipse
-  | HalfLine
-  | Image
   | Line
   | Plot
   | Point
   | Rectangle
   | Segment
-  | Text
 
   export type Space = { xMin: number; yMin: number; xMax: number; yMax: number }
 
