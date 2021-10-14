@@ -1,16 +1,11 @@
-import AngleMark from './elements/AngleMark'
 import Arc from './elements/Arc'
-import Arrow from './elements/Arrow'
 import Circle from './elements/Circle'
 import Ellipse from './elements/Ellipse'
-import HalfLine from './elements/HalfLine'
-import Image from './elements/Image'
 import Line, { LineAB } from './elements/Line'
 import Plot, { PlotFree } from './elements/Plot'
 import Point, { PointXY } from './elements/Point'
 import Rectangle from './elements/Rectangle'
-import Segment, { SegmentTranslatable } from './elements/Segment'
-import Text from './elements/Text'
+import Segment, {SegmentAB} from './elements/Segment'
 import { Coordinates, GraphicElement } from '../types'
 import {
   distance,
@@ -26,15 +21,10 @@ import {
 
 export function intersections(A: GraphicElement, B: GraphicElement): Coordinates[] {
   if (A instanceof Point || B instanceof Point) return []
-  else if (A instanceof Arrow || B instanceof Arrow) return []
-  else if (A instanceof Text || B instanceof Text) return []
-  else if (A instanceof AngleMark || B instanceof AngleMark) return []
   else if (A instanceof Image || B instanceof Image) return []
   // TODO: calculate the coords of the intersection: https://www.emathzone.com/tutorials/geometry/intersection-of-line-and-ellipse.html
   else if (A instanceof Ellipse || B instanceof Ellipse) return []
   else if (A instanceof Line) return intersectionsLine(A, B)
-  else if (A instanceof HalfLine)
-    return intersectionsLine(A.getLine(), B).filter(P => A.includes(new PointXY(P)))
   else if (A instanceof Segment)
     return intersectionsLine(A.getLine(), B).filter(P => A.includes(new PointXY(P)))
   else if (A instanceof Circle) return intersectionsCircle(A, B)
@@ -54,11 +44,9 @@ export function intersection(
 
 function intersectionsLine(
   A: Line,
-  B: Exclude<GraphicElement, Text | Point | Arrow | Image | AngleMark | Ellipse>
+  B: Exclude<GraphicElement, Point | Ellipse>
 ): Coordinates[] {
   if (B instanceof Line) return intersectionLine(A, B)
-  else if (B instanceof HalfLine)
-    return intersectionLine(A, B.getLine()).filter(P => B.includes(new PointXY(P)))
   else if (B instanceof Segment)
     return intersectionLine(A, B.getLine()).filter(P => B.includes(new PointXY(P)))
   else if (B instanceof Circle) return intersectionCircleLine(B, A)
@@ -85,7 +73,7 @@ export function intersectionLine(A: Line, B: Line): Coordinates[] {
 function intersectionsPlot(A: Plot, B: GraphicElement): Coordinates[] {
   const points = A.getPoints().map(pt => new PointXY(pt))
   const head = points.pop()
-  const segments = points.map((pt, i) => new SegmentTranslatable(pt, points[i + 1] || head))
+  const segments = points.map((pt, i) => new SegmentAB(pt, points[i + 1] || head))
   // @ts-ignore
   const inters = segments.map(s => intersections(s, B)).flat()
   return inters
@@ -138,13 +126,11 @@ export function intersectionCircle(A: Circle, B: Circle): Coordinates[] {
 
 function intersectionsCircle(
   A: Circle,
-  B: Exclude<GraphicElement, Text | Point | Arrow | Image | AngleMark | Ellipse>
+  B: Exclude<GraphicElement, Point | Ellipse>
 ): Coordinates[] {
   if (B instanceof Circle) return intersectionCircle(A, B)
   else if (B instanceof Line) return intersectionCircleLine(A, B)
   else if (B instanceof Segment)
-    return intersectionCircleLine(A, B.getLine()).filter(P => B.includes(new PointXY(P)))
-  else if (B instanceof HalfLine)
     return intersectionCircleLine(A, B.getLine()).filter(P => B.includes(new PointXY(P)))
   else if (B instanceof Arc)
     return intersectionCircle(A, B.getCircle()).filter(P => B.includes(new PointXY(P)))

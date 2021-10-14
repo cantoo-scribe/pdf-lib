@@ -10,7 +10,7 @@ import { Degrees, degreesToRadians, RotationTypes } from './rotations';
 import PDFPage from './PDFPage';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle } from './operators';
-import { RectangleTranslatable, PointXY, LineTranslatable, SegmentAB } from 'src/utils/elements';
+import { RectangleAC, PointXY, LineAB, SegmentAB } from 'src/utils/elements';
 import { getIntersections } from 'src/utils/intersections';
 import { distanceCoords, isEqual, distance } from 'src/utils/maths';
 interface Position {
@@ -78,7 +78,7 @@ interface SVGElementToDrawMap {
   [cmd: string]: (a: SVGElement) => Promise<void>;
 }
 
-const isCoordinateInsideTheRect  = (dot: PointXY, rect: RectangleTranslatable) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
+const isCoordinateInsideTheRect  = (dot: PointXY, rect: RectangleAC) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
 
 const StrokeLineCapMap: Record<string, LineCapStyle> = {
   butt: LineCapStyle.Butt,
@@ -106,7 +106,7 @@ const matchAll = (str: string) => (re: RegExp) => {
 // TODO: Improve type system to require the correct props for each tagName.
 /** methods to draw SVGElements onto a PDFPage */
 const runnersToPage = (
-  svgRect: RectangleTranslatable,
+  svgRect: RectangleAC,
   page: PDFPage,
   options: PDFPageDrawSVGElementOptions,
 ): SVGElementToDrawMap => ({
@@ -151,7 +151,7 @@ const runnersToPage = (
     if (!(isStartInside && isEndInside)) {
       const lineStart = new PointXY(start)
       const lineEnd = new PointXY(end)
-      const line = new LineTranslatable(lineStart, lineEnd)
+      const line = new LineAB(lineStart, lineEnd)
       const intersection = getIntersections([svgRect, line])
 
       // if there's no intersection it means that the line doesn't intersects the svgRect and isn't visible
@@ -896,7 +896,7 @@ export const drawSvg = async (
   const y = options.y !== undefined ? options.y : parseFloat(firstChild.attributes.y)
   const width = options.width !== undefined ? options.width : parseFloat(firstChild.attributes.width)
   const height = options.height !== undefined ? options.height : parseFloat(firstChild.attributes.height)
-  const svgRect = new RectangleTranslatable(new PointXY({x, y}), new PointXY({ x: x + width, y: y - height }))
+  const svgRect = new RectangleAC(new PointXY({x, y}), new PointXY({ x: x + width, y: y - height }))
   const runners = runnersToPage(svgRect, page, options);
   const elements = parse(svg, options, size, defaultConverter);
   elements.forEach((elt) => runners[elt.tagName]?.(elt));

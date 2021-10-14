@@ -1,6 +1,5 @@
-import Point, { PointXY } from './elements/Point'
-import { RectangleAC } from './elements/Rectangle'
-import { Coordinates, Space, Translatable, Rotatable, Resizable, Editable, Functional, Linkable } from '../types'
+import Point from './elements/Point'
+import { Coordinates } from '../types'
 
 /** This value represents the precision we accept for float values */
 export const FLOAT_APPROXIMATION = 0.000001
@@ -124,41 +123,6 @@ export function toRadians(degrees: number) {
   return (degrees / 180) * Math.PI
 }
 
-// for reference, check this link
-// https://stackoverflow.com/questions/62855310/converting-a-list-of-points-to-an-svg-cubic-piecewise-bezier-curve
-export const controlPoints = (p: Coordinates[]) => {
-  const tangentSize = 1 / 5
-  // given the points array p calculate the control points for the cubic Bezier curves
-  const pc: Coordinates[][] = []
-
-  for (let i = 1; i < p.length - 1; i++) {
-    const dx = p[i - 1].x - p[i + 1].x // difference x
-    const dy = p[i - 1].y - p[i + 1].y // difference y
-    // the first control point
-    const x1 = p[i].x - dx * tangentSize
-    const y1 = p[i].y - dy * tangentSize
-    const o1 = {
-      x: x1,
-      y: y1,
-    }
-
-    // the second control point
-    const x2 = p[i].x + dx * tangentSize
-    const y2 = p[i].y + dy * tangentSize
-    const o2 = {
-      x: x2,
-      y: y2,
-    }
-
-    // building the control points array
-    pc[i] = []
-    pc[i].push(o1)
-    pc[i].push(o2)
-  }
-
-  return pc
-}
-
 /**
  * Round a value to the provided precision
  * @param value The value to round up
@@ -176,44 +140,8 @@ export const roundNumber = (value: number, precision: number) => {
 }
 
 /**
- * Create the math representation of the viewport
- * @param {Space} space The space representing the viewport
- * @returns {Rectangle} The Rectangle representing the viewport
- */
-export const getSpaceRectangle = (space: Space) => {
-  return new RectangleAC(
-    new PointXY({ x: space.xMin, y: space.yMin }),
-    new PointXY({ x: space.xMax, y: space.yMax })
-  )
-}
-
-/**
  * Is the angle orthogonal
  * @param angle The angle in radian
  * @returns true if the angle is +-Math.PI / 2
  */
 export const isOrthogonal = (angle: number) => isEqual(Math.abs(angle), Math.PI / 2)
-
-export function isTranslatable(elt: unknown): elt is Translatable {
-  return typeof (<Translatable>elt).translate === 'function'
-}
-
-export function isRotatable(elt: unknown): elt is Rotatable {
-  return typeof (<Rotatable>elt).rotate === 'function'
-}
-
-export function isResizable(elt: unknown): elt is Resizable {
-  return typeof (<Resizable>elt).getHandles === 'function'
-}
-
-export function isEditable(elt: unknown): elt is Editable {
-  return typeof (<Editable>elt).setText === 'function'
-}
-
-export function isFunctional(elt: unknown): elt is Functional {
-  return typeof (<Functional>elt).y === 'function'
-}
-
-export function isLinkable(elt: unknown): elt is Linkable {
-  return typeof (<Linkable>elt).getLinks === 'function'
-}

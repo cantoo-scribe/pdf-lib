@@ -1,4 +1,4 @@
-import { Coordinates, DrawConfig, Size, Resizable, Translatable } from '../../types'
+import { Size } from '../../types'
 import {
   angle,
   distance,
@@ -7,39 +7,17 @@ import {
   orthogonal,
   rotate,
   times,
-  toDegrees,
   unitVector,
   vector,
-  isTranslatable,
 } from '../maths'
 
-import GraphElement, { GraphOptions } from './GraphElement'
+import GraphElement from './GraphElement'
 import Point, { PointXY } from './Point'
 import Segment, { SegmentAB } from './Segment'
-type EllipseAttributes = {
-  cx: string | number
-  cy: string | number
-  rx: string | number
-  ry: string | number
-  strokeWidth: string | number
-  stroke?: string
-  fill: string
-  transform: string
-}
-export default abstract class Ellipse extends GraphElement<EllipseAttributes> {
-  filled?: boolean
-  constructor(options?: GraphOptions) {
-    super(options)
-    if (options?.filled) this.filled = options.filled
-  }
 
-  get options(): GraphOptions {
-    // @ts-ignore
-    return { ...super.options, filled: this.filled }
-  }
-
-  set options(options: GraphOptions) {
-    Object.assign(this, options)
+export default abstract class Ellipse extends GraphElement {
+  constructor() {
+    super()
   }
 
   abstract center(): Point
@@ -47,32 +25,12 @@ export default abstract class Ellipse extends GraphElement<EllipseAttributes> {
   abstract b(): number
   abstract rotation(): number
 
-  getDrawingAttributesImpl() {
-    const { strokeScale }: Pick<DrawConfig, 'strokeScale'> = this.getDrawConfig()
-    const { x, y } = this.center().toCoords()
-    const rx = this.a()
-    const ry = this.b()
-    const rotation = this.rotation()
-    const attrs: EllipseAttributes = {
-      cx: x,
-      cy: y,
-      rx,
-      ry,
-      transform: `rotate(${toDegrees(rotation)} ${x} ${y})`,
-      strokeWidth: (this.strokeWidth || 1) * strokeScale,
-      stroke: this.filled ? undefined : this.color || 'black',
-      fill: this.filled ? this.color || 'black' : 'none',
-    }
-    return attrs
-  }
-
   /** Segment representing the main axis */
   axis(): Segment {
     const vect = rotate({ x: 1, y: 0 }, this.rotation())
     const a = this.a()
     const C = this.center()
     const axis = new SegmentAB(C.plus(times(vect, -a)), C.plus(times(vect, a)))
-    axis.setDrawConfigOf(this)
     return axis
   }
 
@@ -129,7 +87,7 @@ export default abstract class Ellipse extends GraphElement<EllipseAttributes> {
     const CP = vector(C, P)
     const teta = angle(axis.dirVect(), vector(C, P))
     const ray = this.polarRay(teta)
-    if (this.filled && distance(P, this.center()) < ray) return P
+    if (distance(P, this.center()) < ray) return P
     const vect = times(unitVector(CP), ray)
     return new PointXY(this.center().plus(vect).toCoords())
   }
@@ -142,8 +100,8 @@ export default abstract class Ellipse extends GraphElement<EllipseAttributes> {
   }
 }
 
-export class EllipseABC extends Ellipse implements Resizable {
-  static type = 'EllipseABC' as 'EllipseABC' | 'EllipseTranslatable'
+export class EllipseABC extends Ellipse {
+  static type = 'EllipseABC'
   A: Point
   B: Point
   C: Point
@@ -151,29 +109,21 @@ export class EllipseABC extends Ellipse implements Resizable {
   constructor(
     A: Point = new PointXY(),
     B: Point = new PointXY(),
-    C: Point = new PointXY(),
-    options?: GraphOptions
+    C: Point = new PointXY()
   ) {
-    super(options)
+    super()
     this.A = A
     this.B = B
     this.C = C
   }
 
-  getHandles(): (Point & Translatable)[] {
-    return [this.A, this.B, this.C].filter(elt => isTranslatable(elt)) as (Point &
-      Translatable)[]
-  }
-
   center(): Point {
     const center = this.axis().middle()
-    center.setDrawConfigOf(this)
     return center
   }
 
   axis(): Segment {
     const axis = new SegmentAB(this.A, this.B)
-    axis.setDrawConfigOf(this)
     return axis
   }
 
@@ -195,51 +145,25 @@ export class EllipseABC extends Ellipse implements Resizable {
   }
 }
 
-export class EllipseTranslatable extends EllipseABC implements Translatable, Resizable {
-  static type = 'EllipseTranslatable' as const
-  constructor(
-    A: Point & Translatable = new PointXY(),
-    B: Point & Translatable = new PointXY(),
-    C: Point & Translatable = new PointXY(),
-    options?: GraphOptions
-  ) {
-    super(A, B, C, options)
-  }
-
-  translate(vector: Coordinates): void {
-    ;(this.A as PointXY).translate(vector)
-    ;(this.B as PointXY).translate(vector)
-    ;(this.C as PointXY).translate(vector)
-  }
-}
-
-export class EllipseAB extends Ellipse implements Resizable {
-  static type = 'EllipseAB' as 'EllipseAB' | 'EllipseABTranslatable'
+export class EllipseAB extends Ellipse {
+  static type = 'EllipseAB'
   A: Point
   B: Point
 
-  constructor(A: Point = new PointXY(), B: Point = new PointXY(), options?: GraphOptions) {
-    super(options)
+  constructor(A: Point = new PointXY(), B: Point = new PointXY()) {
+    super()
     this.A = A
     this.B = B
   }
 
-  getHandles(): (Point & Translatable)[] {
-    return [this.A, this.B].filter(elt => isTranslatable(elt)) as (Point & Translatable)[]
-  }
-
   center(): Point {
-    this.A.setDrawConfigOf(this)
-    this.B.setDrawConfigOf(this)
     const vect = times(vector(this.A, this.B), 0.5)
     const center = this.A.plus(vect)
-    center.setDrawConfigOf(this)
     return center
   }
 
   axis(): Segment {
     const axis = new SegmentAB(this.A, this.B)
-    axis.setDrawConfigOf(this)
     return axis
   }
 
@@ -255,21 +179,5 @@ export class EllipseAB extends Ellipse implements Resizable {
 
   rotation(): number {
     return 0
-  }
-}
-
-export class EllipseABTranslatable extends EllipseAB implements Translatable, Resizable {
-  static type = 'EllipseABTranslatable' as const
-  constructor(
-    A: Point & Translatable = new PointXY(),
-    B: Point & Translatable = new PointXY(),
-    options?: GraphOptions
-  ) {
-    super(A, B, options)
-  }
-
-  translate(vector: Coordinates): void {
-    ;(this.A as PointXY).translate(vector)
-    ;(this.B as PointXY).translate(vector)
   }
 }
