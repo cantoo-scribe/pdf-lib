@@ -1,12 +1,26 @@
-import { distance, isColinear, norm, scalar, vector } from '../maths'
+import { distance, isColinear, norm, scalar, vector, plus, times } from '../maths'
 
 import GraphElement from './GraphElement'
-import { LineOVect } from './Line'
-import Point, { PointRatio, PointXY } from './Point'
+import Line from './Line'
+import Point from './Point'
 
-export default abstract class Segment extends GraphElement {
-  abstract origin(): Point
-  abstract destination(): Point
+export default class Segment extends GraphElement {
+  static type = 'Segment'
+  A: Point
+  B: Point
+  constructor(A: Point = new Point(), B: Point = new Point()) {
+    super()
+    this.A = A
+    this.B = B
+  }
+
+  origin(): Point {
+    return this.A
+  }
+
+  destination(): Point {
+    return this.B
+  }
 
   dirVect() {
     return vector(this.origin(), this.destination())
@@ -30,7 +44,7 @@ export default abstract class Segment extends GraphElement {
 
   /** Returns an equivalent line object */
   getLine() {
-    const line = new LineOVect(this.origin(), this.dirVect())
+    const line = new Line(this.origin(), this.destination())
     return line
   }
 
@@ -47,7 +61,7 @@ export default abstract class Segment extends GraphElement {
   }
 
   middle() {
-    const mid = new PointRatio(this.origin(), this, 0.5)
+    const mid = new Point(plus(this.origin().toCoords(), times(this.dirVect(), 0.5)))
     return mid
   }
 
@@ -58,29 +72,10 @@ export default abstract class Segment extends GraphElement {
     const destination = this.destination().toCoords()
     const otherVect = vector(this.origin(), H)
     // The point is before the origin
-    if (scalar(vect, otherVect) < 0) return new PointXY(origin)
+    if (scalar(vect, otherVect) < 0) return new Point(origin)
     // The point is after the destination
-    else if (norm(vect) < norm(otherVect)) return new PointXY(destination)
+    else if (norm(vect) < norm(otherVect)) return new Point(destination)
     // The point is within the segment
     else return H
-  }
-}
-
-export class SegmentAB extends Segment {
-  static type = 'SegmentAB'
-  A: Point
-  B: Point
-  constructor(A: Point = new PointXY(), B: Point = new PointXY()) {
-    super()
-    this.A = A
-    this.B = B
-  }
-
-  origin(): Point {
-    return this.A
-  }
-
-  destination(): Point {
-    return this.B
   }
 }

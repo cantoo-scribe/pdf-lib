@@ -114,34 +114,3 @@ export function rotate(vector: Coordinates, angle: number): Coordinates {
   const ny = y * Math.cos(angle) + x * Math.sin(angle)
   return { x: nx, y: ny }
 }
-
-export function toDegrees(rad: number) {
-  return (rad * 180) / Math.PI
-}
-
-export function toRadians(degrees: number) {
-  return (degrees / 180) * Math.PI
-}
-
-/**
- * Round a value to the provided precision
- * @param value The value to round up
- * @param precision The step between 2 values. For instance: 0.1 to accept 2.1, 2.2, etc
- * @returns The rounded value as a string, ready for displaying
- */
-export const roundNumber = (value: number, precision: number) => {
-  const rounded =
-    precision < 1
-      ? Math.round(value / precision) / (1 / precision)
-      : Math.round(value / precision) * precision
-  const fixes = precision >= 1 ? 0 : ((precision + '').split('.')[1] || '').length
-  const hardRounded = rounded.toFixed(fixes)
-  return hardRounded
-}
-
-/**
- * Is the angle orthogonal
- * @param angle The angle in radian
- * @returns true if the angle is +-Math.PI / 2
- */
-export const isOrthogonal = (angle: number) => isEqual(Math.abs(angle), Math.PI / 2)

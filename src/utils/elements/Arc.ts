@@ -1,19 +1,51 @@
 import { angleABC, distance, distanceCoords, rotate, vector } from '../maths'
 
-import { CircleORay } from './Circle'
+import Circle from './Circle'
 import GraphElement from './GraphElement'
-import Point, { PointXY, Projected } from './Point'
+import Point, { Projected } from './Point'
 
-export default abstract class Arc extends GraphElement {
-  abstract center(): Point
-  abstract origin(): Point
-  abstract sweep(): number
+export default class Arc extends GraphElement {
+  static type = 'Arc'
+  O: Point
+  A: Point
+  B: Point
+  /** Last sweep. Used to deduce the angle orientation */
+  lastSweep: number
 
-  destination(): Point {
-    const dest = this.center().plus(
-      rotate(vector(this.center(), this.origin()), this.sweep())
-    )
+  constructor(
+    O: Point = new Point(),
+    A: Point = new Point(),
+    B: Point = new Point(),
+    lastSweep = 0
+  ) {
+    super()
+    this.O = O
+    this.A = A
+    this.B = B
+    this.lastSweep = lastSweep
+  }
+
+  center() {
+    return this.O
+  }
+
+  origin() {
+    return this.A
+  }
+
+  destination() {
+    const dest = new Projected(this.getCircle(), this.B)
     return dest
+  }
+
+  sweep() {
+    this.lastSweep = angleABC(
+      this.origin(),
+      this.center(),
+      this.destination(),
+      this.lastSweep
+    )
+    return this.lastSweep
   }
 
   ray() {
@@ -33,7 +65,7 @@ export default abstract class Arc extends GraphElement {
   }
 
   getCircle() {
-    const circle = new CircleORay(this.center(), this.ray())
+    const circle = new Circle(this.center(), this.ray())
     return circle
   }
 
@@ -66,82 +98,7 @@ export default abstract class Arc extends GraphElement {
         distanceCoords(H.toCoords(), origin) < distanceCoords(H.toCoords(), destination)
           ? origin
           : destination
-      return new PointXY(coords)
+      return new Point(coords)
     }
-  }
-}
-
-export class ArcOAB extends Arc {
-  static type = 'ArcOAB' as 'ArcOAB' | 'ArcTranslatable'
-  O: Point
-  A: Point
-  B: Point
-  /** Last sweep. Used to deduce the angle orientation */
-  lastSweep: number
-
-  constructor(
-    O: Point = new PointXY(),
-    A: Point = new PointXY(),
-    B: Point = new PointXY(),
-    lastSweep = 0
-  ) {
-    super()
-    this.O = O
-    this.A = A
-    this.B = B
-    this.lastSweep = lastSweep
-  }
-
-  center() {
-    return this.O
-  }
-
-  origin() {
-    return this.A
-  }
-
-  destination() {
-    const dest = new Projected(this.getCircle(), this.B)
-    return dest
-  }
-
-  sweep() {
-    this.lastSweep = angleABC(
-      this.origin(),
-      this.center(),
-      this.destination(),
-      this.lastSweep
-    )
-    return this.lastSweep
-  }
-}
-
-/** Create an Arc that will be removed if the original support is removed, or the origin of the arc. */
-export class ArcDependant extends Arc {
-  static type = 'ArcDependant' as const
-  arc: Arc
-  P: Point
-  constructor(arc: Arc = new ArcOAB(), P: Point = new PointXY()) {
-    super()
-    this.arc = arc
-    this.P = P
-  }
-
-  getDependencies() {
-    return [this.arc, this.arc.origin(), this.destination()]
-  }
-
-  center(): Point {
-    const center = this.arc.center()
-    return center
-  }
-
-  origin(): Point {
-    const origin = this.arc.origin()
-    return origin
-  }
-
-  sweep(): number {
-    return angleABC(this.origin(), this.center(), this.P, this.arc.sweep())
   }
 }
