@@ -1,11 +1,11 @@
 import Arc from './elements/Arc'
 import Circle from './elements/Circle'
 import Ellipse from './elements/Ellipse'
-import Line, { LineAB } from './elements/Line'
+import Line from './elements/Line'
 import Plot, { PlotFree } from './elements/Plot'
-import Point, { PointXY } from './elements/Point'
+import Point from './elements/Point'
 import Rectangle from './elements/Rectangle'
-import Segment, {SegmentAB} from './elements/Segment'
+import Segment from './elements/Segment'
 import { Coordinates, GraphicElement } from '../types'
 import {
   distance,
@@ -26,10 +26,10 @@ export function intersections(A: GraphicElement, B: GraphicElement): Coordinates
   else if (A instanceof Ellipse || B instanceof Ellipse) return []
   else if (A instanceof Line) return intersectionsLine(A, B)
   else if (A instanceof Segment)
-    return intersectionsLine(A.getLine(), B).filter(P => A.includes(new PointXY(P)))
+    return intersectionsLine(A.getLine(), B).filter(P => A.includes(new Point(P)))
   else if (A instanceof Circle) return intersectionsCircle(A, B)
   else if (A instanceof Arc)
-    return intersectionsCircle(A.getCircle(), B).filter(P => A.includes(new PointXY(P)))
+    return intersectionsCircle(A.getCircle(), B).filter(P => A.includes(new Point(P)))
   else if (A instanceof Plot) return intersectionsPlot(A, B)
   else if (A instanceof Rectangle) return intersectionsRectangle(A, B)
   return A
@@ -48,10 +48,10 @@ function intersectionsLine(
 ): Coordinates[] {
   if (B instanceof Line) return intersectionLine(A, B)
   else if (B instanceof Segment)
-    return intersectionLine(A, B.getLine()).filter(P => B.includes(new PointXY(P)))
+    return intersectionLine(A, B.getLine()).filter(P => B.includes(new Point(P)))
   else if (B instanceof Circle) return intersectionCircleLine(B, A)
   else if (B instanceof Arc)
-    return intersectionsCircle(B.getCircle(), A).filter(P => B.includes(new PointXY(P)))
+    return intersectionsCircle(B.getCircle(), A).filter(P => B.includes(new Point(P)))
   else if (B instanceof Plot) return intersectionsPlot(B, A)
   else if (B instanceof Rectangle) return intersectionsRectangle(B, A)
   return B
@@ -71,9 +71,9 @@ export function intersectionLine(A: Line, B: Line): Coordinates[] {
 }
 
 function intersectionsPlot(A: Plot, B: GraphicElement): Coordinates[] {
-  const points = A.getPoints().map(pt => new PointXY(pt))
+  const points = A.getPoints().map(pt => new Point(pt))
   const head = points.pop()
-  const segments = points.map((pt, i) => new SegmentAB(pt, points[i + 1] || head))
+  const segments = points.map((pt, i) => new Segment(pt, points[i + 1] || head))
   // @ts-ignore
   const inters = segments.map(s => intersections(s, B)).flat()
   return inters
@@ -120,7 +120,7 @@ export function intersectionCircle(A: Circle, B: Circle): Coordinates[] {
   else {
     const ratio = 1 / 2 + (rA * rA - rB * rB) / (CC * CC) / 2
     const H = oA.plus(times(axis, ratio))
-    return intersectionCircleLine(A, new LineAB(H, H.plus(orthogonal(axis))))
+    return intersectionCircleLine(A, new Line(H, H.plus(orthogonal(axis))))
   }
 }
 
@@ -131,9 +131,9 @@ function intersectionsCircle(
   if (B instanceof Circle) return intersectionCircle(A, B)
   else if (B instanceof Line) return intersectionCircleLine(A, B)
   else if (B instanceof Segment)
-    return intersectionCircleLine(A, B.getLine()).filter(P => B.includes(new PointXY(P)))
+    return intersectionCircleLine(A, B.getLine()).filter(P => B.includes(new Point(P)))
   else if (B instanceof Arc)
-    return intersectionCircle(A, B.getCircle()).filter(P => B.includes(new PointXY(P)))
+    return intersectionCircle(A, B.getCircle()).filter(P => B.includes(new Point(P)))
   else if (B instanceof Plot) return intersectionsPlot(B, A)
   else if (B instanceof Rectangle) return intersectionsRectangle(B, A)
   return B

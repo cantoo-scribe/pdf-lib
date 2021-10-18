@@ -1,54 +1,14 @@
-import { Coordinates } from '../../types'
 import GraphElement from './GraphElement'
-import Point, { PointXY } from './Point'
-import { SegmentAB } from './Segment'
+import Point from './Point'
+import Segment from './Segment'
 
-export default abstract class Rectangle extends GraphElement{
-  getStart() {
-    const start = new PointXY(this.getCoords())
-    return start
-  }
-
-  getEnd() {
-    const { width, height } = this.getSize()
-    const end = new PointXY(this.getStart()).plus({ x: width, y: -height })
-    return end
-  }
-
-  center() {
-    const center = new SegmentAB(this.getStart(), this.getEnd()).middle()
-    return center
-  }
-
-  isEqual(element: GraphElement): boolean {
-    return (
-      element instanceof Rectangle &&
-      this.getStart().isEqual(element.getStart()) &&
-      this.getEnd().isEqual(element.getEnd())
-    )
-  }
-
-  orthoProjection(P: Point) {
-    const { x, y } = this.getCoords()
-    const end = this.getEnd().toCoords()
-    const { x: Px, y: Py } = P.toCoords()
-    const Hx = Px < x ? x : Px > end.x ? end.x : Px
-    const Hy = Py > y ? y : Py < end.y ? end.y : Py
-    return new PointXY({ x: Hx, y: Hy })
-  }
-
-  abstract getCoords(): Coordinates
-
-  abstract getSize(): { width: number; height: number }
-}
-
-export class RectangleAC extends Rectangle {
-  static type = 'RectangleAC'
+export default class Rectangle extends GraphElement{
+  static type = 'Rectangle'
   start: Point
   end: Point
   constructor(
-    start: Point = new PointXY(),
-    end: Point = new PointXY()
+    start: Point = new Point(),
+    end: Point = new Point()
   ) {
     super()
     this.start = start
@@ -71,5 +31,38 @@ export class RectangleAC extends Rectangle {
       x: Math.min(start.x, end.x),
       y: Math.max(start.y, end.y),
     }
+  }
+
+  getStart() {
+    const start = new Point(this.getCoords())
+    return start
+  }
+
+  getEnd() {
+    const { width, height } = this.getSize()
+    const end = new Point(this.getStart()).plus({ x: width, y: -height })
+    return end
+  }
+
+  center() {
+    const center = new Segment(this.getStart(), this.getEnd()).middle()
+    return center
+  }
+
+  isEqual(element: GraphElement): boolean {
+    return (
+      element instanceof Rectangle &&
+      this.getStart().isEqual(element.getStart()) &&
+      this.getEnd().isEqual(element.getEnd())
+    )
+  }
+
+  orthoProjection(P: Point) {
+    const { x, y } = this.getCoords()
+    const end = this.getEnd().toCoords()
+    const { x: Px, y: Py } = P.toCoords()
+    const Hx = Px < x ? x : Px > end.x ? end.x : Px
+    const Hy = Py > y ? y : Py < end.y ? end.y : Py
+    return new Point({ x: Hx, y: Hy })
   }
 }

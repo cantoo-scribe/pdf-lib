@@ -5,34 +5,59 @@ import {
   isEqual,
   orientation,
   orthogonal,
-  rotate,
   times,
   unitVector,
   vector,
 } from '../maths'
 
 import GraphElement from './GraphElement'
-import Point, { PointXY } from './Point'
-import Segment, { SegmentAB } from './Segment'
+import Point from './Point'
+import Segment from './Segment'
 
-export default abstract class Ellipse extends GraphElement {
-  constructor() {
+export default class Ellipse extends GraphElement {
+  static type = 'Ellipse'
+  A: Point
+  B: Point
+  C: Point
+
+  constructor(
+    A: Point = new Point(),
+    B: Point = new Point(),
+    C: Point = new Point()
+  ) {
     super()
+    this.A = A
+    this.B = B
+    this.C = C
   }
 
-  abstract center(): Point
-  abstract a(): number
-  abstract b(): number
-  abstract rotation(): number
+  center(): Point {
+    const center = this.axis().middle()
+    return center
+  }
 
-  /** Segment representing the main axis */
   axis(): Segment {
-    const vect = rotate({ x: 1, y: 0 }, this.rotation())
-    const a = this.a()
-    const C = this.center()
-    const axis = new SegmentAB(C.plus(times(vect, -a)), C.plus(times(vect, a)))
+    const axis = new Segment(this.A, this.B)
     return axis
   }
+
+  a(): number {
+    const axis = this.axis()
+    return Math.max(axis.length() / 2, axis.distance(this.C))
+  }
+
+  b(): number {
+    const axis = this.axis()
+    return Math.min(axis.length() / 2, axis.distance(this.C))
+  }
+
+  rotation(): number {
+    const axis = this.axis()
+    return axis.length() / 2 > axis.distance(this.C)
+      ? orientation(axis.dirVect())
+      : orientation(orthogonal(axis.dirVect()))
+  }
+
 
   getSize(): Size {
     return { width: 2 * this.a(), height: 2 * this.b() }
@@ -89,7 +114,7 @@ export default abstract class Ellipse extends GraphElement {
     const ray = this.polarRay(teta)
     if (distance(P, this.center()) < ray) return P
     const vect = times(unitVector(CP), ray)
-    return new PointXY(this.center().plus(vect).toCoords())
+    return new Point(this.center().plus(vect).toCoords())
   }
 
   polarRay(teta: number) {
@@ -97,87 +122,5 @@ export default abstract class Ellipse extends GraphElement {
     const b = this.b()
     const excentricity = Math.sqrt(Math.abs(a * a - b * b)) / Math.max(a, b)
     return Math.min(a, b) / Math.sqrt(1 - Math.pow(excentricity * Math.cos(teta), 2))
-  }
-}
-
-export class EllipseABC extends Ellipse {
-  static type = 'EllipseABC'
-  A: Point
-  B: Point
-  C: Point
-
-  constructor(
-    A: Point = new PointXY(),
-    B: Point = new PointXY(),
-    C: Point = new PointXY()
-  ) {
-    super()
-    this.A = A
-    this.B = B
-    this.C = C
-  }
-
-  center(): Point {
-    const center = this.axis().middle()
-    return center
-  }
-
-  axis(): Segment {
-    const axis = new SegmentAB(this.A, this.B)
-    return axis
-  }
-
-  a(): number {
-    const axis = this.axis()
-    return Math.max(axis.length() / 2, axis.distance(this.C))
-  }
-
-  b(): number {
-    const axis = this.axis()
-    return Math.min(axis.length() / 2, axis.distance(this.C))
-  }
-
-  rotation(): number {
-    const axis = this.axis()
-    return axis.length() / 2 > axis.distance(this.C)
-      ? orientation(axis.dirVect())
-      : orientation(orthogonal(axis.dirVect()))
-  }
-}
-
-export class EllipseAB extends Ellipse {
-  static type = 'EllipseAB'
-  A: Point
-  B: Point
-
-  constructor(A: Point = new PointXY(), B: Point = new PointXY()) {
-    super()
-    this.A = A
-    this.B = B
-  }
-
-  center(): Point {
-    const vect = times(vector(this.A, this.B), 0.5)
-    const center = this.A.plus(vect)
-    return center
-  }
-
-  axis(): Segment {
-    const axis = new SegmentAB(this.A, this.B)
-    return axis
-  }
-
-  a(): number {
-    const axis = this.axis().dirVect()
-    return Math.abs(axis.x / 2)
-  }
-
-  b(): number {
-    const axis = this.axis().dirVect()
-    return Math.abs(axis.y / 2)
-  }
-
-  rotation(): number {
-    return 0
   }
 }

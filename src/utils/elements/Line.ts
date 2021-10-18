@@ -8,13 +8,28 @@ import {
 } from '../maths'
 
 import GraphElement from './GraphElement'
-import Point, { PointXY } from './Point'
+import Point from './Point'
 
-export default abstract class Line extends GraphElement {
-  /** The origin of the line */
-  abstract origin(): Point
-  /** Direction vector */
-  abstract dirVect(): Coordinates
+export default class Line extends GraphElement {
+  static type = 'Line'
+
+  origin(): Point {
+    return this.A
+  }
+
+  dirVect(): Coordinates {
+    return vector(this.A, this.B)
+  }
+
+  A: Point
+  B: Point
+
+  constructor(A: Point = new Point(), B: Point = new Point()) {
+    super()
+    this.A = A
+    this.B = B
+  }
+
   /** Line equation */
   y(x: number) {
     const a = this.a()
@@ -63,59 +78,15 @@ export default abstract class Line extends GraphElement {
 
   /** This is used to standarsize type Segment | HalfLine | Line */
   getLine() {
-    const line = new LineOVect(this.origin(), this.dirVect())
+    const line = new Line(this.origin(), this.B)
     return line
   }
 
-  orthoProjection(P: Point): PointXY {
+  orthoProjection(P: Point): Point {
     const vectOrtho = orthogonal(this.dirVect())
-    const A = new PointXY(P.toCoords())
-    const ortho = new LineAB(A, A.plus(vectOrtho))
+    const A = new Point(P.toCoords())
+    const ortho = new Line(A, A.plus(vectOrtho))
     const H = intersectionLine(this, ortho)[0]
-    return new PointXY(H)
-  }
-}
-
-export class LineAB extends Line {
-  static type = 'LineAB'
-
-  origin(): Point {
-    return this.A
-  }
-
-  dirVect(): Coordinates {
-    return vector(this.A, this.B)
-  }
-
-  A: Point
-  B: Point
-
-  constructor(A: Point = new PointXY(), B: Point = new PointXY()) {
-    super()
-    this.A = A
-    this.B = B
-  }
-}
-
-export class LineOVect extends Line {
-  static type = 'LineOVect' as const
-  O: Point
-  vect: Coordinates
-
-  constructor(
-    O: Point = new PointXY(),
-    vect: Coordinates = { x: 1, y: 1 }
-  ) {
-    super()
-    this.O = O
-    this.vect = vect
-  }
-
-  origin(): Point {
-    return this.O
-  }
-
-  dirVect(): Coordinates {
-    return this.vect
+    return new Point(H)
   }
 }

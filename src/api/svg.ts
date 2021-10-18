@@ -10,7 +10,7 @@ import { Degrees, degreesToRadians, RotationTypes } from './rotations';
 import PDFPage from './PDFPage';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle } from './operators';
-import { RectangleAC, PointXY, LineAB, SegmentAB } from 'src/utils/elements';
+import { Rectangle, Point, Segment } from 'src/utils/elements';
 import { getIntersections } from 'src/utils/intersections';
 import { distanceCoords, isEqual, distance } from 'src/utils/maths';
 interface Position {
@@ -78,7 +78,7 @@ interface SVGElementToDrawMap {
   [cmd: string]: (a: SVGElement) => Promise<void>;
 }
 
-const isCoordinateInsideTheRect  = (dot: PointXY, rect: RectangleAC) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
+const isCoordinateInsideTheRect  = (dot: Point, rect: Rectangle) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
 
 const StrokeLineCapMap: Record<string, LineCapStyle> = {
   butt: LineCapStyle.Butt,
@@ -103,10 +103,39 @@ const matchAll = (str: string) => (re: RegExp) => {
   return matches;
 };
 
+const getInnerSegment = (start: Point, end: Point, rect: Rectangle) => {
+  const isStartInside = isCoordinateInsideTheRect(start, rect)
+  const isEndInside = isCoordinateInsideTheRect(end, rect)
+  let resultLineStart = start
+  let resultLineEnd = end
+  // it means that the segment is already inside the rect
+  if (isEndInside && isStartInside) return new Segment(start, end)
+
+  const line = new Segment(start, end)
+  const intersection = getIntersections([rect, line])
+
+  // if there's no intersection it means that the line doesn't intersects the svgRect and isn't visible
+  if (intersection.length === 0) return
+
+  if (!isStartInside) {
+    // replace the line start point by the nearest intersection
+    const nearestPoint = intersection.sort((p1, p2) => distanceCoords(start, p1) - distanceCoords(start, p2))[0]
+    resultLineStart = new Point(nearestPoint)
+  }
+
+  if (!isEndInside) {
+    // replace the line start point by the nearest intersection
+    const nearestPoint = intersection.sort((p1, p2) => distanceCoords(end, p1) - distanceCoords(end, p2))[0]
+    resultLineEnd = new Point(nearestPoint)
+  }
+  
+  return new Segment(resultLineStart, resultLineEnd)
+}
+
 // TODO: Improve type system to require the correct props for each tagName.
 /** methods to draw SVGElements onto a PDFPage */
 const runnersToPage = (
-  svgRect: RectangleAC,
+  svgRect: Rectangle,
   page: PDFPage,
   options: PDFPageDrawSVGElementOptions,
 ): SVGElementToDrawMap => ({
@@ -117,7 +146,7 @@ const runnersToPage = (
     const textWidth = (text.length * fontSize) / 2; // We try to approx the width of the text
     const offset =
       anchor === 'middle' ? textWidth / 2 : anchor === 'end' ? textWidth : 0;
-    const point = new PointXY({ x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 })
+    const point = new Point({ x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 })
 
     if (isCoordinateInsideTheRect(point, svgRect)) {
       page.drawText(text, {
@@ -135,44 +164,21 @@ const runnersToPage = (
     }
   },
   async line(element) {
-    let start =  new PointXY({
+    const start =  new Point({
       x: element.svgAttributes.x1!,
       y: element.svgAttributes.y1!,
     })
 
-    let end = new PointXY({
+    const end = new Point({
       x: element.svgAttributes.x2!,
       y: element.svgAttributes.y2!,
     })
-
-    const isStartInside = isCoordinateInsideTheRect(start, svgRect)
-    const isEndInside = isCoordinateInsideTheRect(end, svgRect)
-
-    if (!(isStartInside && isEndInside)) {
-      const lineStart = new PointXY(start)
-      const lineEnd = new PointXY(end)
-      const line = new LineAB(lineStart, lineEnd)
-      const intersection = getIntersections([svgRect, line])
-
-      // if there's no intersection it means that the line doesn't intersects the svgRect and isn't visible
-      if (intersection.length === 0) return
-
-      if (!isStartInside) {
-        // replace the line start point by the nearest intersection
-        const nearestPoint = intersection.sort((p1, p2) => distanceCoords(start, p1) - distanceCoords(start, p2))[0]
-        start = new PointXY(nearestPoint)
-      }
-
-      if (!isEndInside) {
-        // replace the line start point by the nearest intersection
-        const nearestPoint = intersection.sort((p1, p2) => distanceCoords(end, p1) - distanceCoords(end, p2))[0]
-        end = new PointXY(nearestPoint)
-      }
-    }
+    const line = getInnerSegment(start, end, svgRect)
+    if (!line) return
 
     page.drawLine({
-      start,
-      end,
+      start: line.A.toCoords(),
+      end: line.B.toCoords(),
       thickness: element.svgAttributes.strokeWidth,
       color: element.svgAttributes.stroke,
       opacity: element.svgAttributes.strokeOpacity,
@@ -181,8 +187,8 @@ const runnersToPage = (
   },
   async path(element) {
     // the path origin coordinate
-    const basePoint = new PointXY({x: element.svgAttributes.x || 0, y: element.svgAttributes.y || 0})
-    const normalizePoint = (p: PointXY) => new PointXY({ x: p.x - basePoint.x, y:  p.y - basePoint.y})
+    const basePoint = new Point({x: element.svgAttributes.x || 0, y: element.svgAttributes.y || 0})
+    const normalizePoint = (p: Point) => new Point({ x: p.x - basePoint.x, y:  p.y - basePoint.y})
 
     /**
      * 
@@ -191,12 +197,12 @@ const runnersToPage = (
      * @param params the instrction params
      * @returns the point where the next instruction starts and the new instruction text
      */
-    const handlePath = (currentPoint: PointXY, command: string, params: number[]) => {
+    const handlePath = (currentPoint: Point, command: string, params: number[]) => {
       switch(command) {
         case 'm':
         case 'M':
           {
-            const nextPoint = new PointXY({
+            const nextPoint = new Point({
                 x: basePoint.x + params[0],
                 y: basePoint.y + params[1]
               })
@@ -209,44 +215,30 @@ const runnersToPage = (
         case 'L':
           {
             const isLocalInstruction = command === 'l'
-            const nextPoint = new PointXY({
+            const nextPoint = new Point({
               x: (isLocalInstruction ? currentPoint.x : basePoint.x) + params[0],
               y: (isLocalInstruction ? currentPoint.y : basePoint.y) + params[1],
             })
             const normalizedNext = normalizePoint(nextPoint)
 
-            let endPoint = new PointXY({ x: nextPoint.x, y: nextPoint.y })
-            let startPoint = new PointXY({ x: currentPoint.x, y: currentPoint.y })
-
-            const isStartInside = isCoordinateInsideTheRect(startPoint, svgRect)
-            const isEndInside = isCoordinateInsideTheRect(endPoint, svgRect)
-
-            if (!(isStartInside && isEndInside)) {
-              const line = new SegmentAB(currentPoint, nextPoint)
-              const intersection = getIntersections([svgRect, line])
-
-              // if there's no intersection it means that the line doesn't intersects the svgRect and isn't visible
-              if (intersection.length === 0) {
-                return {
+            let endPoint = new Point({ x: nextPoint.x, y: nextPoint.y })
+            let startPoint = new Point({ x: currentPoint.x, y: currentPoint.y })
+            const result = getInnerSegment(startPoint, endPoint, svgRect)
+            
+            if (!result) {
+              return {
                   point: nextPoint,
                   command: isLocalInstruction ? `M${normalizedNext.x},${normalizedNext.y}` : `M${params[0]},${params[1]}`
                 }
-              }
-
-              if (!isStartInside) {
-                // replace the line start point by the nearest intersection
-                const nearesPoint = intersection.sort((p1, p2) => distanceCoords(startPoint, p1) - distanceCoords(startPoint, p2))[0]
-                startPoint = new PointXY(nearesPoint)
-              }
-              if (!isEndInside) {
-                // replace the line end point by the nearest intersection
-                const nearesPoint = intersection.sort((p1, p2) => distanceCoords(nextPoint, p1) - distanceCoords(nextPoint, p2))[0]
-                endPoint = new PointXY(nearesPoint)
-              }
             }
+
+            // if the point wasn't moved it means that it's inside the rect
+            const isStartInside = result.A.isEqual(startPoint)
+            const isEndInside = result.B.isEqual(endPoint)
+
             // the intersection points are referencing the pdf coordinates, it's necessary to convert these points to the path's origin point
-            endPoint = normalizePoint(endPoint)
-            startPoint = normalizePoint(startPoint)
+            endPoint = normalizePoint(new Point(result.B.toCoords()))
+            startPoint = normalizePoint(new Point(result.A.toCoords()))
             const startInstruction = isStartInside ? '' : `M${startPoint.x},${startPoint.y}`
             const endInstruction = isEndInside ? '' : isLocalInstruction ? `M${normalizedNext.x},${normalizedNext.y}` : `M${params[0]},${params[1]}`
             return {
@@ -264,7 +256,7 @@ const runnersToPage = (
     }
 
     const commands = element.svgAttributes.d!.match(/(v|h|a|l|t|m|q|c)([0-9,e\s.-]*)(?=z|v|h|a|l|t|m|q|c)*/gi)
-    let currentPoint = new PointXY({x: basePoint.x, y: basePoint.y })
+    let currentPoint = new Point({x: basePoint.x, y: basePoint.y })
     const newPath = commands?.map(command => {
       const letter = command.match(/[a-z]/i)?.[0]
       const params = command.match(/([0-9e.-]*)/ig)?.filter(m => m !== '').map(v => parseFloat(v))
@@ -734,7 +726,8 @@ const parseAttributes = (
   }
   
   if (newInherited.strokeWidth) {
-    newInherited.strokeWidth = newConverter.size(newInherited.strokeWidth, newInherited.strokeWidth).width
+    const result = newConverter.size(newInherited.strokeWidth, newInherited.strokeWidth)
+    newInherited.strokeWidth = Math.max(Math.min(Math.abs(result.width), Math.abs(result.height)), 1)
   }
 
   return {
@@ -896,7 +889,7 @@ export const drawSvg = async (
   const y = options.y !== undefined ? options.y : parseFloat(firstChild.attributes.y)
   const width = options.width !== undefined ? options.width : parseFloat(firstChild.attributes.width)
   const height = options.height !== undefined ? options.height : parseFloat(firstChild.attributes.height)
-  const svgRect = new RectangleAC(new PointXY({x, y}), new PointXY({ x: x + width, y: y - height }))
+  const svgRect = new Rectangle(new Point({x, y}), new Point({ x: x + width, y: y - height }))
   const runners = runnersToPage(svgRect, page, options);
   const elements = parse(svg, options, size, defaultConverter);
   elements.forEach((elt) => runners[elt.tagName]?.(elt));
