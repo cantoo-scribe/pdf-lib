@@ -6,7 +6,7 @@ import {
   NodeType,
 } from 'node-html-better-parser';
 import { Color, colorString } from './colors';
-import { Degrees, degreesToRadians, RotationTypes } from './rotations';
+import { Degrees, degreesToRadians, RotationTypes, degrees } from './rotations';
 import PDFPage from './PDFPage';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle } from './operators';
@@ -77,6 +77,24 @@ export type SVGElement = HTMLElement & {
 interface SVGElementToDrawMap {
   [cmd: string]: (a: SVGElement) => Promise<void>;
 }
+/**
+ * take an array of T and turn it into an 2D-array where each sub array has n elements
+ * ex: [1,2,3,4] -> [[1,2], [3, 4]]
+ * @param arr the array of elements
+ * @param n the size of each sub array
+ */
+const groupBy = <T,>(arr: T[], n: number) => {
+  if (arr.length <= n) return [arr]
+  return arr?.reduce((acc, curr, i) => {
+    const index = Math.floor(i / n)
+    if (i % n) {
+      acc[index].push(curr)
+    } else {
+      acc.push([curr])
+    }
+    return acc
+  }, [] as T[][])
+}
 
 const isCoordinateInsideTheRect  = (dot: Point, rect: Rectangle) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
 
@@ -90,17 +108,6 @@ const StrokeLineJoinMap: Record<string, LineJoinStyle> = {
   bevel: LineJoinStyle.Bevel,
   miter: LineJoinStyle.Miter,
   round: LineJoinStyle.Round,
-};
-
-/** polyfill for Node < 12 */
-const matchAll = (str: string) => (re: RegExp) => {
-  const matches = [];
-  let groups;
-  // tslint:disable-next-line no-conditional-assignment
-  while ((groups = re.exec(str))) {
-    matches.push(groups);
-  }
-  return matches;
 };
 
 const getInnerSegment = (start: Point, end: Point, rect: Rectangle) => {
@@ -147,8 +154,13 @@ const runnersToPage = (
     const offset =
       anchor === 'middle' ? textWidth / 2 : anchor === 'end' ? textWidth : 0;
     const point = new Point({ x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 })
-
-    if (isCoordinateInsideTheRect(point, svgRect)) {
+    // TODO: compute the right font boundaries to know which characters should be drawed
+    // this is an workaround to draw text that are just a little outside the viewbox boundaries 
+    const start = new Point({ x: (element.svgAttributes.x || 0), y:  element.svgAttributes.y || 0 })
+    const paddingRect = new Rectangle(
+      new Point({x: svgRect.start.x - fontSize, y: svgRect.start.y + fontSize}), 
+      new Point({x: svgRect.end.x + fontSize, y: svgRect.end.y - fontSize}))
+    if (isCoordinateInsideTheRect(start, paddingRect)) {
       page.drawText(text, {
         x: point.x,
         y: point.y,
@@ -192,7 +204,7 @@ const runnersToPage = (
 
     /**
      * 
-     * @param currentPoint is the global point of the current drawing
+     * @param currentPoint is the global point of the current drawing (it means that it's relative to the page coord system)
      * @param command the path instruction 
      * @param params the instrction params
      * @returns the point where the next instruction starts and the new instruction text
@@ -224,12 +236,11 @@ const runnersToPage = (
             let endPoint = new Point({ x: nextPoint.x, y: nextPoint.y })
             let startPoint = new Point({ x: currentPoint.x, y: currentPoint.y })
             const result = getInnerSegment(startPoint, endPoint, svgRect)
-            
             if (!result) {
               return {
-                  point: nextPoint,
-                  command: isLocalInstruction ? `M${normalizedNext.x},${normalizedNext.y}` : `M${params[0]},${params[1]}`
-                }
+                point: nextPoint,
+                command: isLocalInstruction ? `M${normalizedNext.x},${normalizedNext.y}` : `M${params[0]},${params[1]}`
+              }
             }
 
             // if the point wasn't moved it means that it's inside the rect
@@ -246,7 +257,65 @@ const runnersToPage = (
               command: `${startInstruction} L${endPoint.x},${endPoint.y} ${endInstruction} `
             }
           }
-        // TODO: Handle the remaining svg instructions: v,h,a,t,q,c
+        case 'a': 
+        case 'A':
+          {
+            const isLocalInstruction = command === 'a'
+            const [ , , , , , x, y] = params
+            const nextPoint = new Point({
+              x: (isLocalInstruction ? currentPoint.x  : basePoint.x) + x,
+              y: (isLocalInstruction ? currentPoint.y  : basePoint.y) + y
+            })
+            // TODO: implement the code to fit the Elliptical Arc Curve instructions into the viewbox
+            return {
+              point: nextPoint,
+              command: `${command} ${params.map(p => `${p}`).join()}`
+            }
+          } 
+        case 'c': 
+        case 'C':
+          {
+            const isLocalInstruction = command === 'c'
+            const [ , , , , x, y] = params
+            const nextPoint = new Point({
+              x: (isLocalInstruction ? currentPoint.x  : basePoint.x) + x,
+              y: (isLocalInstruction ? currentPoint.y  : basePoint.y) + y
+            })
+            // TODO: implement the code to fit the Cubic Bézier Curve instructions into the viewbox
+            return {
+              point: nextPoint,
+              command: `${command} ${params.map(p => `${p}`).join()}`
+            }
+          } 
+        case 'h': 
+        case 'H':
+          {
+            const isLocalInstruction = command === 'h'
+            const nextPoint = new Point({
+              x: (isLocalInstruction ? currentPoint.x  : basePoint.x) + params[0],
+              y: currentPoint.y
+            })
+            // TODO: implement the code to fit the LineTo instructions into the viewbox
+            return {
+              point: nextPoint,
+              command: `${command} ${params.map(p => `${p}`).join()}`
+            }
+          } 
+        case 'v': 
+        case 'V':
+          {
+            const isLocalInstruction = command === 'v'
+            const nextPoint = new Point({
+              x: currentPoint.x,
+              y: (isLocalInstruction ? currentPoint.y  : basePoint.y) + params[0]
+            })
+            // TODO: implement the code to fit the LineTo instructions into the viewbox
+            return {
+              point: nextPoint,
+              command: `${command} ${params.map(p => `${p}`).join()}`
+            }
+          } 
+        // TODO: Handle the remaining svg instructions: t,q
         default:
           return {
             point: currentPoint,
@@ -255,11 +324,11 @@ const runnersToPage = (
       }
     }
 
-    const commands = element.svgAttributes.d!.match(/(v|h|a|l|t|m|q|c)([0-9,e\s.-]*)(?=z|v|h|a|l|t|m|q|c)*/gi)
+    const commands = element.svgAttributes.d?.match(/(v|h|a|l|t|m|q|c|s|z)([0-9,e\s.-]*)/gi)
     let currentPoint = new Point({x: basePoint.x, y: basePoint.y })
     const newPath = commands?.map(command => {
       const letter = command.match(/[a-z]/i)?.[0]
-      const params = command.match(/([0-9e.-]*)/ig)?.filter(m => m !== '').map(v => parseFloat(v))
+      const params = command.match(/(-?[0-9]+\.[0-9e]+)|(-?\.[0-9e]+)|([0-9]+)/ig)?.filter(m => m !== '').map(v => parseFloat(v))
       if (letter && params) {
         const result = handlePath(currentPoint, letter, params)
         if (result) {
@@ -269,7 +338,6 @@ const runnersToPage = (
       }
       return command
     }).join(' ')
-
     // See https://jsbin.com/kawifomupa/edit?html,output and
     page.drawSvgPath(newPath!, {
       x: element.svgAttributes.x || 0,
@@ -373,9 +441,9 @@ const transform = (
     case 'rotate': {
       if (args.length > 1) {
         const [a, x, y = x] = args;
-        let tempResult = transform(converter, 'translate', [-x, -y]);
+        let tempResult = transform(converter, 'translate', [x, y]);
         tempResult = transform(tempResult, 'rotate', [a]);
-        return transform(tempResult, 'translate', [x, y]);
+        return transform(tempResult, 'translate', [-x, -y]);
       } else {
         const [a] = args;
         const angle = degreesToRadians(a);
@@ -385,11 +453,7 @@ const transform = (
               x * Math.cos(angle) - y * Math.sin(angle),
               y * Math.cos(angle) + x * Math.sin(angle),
             ),
-          size: (w, h) =>
-            converter.size(
-              w * Math.cos(angle) - h * Math.sin(angle),
-              h * Math.cos(angle) + w * Math.sin(angle),
-            ),
+          size: converter.size,
         };
       }
     }
@@ -521,6 +585,7 @@ const parseAttributes = (
       StrokeLineJoinMap[strokeLineJoinRaw] || inherited.strokeLineJoin,
     width: width || inherited.width,
     height: height || inherited.height,
+    rotation: inherited.rotation
   };
 
   const svgAttributes: SVGAttributes = {
@@ -566,7 +631,7 @@ const parseAttributes = (
   }
   // Convert x/y as if it was a translation
   if (x || y) {
-    transformList = `translate(${x || 0} ${y || 0}) ` + transformList;
+    transformList = transformList + `translate(${x || 0} ${y || 0}) ` ;
   }
   // Apply the transformations
   if (transformList) {
@@ -578,7 +643,14 @@ const parseAttributes = (
         .split(/\s*,\s*|\s+/)
         .filter((value) => value.length > 0)
         .map((value) => parseFloat(value));
-
+      if (name === 'rotate') {
+        // transformations over x and y axis might change the page cood direction
+        const { width: xDirection, height: yDirection } = newConverter.size(1, 1)
+        // the page Y coord is inverteds so the angle rotation is inverted too
+        const pageYDirection = -1
+        newInherited.rotation = degrees(pageYDirection * args[0] * Math.sign(xDirection * yDirection) + (inherited.rotation?.angle || 0))
+        svgAttributes.rotate = newInherited.rotation
+      }
       newConverter = transform(newConverter, name, args);
       parsed = regexTransform.exec(transformList);
     }
@@ -594,7 +666,7 @@ const parseAttributes = (
     svgAttributes.cx = newCX;
     svgAttributes.cy = newCY;
   }
-  if (attributes.rx || attributes.ry) {
+  if (attributes.rx || attributes.ry || attributes.r) {
     const { width: newRX, height: newRY } = newConverter.size(rx || 0, ry || 0);
     svgAttributes.rx = newRX;
     svgAttributes.ry = newRY;
@@ -610,83 +682,83 @@ const parseAttributes = (
     svgAttributes.y2 = newY2;
   }
   if (attributes.width || attributes.height) {
-    const size = converter.size(
+    const size = newConverter.size(
       width || inherited.width,
       height || inherited.height,
     );
-    svgAttributes.width = size.width;
-    svgAttributes.height = size.height;
+    svgAttributes.width = size.width
+    svgAttributes.height = size.height
   }
   // We convert all the points from the path
   if (attributes.d) {
     const { x: xOrigin, y: yOrigin } = converter.point(0, 0);
-    // transform v/V and h/H commands
-    svgAttributes.d = attributes.d.replace(
-      /(v|h)\s*-?(\d+\.?|\.)\d*/gi,
-      (elt) => {
-        const letter = elt.charAt(0);
-        const coord = parseFloatValue(elt.slice(1).trim()) || 1;
-        if (letter === letter.toLowerCase()) {
-          return letter === 'h'
-            ? 'h' + converter.size(coord, 1).width
-            : 'v' + converter.size(1, coord).height;
-        } else {
-          return letter === 'H'
-            ? 'H' + (converter.point(coord, 1).x - xOrigin)
-            : 'V' + (converter.point(1, coord).y - yOrigin);
-        }
-      },
-    );
-    // transform a
-    svgAttributes.d = svgAttributes.d.replace(
-      /a\s*(((-?\d+\.?|\.)\d*)(,\s*|\s+|(?=-)|$|\D)){1,7}/gi,
-      elt => {
-        const letter = elt.charAt(0);
-        const params = elt.slice(1);
-        const [rx, ry, xAxisRotation = '0', largeArc = '0', sweepFlag = '0', x, y] = params.match(/-?(\d+\.?|\.)\d*/g) || []
-        const realRx = parseFloatValue(rx, inherited.width) || 0
-        const realRy = parseFloatValue(ry, inherited.height) || 0
-        const realX = parseFloatValue(x, inherited.width) || 0
-        const realY = parseFloatValue(y, inherited.height) || 0
-        const { width: newRx, height: newRy } = converter.size(realRx, realRy)
-        let newX, newY
-        if (letter === letter.toLowerCase()) {
-          const { width, height } = converter.size(realX, realY)
-          newX = width;
-          newY = height
-        } else {
-          const { x: pX, y: pY } = converter.point(realX, realY)
-          newX = pX
-          newY = pY
-        }
-        return [letter, newRx, newRy, xAxisRotation, largeArc, sweepFlag, newX - xOrigin, newY - yOrigin].join(' ')
-      }
-    )
 
-    // transform other letters
-    svgAttributes.d = svgAttributes.d.replace(
-      /(l|t|m|q|c)(\s*-?(\d+\.?|\.)\d*(,\s*|\s+|(?=-))-?(\d+\.?|\.)\d*)+/gi,
-      (elt) => {
-        const letter = elt.charAt(0);
-        const coords = elt.slice(1);
-        return (
-          letter +
-          matchAll(coords)(
-            /(-?(\d+\.?|\.)\d*)(,\s*|\s+|(?=-))(-?(\d+\.?|\.)\d*)/gi,
-          )
-            .map(([, a, , , b]) => {
-              const xReal = parseFloatValue(a, inherited.width) || 0;
-              const yReal = parseFloatValue(b, inherited.height) || 0;
-              if (letter === letter.toLowerCase()) {
-                const { width: dx, height: dy } = converter.size(xReal, yReal);
-                return [dx, -dy].join(',');
-              } else {
-                const { x: xPixel, y: yPixel } = converter.point(xReal, yReal);
-                return [xPixel - xOrigin, yPixel - yOrigin].join(',');
-              }
-            })
-            .join(' ')
-        );
+    svgAttributes.d = attributes.d?.replace(
+      /(l|m|s|t|q|c|z|a|v|h)([0-9,e\s.-]*)/gi,
+      (command) => {
+        const letter = command.match(/[a-z]/i)?.[0]
+        if (letter?.toLocaleLowerCase() === 'z') return letter
+        // const params = command.match(/([0-9e.-]+)/ig)?.filter(m => m !== '')//.map(v => parseFloat(v))
+        const params = command.match(/(-?[0-9]+\.[0-9e]+)|(-?\.[0-9e]+)|([0-9]+)/ig)?.filter(m => m !== '')//.map(v => parseFloat(v))
+
+        if (!params) return letter || ''
+        switch (letter?.toLocaleLowerCase()){
+          case 'v':
+            {
+              return params.map(value => {
+                const coord = parseFloatValue(value) || 1;
+                return letter === letter.toLowerCase() 
+                  ? 'v' + converter.size(1, coord).height * -1
+                  : 'V' + (converter.point(1, coord).y - yOrigin) 
+              }).join(' ')
+            }
+          case 'h':
+            {
+              return params.map(value => {
+                const coord = parseFloatValue(value) || 1;
+                return letter === letter.toLowerCase() 
+                  ? 'h' + converter.size(coord, 1).width
+                  : 'H' + (converter.point(coord, 1).x - xOrigin)  
+              }).join(' ')
+            }
+          case 'a':
+            {
+              const groupedParams = groupBy<string>(params, 7)
+              return groupedParams.map(p => {
+                const [rx, ry, xAxisRotation = '0', largeArc = '0', sweepFlag = '0', x, y] = p
+                const realRx = parseFloatValue(rx, inherited.width) || 0
+                const realRy = parseFloatValue(ry, inherited.height) || 0
+                const realX = parseFloatValue(x, inherited.width) || 0
+                const realY = parseFloatValue(y, inherited.height) || 0
+                const { width: newRx, height: newRy } = converter.size(realRx, realRy)
+                let newX, newY
+                if (letter === letter.toLowerCase()) {
+                  const { width, height } = converter.size(realX, realY)
+                  newX = width;
+                  newY = -height
+                } else {
+                  const { x: pX, y: pY } = converter.point(realX, realY)
+                  newX = pX - xOrigin
+                  newY = pY - yOrigin
+                }
+                return [letter, newRx, newRy, xAxisRotation, largeArc, sweepFlag === '0' ? '1' : '0', newX, newY].join(' ')
+              }).join(' ')
+            }
+          default:
+            {
+              const groupedParams = groupBy<string>(params, 2)
+              const result = groupedParams!.map(([x, y]) => ([parseFloatValue(x, inherited.width) || 0, parseFloatValue(y, inherited.height) || 0])).map(([xReal, yReal]) => {
+                if (letter === letter!.toLowerCase()) {
+                  const { width: dx, height: dy } = converter.size(xReal, yReal);
+                  return [dx, -dy].join(',');
+                } else {
+                  const { x: xPixel, y: yPixel } = converter.point(xReal, yReal);
+                  return [xPixel - xOrigin, yPixel - yOrigin].join(',');
+                }
+              }).join(' ')
+              return letter + '' + result
+            }
+        }
       }
     );
   }
@@ -887,8 +959,15 @@ export const drawSvg = async (
   const firstChild = parseHtml(svg).firstChild as HTMLElement
   const x = options.x !== undefined ? options.x : parseFloat(firstChild.attributes.x)
   const y = options.y !== undefined ? options.y : parseFloat(firstChild.attributes.y)
-  const width = options.width !== undefined ? options.width : parseFloat(firstChild.attributes.width)
-  const height = options.height !== undefined ? options.height : parseFloat(firstChild.attributes.height)
+
+  const attributes = firstChild.attributes
+  const style = parseStyles(attributes.style)
+
+  const widthRaw = styleOrAttribute(attributes, style, 'width', '')
+  const heightRaw = styleOrAttribute(attributes, style, 'height', '')
+
+  const width = options.width !== undefined ? options.width : parseFloat(widthRaw)
+  const height = options.height !== undefined ? options.height : parseFloat(heightRaw)
   const svgRect = new Rectangle(new Point({x, y}), new Point({ x: x + width, y: y - height }))
   const runners = runnersToPage(svgRect, page, options);
   const elements = parse(svg, options, size, defaultConverter);
