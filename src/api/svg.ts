@@ -96,7 +96,7 @@ const groupBy = <T,>(arr: T[], n: number) => {
   }, [] as T[][])
 }
 
-const isCoordinateInsideTheRect  = (dot: Point, rect: Rectangle) =>  isEqual(0, distance(dot, rect.orthoProjection(dot)))
+const isCoordinateInsideTheRect = (dot: Point, rect: Rectangle) => isEqual(0, distance(dot, rect.orthoProjection(dot)))
 
 const StrokeLineCapMap: Record<string, LineCapStyle> = {
   butt: LineCapStyle.Butt,
@@ -135,7 +135,7 @@ const getInnerSegment = (start: Point, end: Point, rect: Rectangle) => {
     const nearestPoint = intersection.sort((p1, p2) => distanceCoords(end, p1) - distanceCoords(end, p2))[0]
     resultLineEnd = new Point(nearestPoint)
   }
-  
+
   return new Segment(resultLineStart, resultLineEnd)
 }
 
@@ -153,13 +153,13 @@ const runnersToPage = (
     const textWidth = (text.length * fontSize) / 2; // We try to approx the width of the text
     const offset =
       anchor === 'middle' ? textWidth / 2 : anchor === 'end' ? textWidth : 0;
-    const point = new Point({ x: (element.svgAttributes.x || 0) - offset, y:  element.svgAttributes.y || 0 })
+    const point = new Point({ x: (element.svgAttributes.x || 0) - offset, y: element.svgAttributes.y || 0 })
     // TODO: compute the right font boundaries to know which characters should be drawed
     // this is an workaround to draw text that are just a little outside the viewbox boundaries 
-    const start = new Point({ x: (element.svgAttributes.x || 0), y:  element.svgAttributes.y || 0 })
+    const start = new Point({ x: (element.svgAttributes.x || 0), y: element.svgAttributes.y || 0 })
     const paddingRect = new Rectangle(
-      new Point({x: svgRect.start.x - fontSize, y: svgRect.start.y + fontSize}), 
-      new Point({x: svgRect.end.x + fontSize, y: svgRect.end.y - fontSize}))
+      new Point({ x: svgRect.start.x - fontSize, y: svgRect.start.y + fontSize }),
+      new Point({ x: svgRect.end.x + fontSize, y: svgRect.end.y - fontSize }))
     if (isCoordinateInsideTheRect(start, paddingRect)) {
       page.drawText(text, {
         x: point.x,
@@ -176,7 +176,7 @@ const runnersToPage = (
     }
   },
   async line(element) {
-    const start =  new Point({
+    const start = new Point({
       x: element.svgAttributes.x1!,
       y: element.svgAttributes.y1!,
     })
@@ -199,8 +199,8 @@ const runnersToPage = (
   },
   async path(element) {
     // the path origin coordinate
-    const basePoint = new Point({x: element.svgAttributes.x || 0, y: element.svgAttributes.y || 0})
-    const normalizePoint = (p: Point) => new Point({ x: p.x - basePoint.x, y:  p.y - basePoint.y})
+    const basePoint = new Point({ x: element.svgAttributes.x || 0, y: element.svgAttributes.y || 0 })
+    const normalizePoint = (p: Point) => new Point({ x: p.x - basePoint.x, y: p.y - basePoint.y })
 
     /**
      * 
@@ -210,14 +210,14 @@ const runnersToPage = (
      * @returns the point where the next instruction starts and the new instruction text
      */
     const handlePath = (currentPoint: Point, command: string, params: number[]) => {
-      switch(command) {
+      switch (command) {
         case 'm':
         case 'M':
           {
             const nextPoint = new Point({
-                x: basePoint.x + params[0],
-                y: basePoint.y + params[1]
-              })
+              x: basePoint.x + params[0],
+              y: basePoint.y + params[1]
+            })
             return {
               point: nextPoint,
               command: `${command}${params[0]},${params[1]}`
@@ -257,42 +257,42 @@ const runnersToPage = (
               command: `${startInstruction} L${endPoint.x},${endPoint.y} ${endInstruction} `
             }
           }
-        case 'a': 
+        case 'a':
         case 'A':
           {
             const isLocalInstruction = command === 'a'
-            const [ , , , , , x, y] = params
+            const [, , , , , x, y] = params
             const nextPoint = new Point({
-              x: (isLocalInstruction ? currentPoint.x  : basePoint.x) + x,
-              y: (isLocalInstruction ? currentPoint.y  : basePoint.y) + y
+              x: (isLocalInstruction ? currentPoint.x : basePoint.x) + x,
+              y: (isLocalInstruction ? currentPoint.y : basePoint.y) + y
             })
             // TODO: implement the code to fit the Elliptical Arc Curve instructions into the viewbox
             return {
               point: nextPoint,
               command: `${command} ${params.map(p => `${p}`).join()}`
             }
-          } 
-        case 'c': 
+          }
+        case 'c':
         case 'C':
           {
             const isLocalInstruction = command === 'c'
-            const [ , , , , x, y] = params
+            const [, , , , x, y] = params
             const nextPoint = new Point({
-              x: (isLocalInstruction ? currentPoint.x  : basePoint.x) + x,
-              y: (isLocalInstruction ? currentPoint.y  : basePoint.y) + y
+              x: (isLocalInstruction ? currentPoint.x : basePoint.x) + x,
+              y: (isLocalInstruction ? currentPoint.y : basePoint.y) + y
             })
             // TODO: implement the code to fit the Cubic Bézier Curve instructions into the viewbox
             return {
               point: nextPoint,
               command: `${command} ${params.map(p => `${p}`).join()}`
             }
-          } 
-        case 'h': 
+          }
+        case 'h':
         case 'H':
           {
             const isLocalInstruction = command === 'h'
             const nextPoint = new Point({
-              x: (isLocalInstruction ? currentPoint.x  : basePoint.x) + params[0],
+              x: (isLocalInstruction ? currentPoint.x : basePoint.x) + params[0],
               y: currentPoint.y
             })
             // TODO: implement the code to fit the LineTo instructions into the viewbox
@@ -300,21 +300,21 @@ const runnersToPage = (
               point: nextPoint,
               command: `${command} ${params.map(p => `${p}`).join()}`
             }
-          } 
-        case 'v': 
+          }
+        case 'v':
         case 'V':
           {
             const isLocalInstruction = command === 'v'
             const nextPoint = new Point({
               x: currentPoint.x,
-              y: (isLocalInstruction ? currentPoint.y  : basePoint.y) + params[0]
+              y: (isLocalInstruction ? currentPoint.y : basePoint.y) + params[0]
             })
             // TODO: implement the code to fit the LineTo instructions into the viewbox
             return {
               point: nextPoint,
               command: `${command} ${params.map(p => `${p}`).join()}`
             }
-          } 
+          }
         // TODO: Handle the remaining svg instructions: t,q
         default:
           return {
@@ -325,7 +325,7 @@ const runnersToPage = (
     }
 
     const commands = element.svgAttributes.d?.match(/(v|h|a|l|t|m|q|c|s|z)([0-9,e\s.-]*)/gi)
-    let currentPoint = new Point({x: basePoint.x, y: basePoint.y })
+    let currentPoint = new Point({ x: basePoint.x, y: basePoint.y })
     const newPath = commands?.map(command => {
       const letter = command.match(/[a-z]/i)?.[0]
       const params = command.match(/(-?[0-9]+\.[0-9e]+)|(-?\.[0-9e]+)|([0-9]+)/ig)?.filter(m => m !== '').map(v => parseFloat(v))
@@ -504,9 +504,11 @@ const parseStyles = (style: string): SVGStyle => {
 
 const parseColor = (
   color: string,
+  inherited?: { rgb: Color; alpha?: string }
 ): { rgb: Color; alpha?: string } | undefined => {
   if (!color || color.length === 0) return undefined;
   if (['none', 'transparent'].includes(color)) return undefined;
+  if (color === 'currentColor') return inherited || parseColor('#000000')
   const parsedColor = colorString(color);
   return {
     rgb: parsedColor.rgb,
@@ -631,7 +633,7 @@ const parseAttributes = (
   }
   // Convert x/y as if it was a translation
   if (x || y) {
-    transformList = transformList + `translate(${x || 0} ${y || 0}) ` ;
+    transformList = transformList + `translate(${x || 0} ${y || 0}) `;
   }
   // Apply the transformations
   if (transformList) {
@@ -702,23 +704,23 @@ const parseAttributes = (
         const params = command.match(/(-?[0-9]+\.[0-9e]+)|(-?\.[0-9e]+)|([0-9]+)/ig)?.filter(m => m !== '')//.map(v => parseFloat(v))
 
         if (!params) return letter || ''
-        switch (letter?.toLocaleLowerCase()){
+        switch (letter?.toLocaleLowerCase()) {
           case 'v':
             {
               return params.map(value => {
                 const coord = parseFloatValue(value) || 1;
-                return letter === letter.toLowerCase() 
+                return letter === letter.toLowerCase()
                   ? 'v' + converter.size(1, coord).height * -1
-                  : 'V' + (converter.point(1, coord).y - yOrigin) 
+                  : 'V' + (converter.point(1, coord).y - yOrigin)
               }).join(' ')
             }
           case 'h':
             {
               return params.map(value => {
                 const coord = parseFloatValue(value) || 1;
-                return letter === letter.toLowerCase() 
+                return letter === letter.toLowerCase()
                   ? 'h' + converter.size(coord, 1).width
-                  : 'H' + (converter.point(coord, 1).x - xOrigin)  
+                  : 'H' + (converter.point(coord, 1).x - xOrigin)
               }).join(' ')
             }
           case 'a':
@@ -796,7 +798,7 @@ const parseAttributes = (
     const inner = newInherited.fontFamily.match(/^"(.*?)"|^'(.*?)'/);
     if (inner) newInherited.fontFamily = inner[1] || inner[2];
   }
-  
+
   if (newInherited.strokeWidth) {
     const result = newConverter.size(newInherited.strokeWidth, newInherited.strokeWidth)
     newInherited.strokeWidth = Math.max(Math.min(Math.abs(result.width), Math.abs(result.height)), 1)
@@ -968,7 +970,7 @@ export const drawSvg = async (
 
   const width = options.width !== undefined ? options.width : parseFloat(widthRaw)
   const height = options.height !== undefined ? options.height : parseFloat(heightRaw)
-  const svgRect = new Rectangle(new Point({x, y}), new Point({ x: x + width, y: y - height }))
+  const svgRect = new Rectangle(new Point({ x, y }), new Point({ x: x + width, y: y - height }))
   const runners = runnersToPage(svgRect, page, options);
   const elements = parse(svg, options, size, defaultConverter);
   elements.forEach((elt) => runners[elt.tagName]?.(elt));
