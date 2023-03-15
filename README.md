@@ -63,6 +63,7 @@ Install with: `npm install @cantoo/pdf-lib`
 - [Usage Examples](#usage-examples)
   - [Create Document](#create-document)
   - [Modify Document](#modify-document)
+  - [Incremental Document Modification](#incremental-document-modification)
   - [Create Form](#create-form)
   - [Fill Form](#fill-form)
   - [Flatten Form](#flatten-form)
@@ -216,6 +217,50 @@ firstPage.drawText('This text was added with JavaScript!', {
 
 // Serialize the PDFDocument to bytes (a Uint8Array)
 const pdfBytes = await pdfDoc.save()
+
+// For example, `pdfBytes` can be:
+//   • Written to a file in Node
+//   • Downloaded from the browser
+//   • Rendered in an <iframe>
+```
+
+
+### Incremental Document Modification
+
+The incremental modification saving is designed to be used for pdf signing. The signature is added to an existing page, then only the 'incremental' PDF is generated and concatenated to the initial version.
+
+_This example produces [this PDF](assets/pdfs/examples/incremental_document_modification.pdf)_ (when [this PDF](assets/pdfs/simple.pdf) is used for the `existingPdfBytes` variable).
+
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+
+// This should be a Uint8Array or ArrayBuffer
+// This data can be obtained in a number of different ways
+// If your running in a Node environment, you could use fs.readFile()
+// In the browser, you could make a fetch() call and use res.arrayBuffer()
+const existingPdfBytes = ...
+
+// Load a PDFDocument from the existing PDF bytes
+const pdfDoc = await PDFDocument.load(existingPdfBytes)
+
+// Take a snapshot of the document, for first page
+const snapshot = pdfDoc.takeSnapshot({ pageIndex: 0 });
+
+// Get the first page of the document
+const pages = pdfDoc.getPages()
+const firstPage = pages[0]
+
+// Draw a string of text diagonally across the first page
+firstPage.drawText('Incremental saving is also awesome!', {
+  x: 50,
+  y: 4 * fontSize,
+  size: fontSize
+})
+
+// Serialize the PDFDocument to bytes (a Uint8Array)
+const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot)
+const pdfBytes = Buffer.concatenate([ existingPdfBytes, pdfIncrementalBytes ])
 
 // For example, `pdfBytes` can be:
 //   • Written to a file in Node

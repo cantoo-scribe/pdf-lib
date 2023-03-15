@@ -36,6 +36,7 @@ class PDFXRefStreamParser {
     this.dict = rawStream.dict;
     this.bytes = ByteStream.fromPDFRawStream(rawStream);
     this.context = this.dict.context;
+    this.context.pdfFileDetails.useObjectStreams = true;
 
     const Size = this.dict.lookup(PDFName.of('Size'), PDFNumber);
 

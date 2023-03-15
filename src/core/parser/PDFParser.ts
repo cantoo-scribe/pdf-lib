@@ -67,6 +67,7 @@ class PDFParser extends PDFObjectParser {
     this.throwOnInvalidObject = throwOnInvalidObject;
     this.warnOnInvalidObjects = warnOnInvalidObjects;
     this.context.isDecrypted = !!cryptoFactory?.encryptionKey;
+    this.context.pdfFileDetails.pdfSize = pdfBytes.length;
   }
 
   async parseDocument(): Promise<PDFContext> {
@@ -313,6 +314,7 @@ class PDFParser extends PDFObjectParser {
     this.skipWhitespaceAndComments();
 
     const offset = this.parseRawInt();
+    this.context.pdfFileDetails.prevStartXRef = offset;
 
     this.skipWhitespace();
     this.matchKeyword(Keywords.eof);

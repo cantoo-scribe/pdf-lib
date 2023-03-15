@@ -40,7 +40,8 @@
     "Ching Chang (https://github.com/ChingChang9)",
     "François Billioud (https://github.com/Sharcoux)",
     "Phakorn Kiong (https://github.com/PhakornKiong)",
-    "Donald Ness (https://github.com/programmarchy)"
+    "Donald Ness (https://github.com/programmarchy)",
+    "Remus DRAICA (https://github.com/remdra)"
   ],
   "scripts": {
     "release": "yarn release:prep && release-it",

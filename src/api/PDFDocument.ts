@@ -78,6 +78,7 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
+import { DocumentSnapshot, IncrementalDocumentSnapshot } from './snapshot';
 
 export type BasePDFAttachment = {
   name: string;
@@ -1546,29 +1547,57 @@ export default class PDFDocument {
    * @returns Resolves with the bytes of the serialized document.
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
-    const {
-      useObjectStreams = true,
-      addDefaultPage = true,
-      objectsPerTick = 50,
-      updateFieldAppearances = true,
-    } = options;
+    const { useObjectStreams = true, objectsPerTick = 50 } = options;
 
     assertIs(useObjectStreams, 'useObjectStreams', ['boolean']);
-    assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
-    assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
 
-    if (addDefaultPage && this.getPageCount() === 0) this.addPage();
-
-    if (updateFieldAppearances) {
-      const form = this.formCache.getValue();
-      if (form) form.updateFieldAppearances();
-    }
-
-    await this.flush();
+    await this.prepareForSave(options);
 
     const Writer = useObjectStreams ? PDFStreamWriter : PDFWriter;
     return Writer.forContext(this.context, objectsPerTick).serializeToBuffer();
+  }
+
+  /**
+   * Serialize only the changes to this document to an array of bytes making up a PDF file.
+   * For example:
+   * ```js
+   * const snapshot = pdfDoc.takeSnapshot({ pageIndex: 0 });
+   * ...
+   * const pdfBytes = await pdfDoc.saveIncremental(snapshot);
+   * ```
+   *
+   * Similar to [[save]] function.
+   * The changes are saved in an incremental way, the result buffer
+   * will contain only the differences
+   *
+   * @param snapshot The snapshot to be used when saving the document.
+   * @param options The options to be used when saving the document.
+   * @returns Resolves with the bytes of the serialized document.
+   */
+  async saveIncremental(
+    snapshot: DocumentSnapshot,
+    options: IncrementalSaveOptions = {},
+  ): Promise<Uint8Array> {
+    const { objectsPerTick = 50 } = options;
+
+    assertIs(objectsPerTick, 'objectsPerTick', ['number']);
+
+    const saveOptions: SaveOptions = {
+      ...options,
+      addDefaultPage: false,
+      updateFieldAppearances: false,
+    };
+    await this.prepareForSave(saveOptions);
+
+    const Writer = this.context.pdfFileDetails.useObjectStreams
+      ? PDFStreamWriter
+      : PDFWriter;
+    return Writer.forContextWithSnapshot(
+      this.context,
+      objectsPerTick,
+      snapshot,
+    ).serializeToBuffer();
   }
 
   /**
@@ -1606,6 +1635,54 @@ export default class PDFDocument {
     }
 
     return undefined;
+  }
+
+  takeSnapshot(options: TakeSnapshotOptions): DocumentSnapshot {
+    const { pageIndex } = options;
+
+    assertIs(pageIndex, 'pageIndex', ['number']);
+
+    const page = this.getPage(pageIndex);
+    const acroFormRef = this.context.getObjectRef(
+      this.getForm().acroForm.dict,
+    )!;
+    const catalogRef = this.context.getObjectRef(this.catalog)!;
+
+    const indirectObjects: number[] = [
+      page.ref.objectNumber,
+      acroFormRef.objectNumber,
+      catalogRef.objectNumber,
+    ];
+    if (this.context.pdfFileDetails.useObjectStreams) {
+      const form = this.getForm();
+      const annotsRef = form.acroForm.dict.get(PDFName.of('Fields'));
+      if (annotsRef instanceof PDFRef) {
+        indirectObjects.push(annotsRef.objectNumber);
+      }
+    }
+
+    return new IncrementalDocumentSnapshot(
+      this.context.largestObjectNumber,
+      indirectObjects,
+      this.context.pdfFileDetails.pdfSize,
+      this.context.pdfFileDetails.prevStartXRef,
+    );
+  }
+
+  private async prepareForSave(options: SaveOptions): Promise<void> {
+    const { addDefaultPage = true, updateFieldAppearances = true } = options;
+
+    assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
+    assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
+
+    if (addDefaultPage && this.getPageCount() === 0) this.addPage();
+
+    if (updateFieldAppearances) {
+      const form = this.formCache.getValue();
+      if (form) form.updateFieldAppearances();
+    }
+
+    await this.flush();
   }
 
   private async embedAll(embeddables: Embeddable[]): Promise<void> {
