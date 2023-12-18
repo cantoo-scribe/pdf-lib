@@ -1014,6 +1014,8 @@ export default class PDFPage {
         y: options.y ?? this.y,
         lineHeight: options.lineHeight ?? this.lineHeight,
         graphicsState: graphicsStateKey,
+        matrix: options.matrix,
+        clipSpaces: options.clipSpaces
       }),
     );
 
@@ -1079,6 +1081,8 @@ export default class PDFPage {
         xSkew: options.xSkew ?? degrees(0),
         ySkew: options.ySkew ?? degrees(0),
         graphicsState: graphicsStateKey,
+        matrix: options.matrix,
+        clipSpaces: options.clipSpaces
       }),
     );
   }
@@ -1268,6 +1272,8 @@ export default class PDFPage {
         borderLineCap: options.borderLineCap ?? undefined,
         graphicsState: graphicsStateKey,
         fillRule: options.fillRule,
+        matrix: options.matrix,
+        clipSpaces: options.clipSpaces
       }),
     );
   }
@@ -1326,6 +1332,8 @@ export default class PDFPage {
         dashPhase: options.dashPhase ?? undefined,
         lineCap: options.lineCap ?? undefined,
         graphicsState: graphicsStateKey,
+        matrix: options.matrix,
+        clipSpaces: options.clipSpaces,
       }),
     );
   }
@@ -1410,6 +1418,8 @@ export default class PDFPage {
         borderDashPhase: options.borderDashPhase ?? undefined,
         graphicsState: graphicsStateKey,
         borderLineCap: options.borderLineCap ?? undefined,
+        matrix: options.matrix,
+        clipSpaces: options.clipSpaces,
       }),
     );
   }
@@ -1513,6 +1523,8 @@ export default class PDFPage {
         borderDashPhase: options.borderDashPhase ?? undefined,
         borderLineCap: options.borderLineCap ?? undefined,
         graphicsState: graphicsStateKey,
+        matrix: options.matrix,
+        clipSpaces: options.clipSpaces,
       }),
     );
   }

@@ -33,11 +33,13 @@ import {
   appendBezierCurve,
   FillRule,
   fillEvenOdd,
+  concatTransformationMatrix,
 } from './operators';
 import { Rotation, degrees, toRadians } from './rotations';
 import { svgPathToOperators } from './svgPath';
 import { PDFHexString, PDFName, PDFNumber, PDFOperator } from '../core';
 import { asNumber } from './objects';
+import type { Space, TransformationMatrix } from '../types'
 
 export interface DrawTextOptions {
   color: Color;
@@ -49,7 +51,26 @@ export interface DrawTextOptions {
   x: number | PDFNumber;
   y: number | PDFNumber;
   graphicsState?: string | PDFName;
+  matrix?: TransformationMatrix;
+  clipSpaces?: Space[];
 }
+
+const clipSpace = ({ 
+  topLeft,
+  topRight,
+  bottomRight,
+  bottomLeft
+}: Space) => 
+  [
+    moveTo(topLeft.x, topLeft.y),
+    lineTo(topRight.x, topRight.y),
+    lineTo(bottomRight.x, bottomRight.y),
+    lineTo(bottomLeft.x, bottomLeft.y),
+    closePath(),
+    clip(),
+    endPath(),
+  ]
+const clipSpaces = (spaces: Space[]) => spaces.flatMap(clipSpace)
 
 export const drawText = (
   line: PDFHexString,
@@ -84,6 +105,8 @@ export const drawLinesOfText = (
   const operators = [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
+    ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
+    options.matrix && concatTransformationMatrix(...options.matrix),
     beginText(),
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
@@ -116,11 +139,15 @@ export const drawImage = (
     xSkew: Rotation;
     ySkew: Rotation;
     graphicsState?: string | PDFName;
+    matrix?: TransformationMatrix;
+    clipSpaces?: Space[];
   },
 ): PDFOperator[] =>
   [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
+    ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
+    options.matrix && concatTransformationMatrix(...options.matrix),
     translate(options.x, options.y),
     rotateRadians(toRadians(options.rotate)),
     scale(options.width, options.height),
@@ -162,10 +189,14 @@ export const drawLine = (options: {
   dashPhase?: number | PDFNumber;
   lineCap?: LineCapStyle;
   graphicsState?: string | PDFName;
+  matrix?: TransformationMatrix;
+  clipSpaces?: Space[];
 }) =>
   [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
+    ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
+    options.matrix && concatTransformationMatrix(...options.matrix),
     options.color && setStrokingColor(options.color),
     setLineWidth(options.thickness),
     setDashPattern(options.dashArray ?? [], options.dashPhase ?? 0),
@@ -192,8 +223,9 @@ export const drawRectangle = (options: {
   borderDashArray?: (number | PDFNumber)[];
   borderDashPhase?: number | PDFNumber;
   graphicsState?: string | PDFName;
-}) =>
-  [
+  matrix?: TransformationMatrix;
+  clipSpaces?: Space[];
+}) => [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
     options.color && setFillingColor(options.color),
@@ -201,6 +233,8 @@ export const drawRectangle = (options: {
     setLineWidth(options.borderWidth),
     options.borderLineCap && setLineCap(options.borderLineCap),
     setDashPattern(options.borderDashArray ?? [], options.borderDashPhase ?? 0),
+    ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
+    options.matrix && concatTransformationMatrix(...options.matrix),
     translate(options.x, options.y),
     rotateRadians(toRadians(options.rotate)),
     skewRadians(toRadians(options.xSkew), toRadians(options.ySkew)),
@@ -300,12 +334,16 @@ export const drawEllipse = (options: {
   borderDashPhase?: number | PDFNumber;
   graphicsState?: string | PDFName;
   borderLineCap?: LineCapStyle;
+  matrix?: TransformationMatrix;
+  clipSpaces?: Space[];
 }) =>
   [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
     options.color && setFillingColor(options.color),
     options.borderColor && setStrokingColor(options.borderColor),
+    ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
+    options.matrix && concatTransformationMatrix(...options.matrix),
     setLineWidth(options.borderWidth),
     options.borderLineCap && setLineCap(options.borderLineCap),
     setDashPattern(options.borderDashArray ?? [], options.borderDashPhase ?? 0),
@@ -350,12 +388,16 @@ export const drawSvgPath = (
     borderDashPhase?: number | PDFNumber;
     borderLineCap?: LineCapStyle;
     graphicsState?: string | PDFName;
-    fillRule?: FillRule
+    fillRule?: FillRule;
+    matrix?: TransformationMatrix;
+    clipSpaces?: Space[];
   },
 ) =>
   [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
+    ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
+    options.matrix && concatTransformationMatrix(...options.matrix),
 
     translate(options.x, options.y),
     rotateRadians(toRadians(options.rotate ?? degrees(0))),

@@ -28,6 +28,11 @@ export type GraphicElement =
   | Rectangle
   | Segment;
 
-export type Space = { xMin: number; yMin: number; xMax: number; yMax: number };
+export type Space = {
+  topLeft: Coordinates
+  topRight: Coordinates
+  bottomRight: Coordinates
+  bottomLeft: Coordinates
+ };
 
 export type LinkElement = Rectangle | Ellipse;
