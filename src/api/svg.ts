@@ -603,17 +603,19 @@ const getFittingRectangle = (
   return { x, y, width, height };
 };
 
+// this function should reproduce the behavior described here: https://www.w3.org/TR/SVG11/coords.html#ViewBoxAttribute
 const getAspectRatioTransformation = (
   matrix: TransformationMatrix,
   originalWidth: number,
   originalHeight: number,
   targetWidth: number,
   targetHeight: number,
-  preserveAspectRatio?: string,
+  preserveAspectRatioProp = 'xMidYMid',
 ): {
   clipBox: TransformationMatrix
   content: TransformationMatrix
 } => {
+  const [preserveAspectRatio, meetOrSlice = 'meet'] = preserveAspectRatioProp.split(' ')
   const scaleX = targetWidth / originalWidth
   const scaleY = targetHeight / originalHeight
   const boxScale = combineTransformation(
@@ -630,9 +632,12 @@ const getAspectRatioTransformation = (
       content: boxScale
     }
   }
-  // TODO: the following code works for the 'meet' param but not for the 'slice'
+
   const scale =
-    targetWidth > targetHeight ? scaleY : scaleX
+    meetOrSlice === 'slice'
+      ? Math.max(scaleX, scaleY)
+      : // since 'meet' is the default value, any value other than 'slice' should be handled as 'meet'
+        Math.min(scaleX, scaleY)
   const dx = targetWidth - (originalWidth * scale)
   const dy = targetHeight - (originalHeight * scale)
   const [x, y] = (() => {
@@ -737,7 +742,7 @@ const parseSvgNode = (
       : inherited.viewBox;
   const x = parseFloat(node.attributes.x) || 0
   const y = parseFloat(node.attributes.y) || 0
-
+  
   let newMatrix = combineTransformation(matrix, 'translate', [x, y])
 
   const { clipBox: clipBoxTransform, content: contentTransform } =
@@ -747,7 +752,7 @@ const parseSvgNode = (
       viewBox.height,
       parseFloat(node.attributes.width),
       parseFloat(node.attributes.height),
-      node.attributes.preserveAspectRatio || 'xMidYMid'
+      node.attributes.preserveAspectRatio
     )
 
   const topLeft = applyTransformation(clipBoxTransform, {
@@ -777,8 +782,6 @@ const parseSvgNode = (
     bottomLeft
   }
 
-  // TODO: maybe this is the correct transformation
-  // newMatrix = combineTransformation(newMatrix, 'translate', [-baseClipSpace.xMin, -baseClipSpace.yMin])
   newMatrix = combineTransformation(contentTransform, 'translate', [-viewBox.x, -viewBox.y])
 
   node.childNodes.forEach((child) => {
