@@ -558,8 +558,9 @@ describe(`PDFDocument`, () => {
     it(`can be used with different pages`, async () => {
       const noErrorFunc = async (pageIndex: number) => {
         const pdfDoc = await PDFDocument.load(simplePdfBytes);
-        const snapshot = pdfDoc.takeSnapshot({ pageIndex });
+        const snapshot = pdfDoc.takeSnapshot();
         const page = pdfDoc.getPage(pageIndex);
+        snapshot.markRefForSave(page.ref);
         const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
         const fontSize = 30;
         page.drawText('Incremental saving is also awesome!', {
@@ -580,8 +581,9 @@ describe(`PDFDocument`, () => {
     it(`can be used with object-stream PDFs`, async () => {
       const noErrorFunc = async () => {
         const pdfDoc = await PDFDocument.load(simpleStreamsPdfBytes);
-        const snapshot = pdfDoc.takeSnapshot({ pageIndex: 0 });
+        const snapshot = pdfDoc.takeSnapshot();
         const page = pdfDoc.getPage(0);
+        snapshot.markRefForSave(page.ref);
         const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
         const fontSize = 30;
         page.drawText('Incremental saving is also awesome!', {

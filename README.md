@@ -244,12 +244,15 @@ const existingPdfBytes = ...
 // Load a PDFDocument from the existing PDF bytes
 const pdfDoc = await PDFDocument.load(existingPdfBytes)
 
-// Take a snapshot of the document, for first page
-const snapshot = pdfDoc.takeSnapshot({ pageIndex: 0 });
+// Take a snapshot of the document
+const snapshot = pdfDoc.takeSnapshot();
 
 // Get the first page of the document
 const pages = pdfDoc.getPages()
 const firstPage = pages[0]
+
+// Mark the page as modified
+snapshot.markRefForSave(firstPage.ref)
 
 // Draw a string of text diagonally across the first page
 firstPage.drawText('Incremental saving is also awesome!', {

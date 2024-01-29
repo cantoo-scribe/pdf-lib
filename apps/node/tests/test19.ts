@@ -3,8 +3,9 @@ import { PDFDocument, StandardFonts } from '../../..';
 
 export default async (assets: Assets) => {
   const pdfDoc = await PDFDocument.load(assets.pdfs.simple);
-  const snapshot = pdfDoc.takeSnapshot({ pageIndex: 0 });
+  const snapshot = pdfDoc.takeSnapshot();
   const page = pdfDoc.getPage(0);
+  snapshot.markRefForSave(page.ref);
   const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const fontSize = 30;
   const { height } = page.getSize();

@@ -25,10 +25,6 @@ export interface Base64SaveOptions extends SaveOptions {
   dataUri?: boolean;
 }
 
-export interface TakeSnapshotOptions {
-  pageIndex: number;
-}
-
 export interface LoadOptions {
   ignoreEncryption?: boolean;
   parseSpeed?: ParseSpeeds | number;

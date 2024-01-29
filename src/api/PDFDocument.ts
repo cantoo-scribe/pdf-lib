@@ -53,6 +53,7 @@ import {
   CreateOptions,
   EmbedFontOptions,
   SetTitleOptions,
+  IncrementalSaveOptions,
 } from './PDFDocumentOptions';
 import PDFObject from '../core/objects/PDFObject';
 import PDFRef from '../core/objects/PDFRef';
@@ -1562,7 +1563,7 @@ export default class PDFDocument {
    * Serialize only the changes to this document to an array of bytes making up a PDF file.
    * For example:
    * ```js
-   * const snapshot = pdfDoc.takeSnapshot({ pageIndex: 0 });
+   * const snapshot = pdfDoc.takeSnapshot();
    * ...
    * const pdfBytes = await pdfDoc.saveIncremental(snapshot);
    * ```
@@ -1637,35 +1638,15 @@ export default class PDFDocument {
     return undefined;
   }
 
-  takeSnapshot(options: TakeSnapshotOptions): DocumentSnapshot {
-    const { pageIndex } = options;
-
-    assertIs(pageIndex, 'pageIndex', ['number']);
-
-    const page = this.getPage(pageIndex);
-    const acroFormRef = this.context.getObjectRef(
-      this.getForm().acroForm.dict,
-    )!;
-    const catalogRef = this.context.getObjectRef(this.catalog)!;
-
-    const indirectObjects: number[] = [
-      page.ref.objectNumber,
-      acroFormRef.objectNumber,
-      catalogRef.objectNumber,
-    ];
-    if (this.context.pdfFileDetails.useObjectStreams) {
-      const form = this.getForm();
-      const annotsRef = form.acroForm.dict.get(PDFName.of('Fields'));
-      if (annotsRef instanceof PDFRef) {
-        indirectObjects.push(annotsRef.objectNumber);
-      }
-    }
+  takeSnapshot(): DocumentSnapshot {
+    const indirectObjects: number[] = [];
 
     return new IncrementalDocumentSnapshot(
       this.context.largestObjectNumber,
       indirectObjects,
       this.context.pdfFileDetails.pdfSize,
       this.context.pdfFileDetails.prevStartXRef,
+      this.context,
     );
   }
 
