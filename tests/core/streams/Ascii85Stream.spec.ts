@@ -3,7 +3,7 @@ import fs from 'fs';
 import Ascii85Stream from '../../../src/core/streams/Ascii85Stream';
 import Stream from '../../../src/core/streams/Stream';
 
-const DIR = `./data/ascii85`;
+const DIR = `tests/core/streams/data/ascii85`;
 const FILES = ['1'];
 
 describe(`Ascii85Stream`, () => {

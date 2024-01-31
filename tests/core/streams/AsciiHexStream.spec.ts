@@ -3,7 +3,7 @@ import fs from 'fs';
 import AsciiHexStream from '../../../src/core/streams/AsciiHexStream';
 import Stream from '../../../src/core/streams/Stream';
 
-const DIR = `./data/asciihex`;
+const DIR = `tests/core/streams/data/asciihex`;
 const FILES = ['1', '2'];
 
 describe(`AsciiHexStream`, () => {
