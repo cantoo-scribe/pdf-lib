@@ -6,15 +6,12 @@ import {
   NodeType,
 } from 'node-html-better-parser';
 import { Color, colorString } from './colors';
-import {
-  Degrees,
-  degreesToRadians,
-} from './rotations';
+import { Degrees, degreesToRadians } from './rotations';
 import PDFFont from './PDFFont';
 import PDFPage from './PDFPage';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle, FillRule } from './operators';
-import { TransformationMatrix,  identityMatrix } from '../types/matrix'
+import { TransformationMatrix, identityMatrix } from '../types/matrix';
 import { Coordinates, Space } from '../types';
 
 interface Position {
@@ -77,9 +74,9 @@ type SVGAttributes = {
 };
 
 type TransformAttributes = {
-  matrix: TransformationMatrix
-  clipSpaces: Space[]
-}
+  matrix: TransformationMatrix;
+  clipSpaces: Space[];
+};
 
 export type SVGElement = HTMLElement & {
   svgAttributes: InheritedAttributes & SVGAttributes & TransformAttributes;
@@ -91,7 +88,7 @@ interface SVGElementToDrawMap {
 
 const combineMatrix = (
   [a, b, c, d, e, f]: TransformationMatrix,
-  [a2, b2, c2, d2, e2, f2]: TransformationMatrix
+  [a2, b2, c2, d2, e2, f2]: TransformationMatrix,
 ): TransformationMatrix => [
   a * a2 + c * b2,
   b * a2 + d * b2,
@@ -99,66 +96,106 @@ const combineMatrix = (
   b * c2 + d * d2,
   a * e2 + c * f2 + e,
   b * e2 + d * f2 + f,
-]
+];
 
-const applyTransformation = ([a, b, c, d, e, f]: TransformationMatrix, { x, y }: Coordinates): Coordinates => ({
+const applyTransformation = (
+  [a, b, c, d, e, f]: TransformationMatrix,
+  { x, y }: Coordinates,
+): Coordinates => ({
   x: a * x + c * y + e,
-  y: b * x + d * y + f
-})
+  y: b * x + d * y + f,
+});
 
-
-type TransformationName = 'scale' | 'scaleX' | 'scaleY' | 'translate' | 'translateX' | 'translateY' | 'rotate' | 'skewX' | 'skewY' | 'matrix'
-const transformationToMatrix = (name: TransformationName, args: number[]) : TransformationMatrix => {
+type TransformationName =
+  | 'scale'
+  | 'scaleX'
+  | 'scaleY'
+  | 'translate'
+  | 'translateX'
+  | 'translateY'
+  | 'rotate'
+  | 'skewX'
+  | 'skewY'
+  | 'matrix';
+const transformationToMatrix = (
+  name: TransformationName,
+  args: number[],
+): TransformationMatrix => {
   switch (name) {
     case 'scale':
     case 'scaleX':
     case 'scaleY': {
       // [sx 0 0 sy 0 0]
-      const [sx, sy = sx] = args
-      return [name === 'scaleY' ? 1 : sx, 0, 0, name === 'scaleX' ? 1 : sy, 0, 0]
+      const [sx, sy = sx] = args;
+      return [
+        name === 'scaleY' ? 1 : sx,
+        0,
+        0,
+        name === 'scaleX' ? 1 : sy,
+        0,
+        0,
+      ];
     }
     case 'translate':
     case 'translateX':
     case 'translateY': {
       // [1 0 0 1 tx ty]
-      const [tx, ty = tx] = args
+      const [tx, ty = tx] = args;
       // -ty is necessary because the pdf's y axis is inverted
-      return [1, 0, 0, 1, name === 'translateY' ? 0 : tx, name === 'translateX' ? 0 : -ty]
+      return [
+        1,
+        0,
+        0,
+        1,
+        name === 'translateY' ? 0 : tx,
+        name === 'translateX' ? 0 : -ty,
+      ];
     }
     case 'rotate': {
       // [cos(a) sin(a) -sin(a) cos(a) 0 0]
-      const [a, x = 0, y = 0] = args
-      const t1 = transformationToMatrix('translate', [x, y])
-      const t2 = transformationToMatrix('translate', [-x, -y])
+      const [a, x = 0, y = 0] = args;
+      const t1 = transformationToMatrix('translate', [x, y]);
+      const t2 = transformationToMatrix('translate', [-x, -y]);
       // -args[0] -> the '-' operator is necessary because the pdf rotation system is inverted
-      const aRadians = degreesToRadians(-a)
-      const r: TransformationMatrix = [Math.cos(aRadians), Math.sin(aRadians), -Math.sin(aRadians), Math.cos(aRadians), 0, 0]
+      const aRadians = degreesToRadians(-a);
+      const r: TransformationMatrix = [
+        Math.cos(aRadians),
+        Math.sin(aRadians),
+        -Math.sin(aRadians),
+        Math.cos(aRadians),
+        0,
+        0,
+      ];
       // rotation around a point is the combination of: translate * rotate * (-translate)
-      return combineMatrix(combineMatrix(t1, r), t2)
+      return combineMatrix(combineMatrix(t1, r), t2);
     }
     case 'skewY':
     case 'skewX': {
       // [1 tan(a) 0 1 0 0]
       // [1 0 tan(a) 1 0 0]
       // -args[0] -> the '-' operator is necessary because the pdf rotation system is inverted
-      const a = degreesToRadians(-args[0])
-      const skew = Math.tan(a)
-      const skewX = name === 'skewX' ? skew : 0
-      const skewY = name === 'skewY' ? skew : 0
-      return [1, skewY, skewX, 1, 0, 0]
+      const a = degreesToRadians(-args[0]);
+      const skew = Math.tan(a);
+      const skewX = name === 'skewX' ? skew : 0;
+      const skewY = name === 'skewY' ? skew : 0;
+      return [1, skewY, skewX, 1, 0, 0];
     }
     case 'matrix': {
-      const [a, b, c, d, e, f] = args
-      const r = transformationToMatrix('scale', [1, -1])
-      const m: TransformationMatrix = [a, b, c, d, e, f]
-      return combineMatrix(combineMatrix(r, m), r)
+      const [a, b, c, d, e, f] = args;
+      const r = transformationToMatrix('scale', [1, -1]);
+      const m: TransformationMatrix = [a, b, c, d, e, f];
+      return combineMatrix(combineMatrix(r, m), r);
     }
     default:
-      return identityMatrix
+      return identityMatrix;
   }
-}
+};
 
-const combineTransformation = (matrix: TransformationMatrix, name: TransformationName, args: number[]) => combineMatrix(matrix, transformationToMatrix(name, args))
+const combineTransformation = (
+  matrix: TransformationMatrix,
+  name: TransformationName,
+  args: number[],
+) => combineMatrix(matrix, transformationToMatrix(name, args));
 
 const StrokeLineCapMap: Record<string, LineCapStyle> = {
   butt: LineCapStyle.Butt,
@@ -168,7 +205,7 @@ const StrokeLineCapMap: Record<string, LineCapStyle> = {
 
 const FillRuleMap: Record<string, FillRule> = {
   evenodd: FillRule.EvenOdd,
-  nonzero: FillRule.NonZero
+  nonzero: FillRule.NonZero,
 };
 
 const StrokeLineJoinMap: Record<string, LineJoinStyle> = {
@@ -184,23 +221,23 @@ const runnersToPage = (
   options: PDFPageDrawSVGElementOptions,
 ): SVGElementToDrawMap => ({
   async text(element) {
-const anchor = element.svgAttributes.textAnchor;
-    const dominantBaseline = element.svgAttributes.dominantBaseline
+    const anchor = element.svgAttributes.textAnchor;
+    const dominantBaseline = element.svgAttributes.dominantBaseline;
     const text = element.text.trim().replace(/\s/g, ' ');
     const fontSize = element.svgAttributes.fontSize || 12;
 
     /** This will find the best font for the provided style in the list */
-    function getBestFont(
+    const getBestFont = (
       style: InheritedAttributes,
       fonts: { [fontName: string]: PDFFont },
-    ) {
+    ) => {
       const family = style.fontFamily;
       if (!family) return undefined;
       const isBold =
         style.fontWeight === 'bold' || Number(style.fontWeight) >= 700;
       const isItalic = style.fontStyle === 'italic';
-      const getFont = (bold: boolean, italic: boolean, family: string) =>
-        fonts[family + (bold ? '_bold' : '') + (italic ? '_italic' : '')];
+      const getFont = (bold: boolean, italic: boolean, fontFamily: string) =>
+        fonts[fontFamily + (bold ? '_bold' : '') + (italic ? '_italic' : '')];
       return (
         getFont(isBold, isItalic, family) ||
         getFont(isBold, false, family) ||
@@ -208,16 +245,16 @@ const anchor = element.svgAttributes.textAnchor;
         getFont(false, false, family) ||
         Object.keys(fonts).find((fontFamily) => fontFamily.startsWith(family))
       );
-    }
+    };
 
     const font =
       options.fonts && getBestFont(element.svgAttributes, options.fonts);
-const textWidth = (font || page.getFont()[0]).widthOfTextAtSize(
+    const textWidth = (font || page.getFont()[0]).widthOfTextAtSize(
       text,
       fontSize,
     );
 
-    const textHeight = (font || page.getFont()[0]).heightAtSize(fontSize)
+    const textHeight = (font || page.getFont()[0]).heightAtSize(fontSize);
     const offsetX =
       anchor === 'middle' ? textWidth / 2 : anchor === 'end' ? textWidth : 0;
 
@@ -225,10 +262,10 @@ const textWidth = (font || page.getFont()[0]).widthOfTextAtSize(
       dominantBaseline === 'text-before-edge'
         ? textHeight
         : dominantBaseline === 'text-after-edge'
-        ? -textHeight
-        : dominantBaseline === 'middle'
-        ? textHeight / 2
-        : 0
+          ? -textHeight
+          : dominantBaseline === 'middle'
+            ? textHeight / 2
+            : 0;
 
     page.drawText(text, {
       x: -offsetX,
@@ -261,7 +298,7 @@ const textWidth = (font || page.getFont()[0]).widthOfTextAtSize(
     });
   },
   async path(element) {
-    if (!element.svgAttributes.d) return
+    if (!element.svgAttributes.d) return;
     // See https://jsbin.com/kawifomupa/edit?html,output and
     page.drawSvgPath(element.svgAttributes.d, {
       x: 0,
@@ -411,11 +448,7 @@ const parseAttributes = (
     style,
     'stroke-linejoin',
   );
-  const fillRuleRaw = styleOrAttribute(
-    attributes,
-    style,
-    'fill-rule',
-  );
+  const fillRuleRaw = styleOrAttribute(attributes, style, 'fill-rule');
   const strokeWidthRaw = styleOrAttribute(attributes, style, 'stroke-width');
   const fontFamilyRaw = styleOrAttribute(attributes, style, 'font-family');
   const fontStyleRaw = styleOrAttribute(attributes, style, 'font-style');
@@ -493,7 +526,7 @@ const parseAttributes = (
   if (x || y) {
     transformList = transformList + `translate(${x || 0} ${y || 0}) `;
   }
-  let newMatrix = matrix
+  let newMatrix = matrix;
   // Apply the transformations
   if (transformList) {
     const regexTransform = /(\w+)\((.+?)\)/g;
@@ -504,7 +537,11 @@ const parseAttributes = (
         .split(/\s*,\s*|\s+/)
         .filter((value) => value.length > 0)
         .map((value) => parseFloat(value));
-      newMatrix = combineTransformation(newMatrix, name as TransformationName, args)
+      newMatrix = combineTransformation(
+        newMatrix,
+        name as TransformationName,
+        args,
+      );
       parsed = regexTransform.exec(transformList);
     }
   }
@@ -529,17 +566,17 @@ const parseAttributes = (
     svgAttributes.y2 = y2;
   }
   if (attributes.width || attributes.height) {
-    svgAttributes.width = width ?? inherited.width
-    svgAttributes.height = height ?? inherited.height
+    svgAttributes.width = width ?? inherited.width;
+    svgAttributes.height = height ?? inherited.height;
   }
 
   if (attributes.d) {
-    newMatrix = combineTransformation(newMatrix, 'scale', [1, -1])
-    svgAttributes.d = attributes.d
+    newMatrix = combineTransformation(newMatrix, 'scale', [1, -1]);
+    svgAttributes.d = attributes.d;
   }
 
   if (fontSizeRaw && newInherited.fontSize) {
-    newInherited.fontSize = newInherited.fontSize 
+    newInherited.fontSize = newInherited.fontSize;
   }
   if (newInherited.fontFamily) {
     // Handle complex fontFamily like `"Linux Libertine O", serif`
@@ -548,7 +585,7 @@ const parseAttributes = (
   }
 
   if (newInherited.strokeWidth) {
-    svgAttributes.strokeWidth = newInherited.strokeWidth
+    svgAttributes.strokeWidth = newInherited.strokeWidth;
   }
 
   return {
@@ -612,34 +649,28 @@ const getAspectRatioTransformation = (
   targetHeight: number,
   preserveAspectRatioProp = 'xMidYMid',
 ): {
-  clipBox: TransformationMatrix
-  content: TransformationMatrix
+  clipBox: TransformationMatrix;
+  content: TransformationMatrix;
 } => {
-  const [preserveAspectRatio, meetOrSlice = 'meet'] = preserveAspectRatioProp.split(' ')
-  const scaleX = targetWidth / originalWidth
-  const scaleY = targetHeight / originalHeight
-  const boxScale = combineTransformation(
-    matrix,
-    'scale',
-    [
-      scaleX,
-      scaleY
-    ]
-  )
+  const [preserveAspectRatio, meetOrSlice = 'meet'] =
+    preserveAspectRatioProp.split(' ');
+  const scaleX = targetWidth / originalWidth;
+  const scaleY = targetHeight / originalHeight;
+  const boxScale = combineTransformation(matrix, 'scale', [scaleX, scaleY]);
   if (preserveAspectRatio === 'none') {
     return {
       clipBox: boxScale,
-      content: boxScale
-    }
+      content: boxScale,
+    };
   }
 
   const scale =
     meetOrSlice === 'slice'
       ? Math.max(scaleX, scaleY)
       : // since 'meet' is the default value, any value other than 'slice' should be handled as 'meet'
-        Math.min(scaleX, scaleY)
-  const dx = targetWidth - (originalWidth * scale)
-  const dy = targetHeight - (originalHeight * scale)
+        Math.min(scaleX, scaleY);
+  const dx = targetWidth - originalWidth * scale;
+  const dy = targetHeight - originalHeight * scale;
   const [x, y] = (() => {
     switch (preserveAspectRatio) {
       case 'xMinYMin':
@@ -665,22 +696,16 @@ const getAspectRatioTransformation = (
   })();
 
   const contentTransform = combineTransformation(
-    combineTransformation(
-      matrix,
-      'translate',
-      [x, y]
-    ),
+    combineTransformation(matrix, 'translate', [x, y]),
     'scale',
-    [scale]
-  )
+    [scale],
+  );
 
   return {
     clipBox: boxScale,
-    content: contentTransform
-  }
-
+    content: contentTransform,
+  };
 };
-
 
 const parseHTMLNode = (
   node: Node,
@@ -715,7 +740,7 @@ const parseHTMLNode = (
       ...attributes.inherited,
       ...attributes.svgAttributes,
       matrix: attributes.matrix,
-      clipSpaces
+      clipSpaces,
     };
     Object.assign(node, { svgAttributes });
     return [node as SVGElement];
@@ -729,10 +754,12 @@ const parseSvgNode = (
   clipSpaces: Space[],
 ): SVGElement[] => {
   // if the width/height aren't set, the svg will have the same dimension as the current drawing space
+  /* tslint:disable:no-unused-expression */
   node.attributes.width ??
     node.setAttribute('width', inherited.viewBox.width + '');
   node.attributes.height ??
     node.setAttribute('height', inherited.viewBox.height + '');
+  /* tslint:enable:no-unused-expression */
   const attributes = parseAttributes(node, inherited, matrix);
   const result: SVGElement[] = [];
   const viewBox = node.attributes.viewBox
@@ -740,10 +767,10 @@ const parseSvgNode = (
     : node.attributes.width && node.attributes.height
       ? parseViewBox(`0 0 ${node.attributes.width} ${node.attributes.height}`)!
       : inherited.viewBox;
-  const x = parseFloat(node.attributes.x) || 0
-  const y = parseFloat(node.attributes.y) || 0
-  
-  let newMatrix = combineTransformation(matrix, 'translate', [x, y])
+  const x = parseFloat(node.attributes.x) || 0;
+  const y = parseFloat(node.attributes.y) || 0;
+
+  let newMatrix = combineTransformation(matrix, 'translate', [x, y]);
 
   const { clipBox: clipBoxTransform, content: contentTransform } =
     getAspectRatioTransformation(
@@ -752,37 +779,40 @@ const parseSvgNode = (
       viewBox.height,
       parseFloat(node.attributes.width),
       parseFloat(node.attributes.height),
-      node.attributes.preserveAspectRatio
-    )
+      node.attributes.preserveAspectRatio,
+    );
 
   const topLeft = applyTransformation(clipBoxTransform, {
     x: 0,
     y: 0,
-  })
-  
+  });
+
   const topRight = applyTransformation(clipBoxTransform, {
     x: viewBox.width,
     y: 0,
-  })
-  
+  });
+
   const bottomRight = applyTransformation(clipBoxTransform, {
     x: viewBox.width,
     y: -viewBox.height,
-  })
+  });
 
   const bottomLeft = applyTransformation(clipBoxTransform, {
     x: 0,
     y: -viewBox.height,
-  })
+  });
 
   const baseClipSpace: Space = {
     topLeft,
     topRight,
     bottomRight,
-    bottomLeft
-  }
+    bottomLeft,
+  };
 
-  newMatrix = combineTransformation(contentTransform, 'translate', [-viewBox.x, -viewBox.y])
+  newMatrix = combineTransformation(contentTransform, 'translate', [
+    -viewBox.x,
+    -viewBox.y,
+  ]);
 
   node.childNodes.forEach((child) => {
     const parsedNodes = parseHTMLNode(
@@ -790,7 +820,7 @@ const parseSvgNode = (
       { ...attributes.inherited, viewBox },
       newMatrix,
       [...clipSpaces, baseClipSpace],
-    )
+    );
     result.push(...parsedNodes);
   });
   return result;
@@ -806,7 +836,12 @@ const parseGroupNode = (
   const result: SVGElement[] = [];
   node.childNodes.forEach((child) => {
     result.push(
-      ...parseHTMLNode(child, attributes.inherited, attributes.matrix, clipSpaces),
+      ...parseHTMLNode(
+        child,
+        attributes.inherited,
+        attributes.matrix,
+        clipSpaces,
+      ),
     );
   });
   return result;
@@ -839,7 +874,7 @@ const parse = (
   svg: string,
   { width, height, fontSize }: PDFPageDrawSVGElementOptions,
   size: Size,
-  matrix: TransformationMatrix
+  matrix: TransformationMatrix,
 ): SVGElement[] => {
   const htmlElement = parseHtml(svg).firstChild as HTMLElement;
   if (width) htmlElement.setAttribute('width', width + '');
@@ -853,7 +888,7 @@ const parse = (
       viewBox: parseViewBox(htmlElement.attributes.viewBox || '0 0 1 1')!,
     },
     matrix,
-    []
+    [],
   );
 };
 
@@ -892,16 +927,28 @@ export const drawSvg = async (
     }
     firstChild.setAttribute(
       'style',
-      Object.entries(style)
+      Object.entries(style) // tslint:disable-line
         .map(([key, val]) => `${key}:${val};`)
         .join(''),
     );
   }
 
-  const baseTransformation: TransformationMatrix = [1, 0, 0, 1, options.x ||  0, options.y || 0]
+  const baseTransformation: TransformationMatrix = [
+    1,
+    0,
+    0,
+    1,
+    options.x || 0,
+    options.y || 0,
+  ];
 
   const runners = runnersToPage(page, options);
-  const elements = parse(firstChild.outerHTML, options, size, baseTransformation);
+  const elements = parse(
+    firstChild.outerHTML,
+    options,
+    size,
+    baseTransformation,
+  );
 
   await elements.reduce(async (prev, elt) => {
     await prev;

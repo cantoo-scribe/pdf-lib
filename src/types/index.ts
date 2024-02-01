@@ -29,10 +29,10 @@ export type GraphicElement =
   | Segment;
 
 export type Space = {
-  topLeft: Coordinates
-  topRight: Coordinates
-  bottomRight: Coordinates
-  bottomLeft: Coordinates
- };
+  topLeft: Coordinates;
+  topRight: Coordinates;
+  bottomRight: Coordinates;
+  bottomLeft: Coordinates;
+};
 
 export type LinkElement = Rectangle | Ellipse;

@@ -1,54 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-  <meta http-equiv="Content-Security-Policy" content="
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
         default-src 'self' 'unsafe-inline' blob: resource:;
         object-src 'self' blob:;
         frame-src 'self' blob:;
-      " />
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <link rel="stylesheet" type="text/css" href="/apps/web/index.css" />
-  <title>Test 25</title>
-  <script type="text/javascript" src="/dist/pdf-lib.js"></script>
-  <script type="text/javascript" src="/apps/web/utils.js"></script>
-</head>
+      "
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" type="text/css" href="/apps/web/index.css" />
+    <title>Test 25</title>
+    <script type="text/javascript" src="/dist/pdf-lib.js"></script>
+    <script type="text/javascript" src="/apps/web/utils.js"></script>
+  </head>
 
-<body>
-  <div id="button-container">
-    <button onclick="window.location.href = '/apps/web/test24.html'">
-      Prev
-    </button>
-    <button onclick="test()">Run Test</button>
-    <button onclick="window.location.href = '/apps/web/test26.html'">
-      Next
-    </button>
-  </div>
-  <!-- <div  ></div> -->
-  <iframe id="iframe"></iframe>
-</body>
+  <body>
+    <div id="button-container">
+      <button onclick="window.location.href = '/apps/web/test24.html'">
+        Prev
+      </button>
+      <button onclick="test()">Run Test</button>
+      <button onclick="window.location.href = '/apps/web/test26.html'">
+        Next
+      </button>
+    </div>
+    <!-- <div  ></div> -->
+    <iframe id="iframe"></iframe>
+  </body>
 
-<script type="text/javascript">
-  // startFpsTracker('animation-target');
+  <script type="text/javascript">
+    // startFpsTracker('animation-target');
 
-  const renderInIframe = (pdfBytes) => {
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const blobUrl = URL.createObjectURL(blob);
-    document.getElementById('iframe').src = blobUrl;
-  };
+    const renderInIframe = (pdfBytes) => {
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      document.getElementById('iframe').src = blobUrl;
+    };
 
-  async function test() {
-    const { PDFDocument, PDFPage, radians, StandardFonts, rgb, degrees } =
-      PDFLib;
+    async function test() {
+      const { PDFDocument, PDFPage, radians, StandardFonts, rgb, degrees } =
+        PDFLib;
 
-    const pdfDoc = await PDFDocument.create();
-    const firstPage = pdfDoc.addPage([1000, 1000]);
+      const pdfDoc = await PDFDocument.create();
+      const firstPage = pdfDoc.addPage([1000, 1000]);
 
-    const fontSize = 20;
+      const fontSize = 20;
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="409" height="602" viewBox="-9.746610357857302 -12.53611913758613 18.181818181818183 26.761502556123585" data-plugin-name="science" alt=" ">
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="409" height="602" viewBox="-9.746610357857302 -12.53611913758613 18.181818181818183 26.761502556123585" data-plugin-name="science" alt=" ">
       <rect x="-9.746610357857302" y="-12.53611913758613" width="18.181818181818183" height="26.761502556123585" fill="#00ff00"/>
       <g transform="scale(1 -1) translate(0 -1.689264280951324)">
       <g transform="translate(-7.154396186440678 4.212791313559322) scale(1 -1) "><svg viewBox="0 0 32 32" width="4.576271186440678" height="4.110169491525422"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" id="692640ba-d133-4cb2-8c3e-d1483bb7141f" preserveAspectRatio="xMidYMid"><path d="M14.814 10.811a1.049 1.049 0 0 0-1.791-.742l-6.971 6.972 1.484 1.483 5.18-5.18v17.607c0 .58.47 1.049 1.049 1.049h9.084v-2.1h-8.035V10.81z" fill="#000000FF"></path><path d="M19.25 25.254V8.148l6.665-6.664L24.43 0l-6.97 6.971a1.05 1.05 0 0 0-.308.742v18.59c0 .58.47 1.05 1.05 1.05h7.745v-2.099h-6.696z" fill="#000000FF"></path></svg></svg></g>
@@ -73,103 +75,103 @@
       </g>
     </svg>`;
 
-    const svg2 = `<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" version="1.1">
+      const svg2 = `<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" version="1.1">
   <path d="M300,200 H150 A150,150 0 1,0 300,50 z" fill="red"/>
   <circle r="5" fill="black" cx="300" cy="200"/>
   <circle r="5" fill="green" cx="150" cy="200"/>
   <circle r="5" fill="blue" cx="300" cy="50"/>
 </svg>`;
 
-    const svg3 = `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" id="692640ba-d133-4cb2-8c3e-d1483bb7141f" preserveAspectRatio="xMidYMid">
+      const svg3 = `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" id="692640ba-d133-4cb2-8c3e-d1483bb7141f" preserveAspectRatio="xMidYMid">
   <path d="M14.814 10.811a1.049 1.049 0 0 0-1.791-.742l-6.971 6.972 1.484 1.483 5.18-5.18v17.607c0 .58.47 1.049 1.049 1.049h9.084v-2.1h-8.035V10.81z" fill="#000000FF"/>
   <circle r="0.3" fill="red" cx="14.8" cy="10.8"/>
-  </svg>`
+  </svg>`;
 
-    const svg4 = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="437" height="437" viewBox="-5.766990291262136 -11.939927184466018 8.349514563106796 8.194174757281553" style="width: 437px; height: 437px;">
+      const svg4 = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="437" height="437" viewBox="-5.766990291262136 -11.939927184466018 8.349514563106796 8.194174757281553" style="width: 437px; height: 437px;">
   <g transform="scale(1 -1) translate(0 0)">
     <ellipse cx="-1.5000455013203968" cy="8.015083253349824" rx="2.5000000000000004" ry="2.426413513777" transform="rotate(0.34568480052757566 -1.5000455013203968 8.015083253349824)" stroke-width="0.04576659038901602" stroke="black" fill="none"/>
     <ellipse cx="-2.5" cy="8.75" rx="0.20594965675057209" ry="0.20594965675057209" fill="#000000ff"/>
     <ellipse cx="-0.5" cy="8.5" rx="0.20594965675057209" ry="0.20594965675057209" fill="#000000ff"/>
     <path d="M -0.9955958173813108,6.843589816313437 A 0.9999999999999999,0.9999999999999999 0 0 0 -2.6956699856847175 7.174871904974261" stroke="#000000ff" stroke-width="0.13729977116704806" stroke-linecap="round" fill="none"/>
   </g>
-</svg>`
-    // <path d="M19.25 25.254V8.148l6.665-6.664L24.43 0l-6.97 6.971a1.05 1.05 0 0 0-.308.742v18.59c0 .58.47 1.05 1.05 1.05h7.745v-2.099h-6.696z" fill="#000000FF"/>
+</svg>`;
+      // <path d="M19.25 25.254V8.148l6.665-6.664L24.43 0l-6.97 6.971a1.05 1.05 0 0 0-.308.742v18.59c0 .58.47 1.05 1.05 1.05h7.745v-2.099h-6.696z" fill="#000000FF"/>
 
-    const drawLines = (page) => {
-      Array(10)
-        .fill(1)
-        .map((v, i) => i)
-        .forEach((v) => {
-          page.drawText('----' + v, {
-            x: 5,
-            y: v * 100,
-            size: 20,
+      const drawLines = (page) => {
+        Array(10)
+          .fill(1)
+          .map((v, i) => i)
+          .forEach((v) => {
+            page.drawText('----' + v, {
+              x: 5,
+              y: v * 100,
+              size: 20,
+            });
           });
-        });
-      Array(100)
-        .fill(1)
-        .map((v, i) => i)
-        .forEach((v) => {
-          page.drawText(v % 5 == 0 ? '---' : '--', {
-            x: 5,
-            y: v * 10,
-            size: 20,
+        Array(100)
+          .fill(1)
+          .map((v, i) => i)
+          .forEach((v) => {
+            page.drawText(v % 5 == 0 ? '---' : '--', {
+              x: 5,
+              y: v * 10,
+              size: 20,
+            });
           });
-        });
-    };
-    const drawGrid = (page) => {
-      Array(parseInt(page.getHeight() / 10))
-        .fill(1)
-        .map((v, i) => {
-          page.drawLine({
-            start: { x: 0, y: i * 10 },
-            end: { x: page.getWidth(), y: i * 10 },
+      };
+      const drawGrid = (page) => {
+        Array(parseInt(page.getHeight() / 10))
+          .fill(1)
+          .map((v, i) => {
+            page.drawLine({
+              start: { x: 0, y: i * 10 },
+              end: { x: page.getWidth(), y: i * 10 },
+            });
           });
-        });
-      Array(parseInt(page.getWidth() / 10))
-        .fill(1)
-        .map((v, i) => {
-          page.drawLine({
-            start: { x: i * 10, y: 0 },
-            end: { x: i * 10, y: page.getHeight() },
+        Array(parseInt(page.getWidth() / 10))
+          .fill(1)
+          .map((v, i) => {
+            page.drawLine({
+              start: { x: i * 10, y: 0 },
+              end: { x: i * 10, y: page.getHeight() },
+            });
           });
-        });
-    };
-    // drawGrid(firstPage)
-    drawLines(firstPage);
+      };
+      // drawGrid(firstPage)
+      drawLines(firstPage);
 
-    await firstPage.drawSvg(svg, {
-      height: 602,
-      width: 409,
-      // height: 32,
-      // width: 32,
-      x: 100,
-      y: 700,
-    });
+      await firstPage.drawSvg(svg, {
+        height: 602,
+        width: 409,
+        // height: 32,
+        // width: 32,
+        x: 100,
+        y: 700,
+      });
 
-    // await firstPage.drawSvg(svg3, {
-    //   height: 100,
-    //   width: 100,
-    //   x: 100,
-    //   y: 700
-    // })
+      // await firstPage.drawSvg(svg3, {
+      //   height: 100,
+      //   width: 100,
+      //   x: 100,
+      //   y: 700
+      // })
 
-    // await firstPage.drawSvg(svg2, {
-    //   height: 100,
-    //   width: 100,
-    //   x: 100,
-    //   y: 500
-    // })
+      // await firstPage.drawSvg(svg2, {
+      //   height: 100,
+      //   width: 100,
+      //   x: 100,
+      //   y: 500
+      // })
 
-    // await firstPage.drawSvg(svg4, {
-    //   height: 100,
-    //   width: 100,
-    //   x: 100,
-    //   y: 400
-    // })
-    const pdfBytes = await pdfDoc.save();
+      // await firstPage.drawSvg(svg4, {
+      //   height: 100,
+      //   width: 100,
+      //   x: 100,
+      //   y: 400
+      // })
+      const pdfBytes = await pdfDoc.save();
 
-    renderInIframe(pdfBytes);
-  }
-</script>
+      renderInIframe(pdfBytes);
+    }
+  </script>
 </html>

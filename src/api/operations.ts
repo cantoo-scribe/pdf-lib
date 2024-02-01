@@ -39,7 +39,7 @@ import { Rotation, degrees, toRadians } from './rotations';
 import { svgPathToOperators } from './svgPath';
 import { PDFHexString, PDFName, PDFNumber, PDFOperator } from '../core';
 import { asNumber } from './objects';
-import type { Space, TransformationMatrix } from '../types'
+import type { Space, TransformationMatrix } from '../types';
 
 export interface DrawTextOptions {
   color: Color;
@@ -55,22 +55,16 @@ export interface DrawTextOptions {
   clipSpaces?: Space[];
 }
 
-const clipSpace = ({ 
-  topLeft,
-  topRight,
-  bottomRight,
-  bottomLeft
-}: Space) => 
-  [
-    moveTo(topLeft.x, topLeft.y),
-    lineTo(topRight.x, topRight.y),
-    lineTo(bottomRight.x, bottomRight.y),
-    lineTo(bottomLeft.x, bottomLeft.y),
-    closePath(),
-    clip(),
-    endPath(),
-  ]
-const clipSpaces = (spaces: Space[]) => spaces.flatMap(clipSpace)
+const clipSpace = ({ topLeft, topRight, bottomRight, bottomLeft }: Space) => [
+  moveTo(topLeft.x, topLeft.y),
+  lineTo(topRight.x, topRight.y),
+  lineTo(bottomRight.x, bottomRight.y),
+  lineTo(bottomLeft.x, bottomLeft.y),
+  closePath(),
+  clip(),
+  endPath(),
+];
+const clipSpaces = (spaces: Space[]) => spaces.flatMap(clipSpace);
 
 export const drawText = (
   line: PDFHexString,
@@ -225,7 +219,8 @@ export const drawRectangle = (options: {
   graphicsState?: string | PDFName;
   matrix?: TransformationMatrix;
   clipSpaces?: Space[];
-}) => [
+}) =>
+  [
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
     options.color && setFillingColor(options.color),

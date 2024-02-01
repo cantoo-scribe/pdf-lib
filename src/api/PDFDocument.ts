@@ -153,7 +153,10 @@ export default class PDFDocument {
       throwOnInvalidObject,
       capNumbers,
     ).parseDocument();
-    if (!!context.lookup(context.trailerInfo.Encrypt) && password!==undefined) {
+    if (
+      !!context.lookup(context.trailerInfo.Encrypt) &&
+      password !== undefined
+    ) {
       // Decrypt
       const fileIds = context.lookup(context.trailerInfo.ID, PDFArray);
       const encryptDict = context.lookup(context.trailerInfo.Encrypt, PDFDict);

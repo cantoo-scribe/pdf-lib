@@ -66,7 +66,7 @@ class PDFParser extends PDFObjectParser {
     this.objectsPerTick = objectsPerTick;
     this.throwOnInvalidObject = throwOnInvalidObject;
     this.warnOnInvalidObjects = warnOnInvalidObjects;
-    this.context.isDecrypted = !!cryptoFactory?.encryptionKey
+    this.context.isDecrypted = !!cryptoFactory?.encryptionKey;
   }
 
   async parseDocument(): Promise<PDFContext> {

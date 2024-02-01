@@ -19,10 +19,10 @@ import {
   rotate,
 } from './maths';
 
-export function intersections(
+export const intersections = (
   A: GraphicElement,
   B: GraphicElement,
-): Coordinates[] {
+): Coordinates[] => {
   if (A instanceof Point || B instanceof Point) return [];
   else if (A instanceof Text || B instanceof Text) return [];
   else if (A instanceof Image || B instanceof Image) return [];
@@ -41,19 +41,17 @@ export function intersections(
   else if (A instanceof Rectangle) return intersectionsRectangle(A, B);
   else if (A instanceof Ellipse) return intersectionsEllipse(A, B);
   return A;
-}
+};
 
-export function intersection(
+export const intersection = (
   A: GraphicElement,
   B: GraphicElement,
-): Coordinates | undefined {
-  return intersections(A, B)[0];
-}
+): Coordinates | undefined => intersections(A, B)[0];
 
-function intersectionsLine(
+const intersectionsLine = (
   A: Line,
   B: Exclude<GraphicElement, Text | Point>,
-): Coordinates[] {
+): Coordinates[] => {
   if (B instanceof Line) return intersectionLine(A, B);
   else if (B instanceof Segment) {
     return intersectionLine(A, B.getLine()).filter((P) =>
@@ -68,12 +66,12 @@ function intersectionsLine(
   else if (B instanceof Rectangle) return intersectionsRectangle(B, A);
   else if (B instanceof Ellipse) return intersectionsEllipse(B, A);
   return B;
-}
+};
 
-function intersectionsEllipse(
+const intersectionsEllipse = (
   A: Ellipse,
   B: Exclude<GraphicElement, Text | Point>,
-): Coordinates[] {
+): Coordinates[] => {
   if (B instanceof Line) return intersectionsLineAndEllipse(A, B);
   else if (B instanceof Segment) {
     return intersectionsEllipse(A, B.getLine()).filter((P) =>
@@ -93,9 +91,9 @@ function intersectionsEllipse(
   } else if (B instanceof Plot) return intersectionsPlot(B, A);
   else if (B instanceof Rectangle) return intersectionsRectangle(B, A);
   return B;
-}
+};
 
-function intersectionsLineAndEllipse(A: Ellipse, B: Line): Coordinates[] {
+const intersectionsLineAndEllipse = (A: Ellipse, B: Line): Coordinates[] => {
   const center = A.center().toCoords();
   const a = A.a();
   const b = A.b();
@@ -137,9 +135,9 @@ function intersectionsLineAndEllipse(A: Ellipse, B: Line): Coordinates[] {
   // Intersection with vertical line
   if (isEqual(p1Normalized.x - p2Normalized.x, 0)) {
     const x = p1Normalized.x;
-    const delta = b ** 2 - (x ** 2 * b ** 2) / a ** 2;
-    if (delta < 0) return [];
-    else if (delta === 0) {
+    const vDelta = b ** 2 - (x ** 2 * b ** 2) / a ** 2;
+    if (vDelta < 0) return [];
+    else if (vDelta === 0) {
       return [{ x, y: 0 }].map(denormalize);
     } else {
       const y1 = Math.sqrt((b ** 2 * (a ** 2 - x ** 2)) / a ** 2);
@@ -175,9 +173,9 @@ function intersectionsLineAndEllipse(A: Ellipse, B: Line): Coordinates[] {
       { x: x2, y: y2 },
     ].map(denormalize);
   }
-}
+};
 
-export function intersectionLine(A: Line, B: Line): Coordinates[] {
+export const intersectionLine = (A: Line, B: Line): Coordinates[] => {
   if (isColinear(A.dirVect(), B.dirVect())) return [];
   else {
     const { x: ux, y: uy } = A.dirVect();
@@ -190,9 +188,9 @@ export function intersectionLine(A: Line, B: Line): Coordinates[] {
       (uy * (vy * (xA - xB) + vx * yB) - ux * vy * yA) / (uy * vx - ux * vy);
     return [{ x, y }];
   }
-}
+};
 
-function intersectionsPlot(A: Plot, B: GraphicElement): Coordinates[] {
+const intersectionsPlot = (A: Plot, B: GraphicElement): Coordinates[] => {
   const points = A.getPoints().map((pt) => new Point(pt));
   const head = points.pop();
   const segments = points.map(
@@ -201,20 +199,20 @@ function intersectionsPlot(A: Plot, B: GraphicElement): Coordinates[] {
   // @ts-ignore
   const inters = segments.map((s) => intersections(s, B)).flat();
   return inters;
-}
+};
 
-function intersectionsRectangle(
+const intersectionsRectangle = (
   A: Rectangle,
   B: GraphicElement,
-): Coordinates[] {
+): Coordinates[] => {
   const P1 = A.getCoords();
   const P3 = A.getEnd();
   const P2 = { x: P1.x, y: P3.y };
   const P4 = { x: P3.x, y: P1.y };
   return intersections(new Plot([P1, P2, P3, P4, P1]), B);
-}
+};
 
-export function intersectionCircleLine(A: Circle, B: Line): Coordinates[] {
+export const intersectionCircleLine = (A: Circle, B: Line): Coordinates[] => {
   const rA = A.ray();
   const O = A.center();
   const H = B.orthoProjection(O);
@@ -230,9 +228,9 @@ export function intersectionCircleLine(A: Circle, B: Line): Coordinates[] {
     const vect = unitVector(B.dirVect());
     return [H.plus(times(vect, HP)), H.plus(times(vect, -HP))];
   }
-}
+};
 
-export function intersectionCircle(A: Circle, B: Circle): Coordinates[] {
+export const intersectionCircle = (A: Circle, B: Circle): Coordinates[] => {
   const oA = A.center();
   const oB = B.center();
   const rA = A.ray();
@@ -249,12 +247,12 @@ export function intersectionCircle(A: Circle, B: Circle): Coordinates[] {
     const H = oA.plus(times(axis, ratio));
     return intersectionCircleLine(A, new Line(H, H.plus(orthogonal(axis))));
   }
-}
+};
 
-function intersectionsCircle(
+const intersectionsCircle = (
   A: Circle,
   B: Exclude<GraphicElement, Text | Point>,
-): Coordinates[] {
+): Coordinates[] => {
   if (B instanceof Circle) return intersectionCircle(A, B);
   else if (B instanceof Line) return intersectionCircleLine(A, B);
   else if (B instanceof Segment) {
@@ -269,9 +267,9 @@ function intersectionsCircle(
   else if (B instanceof Rectangle) return intersectionsRectangle(B, A);
   else if (B instanceof Ellipse) return intersectionsEllipse(B, A);
   return B;
-}
+};
 
-export function getIntersections(elements: GraphicElement[]) {
+export const getIntersections = (elements: GraphicElement[]) => {
   const checked: GraphicElement[] = [];
   const inters: Coordinates[] = [];
   elements.forEach((elt) => {
@@ -279,4 +277,4 @@ export function getIntersections(elements: GraphicElement[]) {
     checked.push(elt);
   });
   return inters;
-}
+};

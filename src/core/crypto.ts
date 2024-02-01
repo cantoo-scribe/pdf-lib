@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* tslint:disable */
 
 import { arrayAsString, isArrayEqual } from '../utils/arrays';
 import { stringAsByteArray } from '../utils/strings';

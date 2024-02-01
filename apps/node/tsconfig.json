@@ -21,11 +21,8 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "preserveSymlinks": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
   },
   "include": ["./**/*"],
-  "exclude": [
-    "tests",
-    "node_modules",
-  ]
+  "exclude": ["tests", "node_modules"],
 }

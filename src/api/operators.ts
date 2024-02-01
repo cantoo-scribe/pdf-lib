@@ -187,7 +187,7 @@ export const stroke = () => PDFOperator.of(Ops.StrokePath);
 
 export enum FillRule {
   NonZero = 'f',
-  EvenOdd = 'f*'
+  EvenOdd = 'f*',
 }
 
 export const fill = () => PDFOperator.of(Ops.FillNonZero);

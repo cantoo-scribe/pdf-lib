@@ -147,7 +147,7 @@ describe(`svgPathToOperators`, () => {
     );
     expect(operators.length).toBe(5);
     expect(operators.toString()).toBe(
-      '10 25 m,30 0 50 25 v,70 50 90 25 v,110 0 130 25 v,150 50 170 25 v'
+      '10 25 m,30 0 50 25 v,70 50 90 25 v,110 0 130 25 v,150 50 170 25 v',
     );
   });
 });

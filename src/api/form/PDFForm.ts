@@ -563,8 +563,8 @@ export default class PDFForm {
           ].filter(Boolean) as PDFOperator[];
 
           page.pushOperators(...operators);
-        } catch(err) {
-          console.error(err)
+        } catch (err) {
+          console.error(err);
         }
       }
 
@@ -595,8 +595,8 @@ export default class PDFForm {
         pages.add(page);
 
         page.node.removeAnnot(widgetRef);
-      } catch(err) {
-        console.error(err)
+      } catch (err) {
+        console.error(err);
       }
     }
 

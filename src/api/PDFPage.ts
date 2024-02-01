@@ -1015,7 +1015,7 @@ export default class PDFPage {
         lineHeight: options.lineHeight ?? this.lineHeight,
         graphicsState: graphicsStateKey,
         matrix: options.matrix,
-        clipSpaces: options.clipSpaces
+        clipSpaces: options.clipSpaces,
       }),
     );
 
@@ -1082,7 +1082,7 @@ export default class PDFPage {
         ySkew: options.ySkew ?? degrees(0),
         graphicsState: graphicsStateKey,
         matrix: options.matrix,
-        clipSpaces: options.clipSpaces
+        clipSpaces: options.clipSpaces,
       }),
     );
   }
@@ -1273,7 +1273,7 @@ export default class PDFPage {
         graphicsState: graphicsStateKey,
         fillRule: options.fillRule,
         matrix: options.matrix,
-        clipSpaces: options.clipSpaces
+        clipSpaces: options.clipSpaces,
       }),
     );
   }
