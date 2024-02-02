@@ -100,22 +100,33 @@ describe(`PDFContext`, () => {
     const context = PDFContext.create();
 
     it(`converts null literals to the PDFNull instance`, () => {
-      expect(context.obj(null)).toBe(PDFNull);
+      const literal = null;
+      const obj = context.obj(literal);
+      expect(obj).toBe(PDFNull);
+      expect(context.getLiteral(obj)).toBe(literal);
     });
 
     it(`converts string literals to PDFName instances`, () => {
-      expect(context.obj('foobar')).toBeInstanceOf(PDFName);
-      expect(context.obj('foobar').toString()).toBe('/foobar');
+      const literal = 'foobar';
+      const obj = context.obj(literal);
+      expect(obj).toBeInstanceOf(PDFName);
+      expect(obj.toString()).toBe(`/${literal}`);
+      expect(context.getLiteral(obj)).toBe(literal);
     });
 
     it(`converts number literals to PDFNumber instances`, () => {
-      expect(context.obj(-21.4e-3)).toBeInstanceOf(PDFNumber);
-      expect(context.obj(-21.4e-3).toString()).toBe('-0.0214');
+      const literal = -21.4e-3;
+      const obj = context.obj(literal);
+      expect(obj).toBeInstanceOf(PDFNumber);
+      expect(obj.toString()).toBe('-0.0214');
+      expect(context.getLiteral(obj)).toBe(literal);
     });
 
     it(`converts boolean literals to PDFBool instances`, () => {
       expect(context.obj(true)).toBe(PDFBool.True);
+      expect(context.getLiteral(PDFBool.True)).toBe(true);
       expect(context.obj(false)).toBe(PDFBool.False);
+      expect(context.getLiteral(PDFBool.False)).toBe(false);
     });
 
     it(`converts array literals to PDFArray instances`, () => {
@@ -127,10 +138,13 @@ describe(`PDFContext`, () => {
         [null, -24.179],
         { Foo: PDFName.of('Bar') },
       ];
-      expect(context.obj(array)).toBeInstanceOf(PDFArray);
-      expect(context.obj(array).toString()).toEqual(
+      const obj = context.obj(array);
+      expect(obj).toBeInstanceOf(PDFArray);
+      expect(obj.toString()).toEqual(
         '[ 21 0 R true <ABC123> /Foo#23Bar! [ null -24.179 ] <<\n/Foo /Bar\n>> ]',
       );
+      (array[5] as any).Foo = 'Bar';
+      expect(context.getLiteral(obj)).toEqual(array);
     });
 
     it(`converts object literals to PDFDict instances`, () => {
@@ -143,8 +157,9 @@ describe(`PDFContext`, () => {
         Name: 'Foo#Bar!',
         Dictionary: { Array: [true, null] },
       };
-      expect(context.obj(dict)).toBeInstanceOf(PDFDict);
-      expect(context.obj(dict).toString()).toEqual(
+      const obj = context.obj(dict);
+      expect(obj).toBeInstanceOf(PDFDict);
+      expect(obj.toString()).toEqual(
         `<<
 /Ref 21 0 R
 /Boolean true
@@ -157,6 +172,45 @@ describe(`PDFContext`, () => {
 >>
 >>`,
       );
+      expect(context.getLiteral(obj)).toEqual(dict);
+    });
+
+    it(`converts PDFObject instances to their literal representation`, () => {
+      const dict = {
+        Ref: PDFRef.of(21),
+        Boolean: true,
+        String: PDFString.of('blub'),
+        HexString: PDFHexString.of('ABC123'),
+        Null: null,
+        Number: -3.5e-2,
+        Name: 'Foo#Bar()',
+        Dictionary: { Array: [true, null] },
+      };
+      const obj = context.obj(dict);
+
+      // Default conversion
+      let lit = context.getLiteral(obj);
+      expect(lit).toEqual(dict);
+
+      // Shallow conversion
+      lit = context.getLiteral(obj, {deep: false});
+      expect(lit.Boolean).toBe(PDFBool.True);
+      expect(lit.Null).toBe(PDFNull);
+      expect(lit.Number).toBeInstanceOf(PDFNumber);
+      expect(lit.Name).toBeInstanceOf(PDFName);
+      expect(lit.Dictionary).toBeInstanceOf(PDFDict);
+
+      // Extended conversion
+      lit = context.getLiteral(obj, {literalRef: true, literalString: true});
+      expect(lit.Ref).toBe(21);
+      expect(lit.String).toBe('blub');
+      expect(lit.HexString).toBe('ABC123');
+      const stream = context.stream('foo', dict);
+      lit = context.getLiteral(stream, {literalStreamDict: true}) as typeof dict;
+      expect(lit).toEqual(dict);
+      stream.updateDict();
+      lit = context.getLiteral(stream, {literalStreamDict: true}) as {Length: number};
+      expect(lit.Length).toBe(3);
     });
   });
 
