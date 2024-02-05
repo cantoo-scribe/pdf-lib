@@ -133,6 +133,7 @@ export default class PDFDocument {
       ignoreEncryption = false,
       parseSpeed = ParseSpeeds.Slow,
       throwOnInvalidObject = false,
+      warnOnInvalidObjects = false,
       updateMetadata = true,
       capNumbers = false,
       password,
@@ -142,6 +143,7 @@ export default class PDFDocument {
     assertIs(ignoreEncryption, 'ignoreEncryption', ['boolean']);
     assertIs(parseSpeed, 'parseSpeed', ['number']);
     assertIs(throwOnInvalidObject, 'throwOnInvalidObject', ['boolean']);
+    assertIs(warnOnInvalidObjects, 'warnOnInvalidObjects', ['boolean']);
     assertIs(password, 'password', ['string', 'undefined']);
 
     const bytes = toUint8Array(pdf);
@@ -159,6 +161,7 @@ export default class PDFDocument {
         bytes,
         parseSpeed,
         throwOnInvalidObject,
+        warnOnInvalidObjects,
         capNumbers,
         new CipherTransformFactory(
           encryptDict,

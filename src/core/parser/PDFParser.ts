@@ -30,6 +30,7 @@ class PDFParser extends PDFObjectParser {
     pdfBytes: Uint8Array,
     objectsPerTick?: number,
     throwOnInvalidObject?: boolean,
+    warnOnInvalidObjects?: boolean,
     capNumbers?: boolean,
     cryptoFactory?: CipherTransformFactory,
   ) =>
@@ -37,12 +38,14 @@ class PDFParser extends PDFObjectParser {
       pdfBytes,
       objectsPerTick,
       throwOnInvalidObject,
+      warnOnInvalidObjects,
       capNumbers,
       cryptoFactory,
     );
 
   private readonly objectsPerTick: number;
   private readonly throwOnInvalidObject: boolean;
+  private readonly warnOnInvalidObjects: boolean;
   private alreadyParsed = false;
   private parsedObjects = 0;
 
@@ -50,6 +53,7 @@ class PDFParser extends PDFObjectParser {
     pdfBytes: Uint8Array,
     objectsPerTick = Infinity,
     throwOnInvalidObject = false,
+    warnOnInvalidObjects = false,
     capNumbers = false,
     cryptoFactory?: CipherTransformFactory,
   ) {
@@ -61,6 +65,7 @@ class PDFParser extends PDFObjectParser {
     );
     this.objectsPerTick = objectsPerTick;
     this.throwOnInvalidObject = throwOnInvalidObject;
+    this.warnOnInvalidObjects = warnOnInvalidObjects;
     this.context.isDecrypted = !!cryptoFactory?.encryptionKey
   }
 
@@ -197,11 +202,11 @@ class PDFParser extends PDFObjectParser {
 
     const msg = `Trying to parse invalid object: ${JSON.stringify(startPos)})`;
     if (this.throwOnInvalidObject) throw new Error(msg);
-    console.warn(msg);
+    this.warnOnInvalidObjects && console.warn(msg);
 
     const ref = this.parseIndirectObjectHeader();
 
-    console.warn(`Invalid object ref: ${ref}`);
+    this.warnOnInvalidObjects && console.warn(`Invalid object ref: ${ref}`);
 
     this.skipWhitespaceAndComments();
     const start = this.bytes.offset();
