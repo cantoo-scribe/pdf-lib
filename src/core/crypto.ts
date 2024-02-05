@@ -1545,7 +1545,7 @@ class CipherTransformFactory {
       throw new Error('unsupported encryption algorithm');
     }
     this.algorithm = algorithm;
-    let keyLength = (dict.get(PDFName.of('Length')) as PDFNumber).asNumber();
+    let keyLength = (dict.get(PDFName.of('Length')) as PDFNumber | undefined)?.asNumber();
     if (!keyLength) {
       // Spec asks to rely on encryption dictionary's Length entry, however
       // some PDFs don't have it. Trying to recover.
@@ -1574,8 +1574,8 @@ class CipherTransformFactory {
         }
       }
     }
-    if (!Number.isInteger(keyLength) || keyLength < 40 || keyLength % 8 !== 0) {
-      throw new Error('invalid key length');
+    if (keyLength === undefined || !Number.isInteger(keyLength) || keyLength < 40 || keyLength % 8 !== 0) {
+      throw new Error(`invalid key length: ${keyLength}`);
     }
 
     const oPdfStr = (dict.get(PDFName.of('O')) as PDFString).asBytes();
