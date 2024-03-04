@@ -111,6 +111,9 @@
         x: 100,
         y: 700,
       });
+      firstPage.moveUp(600)
+      firstPage.moveRight(100)
+      firstPage.drawSvgPath('M 0,20 L 100,160 Q 130,200 150,120 C 190,-40 200,200 300,150 L 400,90')
 
       const pdfBytes = await pdfDoc.save();
 

@@ -273,7 +273,8 @@ const textWidth = (font || page.getFont()[0]).widthOfTextAtSize(
       color: element.svgAttributes.fill,
       opacity: element.svgAttributes.fillOpacity,
       fillRule: element.svgAttributes.fillRule,
-      matrix: element.svgAttributes.matrix,
+      // drawSvgPath already handle the page y coord correctly, so we can undo the svg parsing correction
+      matrix: combineTransformation(element.svgAttributes.matrix, 'scale', [1, -1]),
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
