@@ -46,7 +46,14 @@
     };
 
     async function test() {
-      const { degrees, PDFDocument, rgb, StandardFonts, LineCapStyle } = PDFLib;
+      const {
+        degrees,
+        PDFDocument,
+        rgb,
+        StandardFonts,
+        LineCapStyle,
+        TextRenderingMode,
+      } = PDFLib;
 
       const [
         inputPdfBase64,
@@ -100,6 +107,7 @@
 
       const hotPink = rgb(1, 0, 1);
       const red = rgb(1, 0, 0);
+      const blue = rgb(0, 0, 1);
 
       page0.drawText('This is the new first page!', {
         x: 5,
@@ -162,6 +170,16 @@
         color: hotPink,
         thickness: 5,
         lineCap: LineCapStyle.Round,
+      });
+
+      page5.drawText('This text is outlined', {
+        x: 30,
+        y: 80,
+        font: helveticaFont,
+        color: hotPink,
+        strokeColor: blue,
+        strokeWidth: 1.5,
+        renderMode: TextRenderingMode.FillAndOutline,
       });
 
       console.log('Title:', pdfDoc.getTitle());

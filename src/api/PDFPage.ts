@@ -980,6 +980,11 @@ export default class PDFPage {
     assertOrUndefined(options.maxWidth, 'options.maxWidth', ['number']);
     assertOrUndefined(options.wordBreaks, 'options.wordBreaks', [Array]);
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.strokeColor, 'options.strokeColor', [
+      [Object, 'Color'],
+    ]);
+    assertOrUndefined(options.strokeWidth, 'options.strokeWidth', ['number']);
+    assertOrUndefined(options.renderMode, 'options.renderMode', ['number']);
 
     const { oldFont, newFont, newFontKey } = this.setOrEmbedFont(options.font);
     const fontSize = options.size || this.fontSize;
@@ -1016,6 +1021,9 @@ export default class PDFPage {
         graphicsState: graphicsStateKey,
         matrix: options.matrix,
         clipSpaces: options.clipSpaces,
+        strokeColor: options.strokeColor,
+        strokeWidth: options.strokeWidth,
+        renderMode: options.renderMode,
       }),
     );
 

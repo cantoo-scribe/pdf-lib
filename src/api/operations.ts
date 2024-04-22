@@ -34,6 +34,8 @@ import {
   FillRule,
   fillEvenOdd,
   concatTransformationMatrix,
+  TextRenderingMode,
+  setTextRenderingMode,
 } from './operators';
 import { Rotation, degrees, toRadians } from './rotations';
 import { svgPathToOperators } from './svgPath';
@@ -53,6 +55,9 @@ export interface DrawTextOptions {
   graphicsState?: string | PDFName;
   matrix?: TransformationMatrix;
   clipSpaces?: Space[];
+  strokeWidth?: number;
+  strokeColor?: Color;
+  renderMode?: TextRenderingMode;
 }
 
 const clipSpace = ({ topLeft, topRight, bottomRight, bottomLeft }: Space) => [
@@ -76,6 +81,9 @@ export const drawText = (
     beginText(),
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
+    options.strokeWidth && setLineWidth(options.strokeWidth),
+    options.strokeColor && setStrokingColor(options.strokeColor),
+    options.renderMode && setTextRenderingMode(options.renderMode),
     rotateAndSkewTextRadiansAndTranslate(
       toRadians(options.rotate),
       toRadians(options.xSkew),
@@ -105,6 +113,9 @@ export const drawLinesOfText = (
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
     setLineHeight(options.lineHeight),
+    options.strokeWidth && setLineWidth(options.strokeWidth),
+    options.strokeColor && setStrokingColor(options.strokeColor),
+    options.renderMode && setTextRenderingMode(options.renderMode),
     rotateAndSkewTextRadiansAndTranslate(
       toRadians(options.rotate),
       toRadians(options.xSkew),

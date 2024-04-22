@@ -1,7 +1,7 @@
 import { Color } from './colors';
 import PDFFont from './PDFFont';
 import { Rotation } from './rotations';
-import { FillRule, LineCapStyle } from './operators';
+import { FillRule, LineCapStyle, TextRenderingMode } from './operators';
 import type { Space, TransformationMatrix } from '../types';
 
 interface SvgOptions {
@@ -38,6 +38,9 @@ export interface PDFPageDrawTextOptions extends SvgOptions {
   lineHeight?: number;
   maxWidth?: number;
   wordBreaks?: string[];
+  strokeWidth?: number;
+  strokeColor?: Color;
+  renderMode?: TextRenderingMode;
 }
 
 export interface PDFPageDrawImageOptions extends SvgOptions {
