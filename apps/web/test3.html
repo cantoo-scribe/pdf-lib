@@ -182,6 +182,15 @@
         renderMode: TextRenderingMode.FillAndOutline,
       });
 
+      page5.drawText('Outline only', {
+        x: 30,
+        y: 10,
+        font: helveticaFont,
+        strokeColor: hotPink,
+        strokeWidth: 1.5,
+        renderMode: TextRenderingMode.Outline,
+      });
+
       console.log('Title:', pdfDoc.getTitle());
       console.log('Author:', pdfDoc.getAuthor());
       console.log('Subject:', pdfDoc.getSubject());
