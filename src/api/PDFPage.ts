@@ -57,7 +57,7 @@ import {
   assertRangeOrUndefined,
   assertIsOneOfOrUndefined,
 } from '../utils';
-import { drawSvg } from './svg';
+import { drawSvg, drawSvgSync } from './svg';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -1601,6 +1601,27 @@ export default class PDFPage {
       fonts: options.fonts,
       width: options.width,
       height: options.height,
+    });
+  }
+
+  drawSvgSync(
+    svg: string,
+    options: PDFPageDrawSVGElementOptions = {},
+  ): void {
+    assertIs(svg, 'svg', ['string']);
+    assertOrUndefined(options.x, 'options.x', ['number']);
+    assertOrUndefined(options.y, 'options.y', ['number']);
+    assertOrUndefined(options.width, 'options.width', ['number']);
+    assertOrUndefined(options.height, 'options.height', ['number']);
+    assertOrUndefined(options.images, 'options.images', [[PDFImage, 'PDFImage']])
+
+    drawSvgSync(this, svg, {
+      x: options.x ?? this.x,
+      y: options.y ?? this.y,
+      fonts: options.fonts,
+      width: options.width,
+      height: options.height,
+      images: options.images
     });
   }
 

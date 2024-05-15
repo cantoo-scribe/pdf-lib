@@ -3,6 +3,7 @@ import PDFFont from './PDFFont';
 import { Rotation } from './rotations';
 import { FillRule, LineCapStyle, TextRenderingMode } from './operators';
 import type { Space, TransformationMatrix } from '../types';
+import PDFImage from './PDFImage';
 
 interface SvgOptions {
   matrix?: TransformationMatrix;
@@ -174,4 +175,5 @@ export interface PDFPageDrawSVGElementOptions {
   height?: number;
   fontSize?: number;
   fonts?: { [fontName: string]: PDFFont };
+  images?: Record<string, PDFImage>
 }

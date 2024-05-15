@@ -83,7 +83,7 @@ export type SVGElement = HTMLElement & {
 };
 
 interface SVGElementToDrawMap {
-  [cmd: string]: (a: SVGElement) => Promise<void>;
+  [cmd: string]: (a: SVGElement) => void;
 }
 
 const combineMatrix = (
@@ -220,7 +220,7 @@ const runnersToPage = (
   page: PDFPage,
   options: PDFPageDrawSVGElementOptions,
 ): SVGElementToDrawMap => ({
-  async text(element) {
+  text(element) {
     const anchor = element.svgAttributes.textAnchor;
     const dominantBaseline = element.svgAttributes.dominantBaseline;
     const text = element.text.trim().replace(/\s/g, ' ');
@@ -279,7 +279,7 @@ const runnersToPage = (
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
-  async line(element) {
+  line(element) {
     page.drawLine({
       start: {
         x: element.svgAttributes.x1 || 0,
@@ -297,7 +297,7 @@ const runnersToPage = (
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
-  async path(element) {
+  path(element) {
     if (!element.svgAttributes.d) return;
     // See https://jsbin.com/kawifomupa/edit?html,output and
     page.drawSvgPath(element.svgAttributes.d, {
@@ -319,13 +319,10 @@ const runnersToPage = (
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
-  async image(element) {
+  image(element) {
     const { src } = element.svgAttributes;
-    if (!src) return;
-    const isPng = src.match(/\.png(\?|$)|^data:image\/png;base64/gim);
-    const img = isPng
-      ? await page.doc.embedPng(src)
-      : await page.doc.embedJpg(src);
+    if (!(src && options.images?.[src])) return;
+    const img = options.images?.[src]!
 
     const { x, y, width, height } = getFittingRectangle(
       img.width,
@@ -344,7 +341,7 @@ const runnersToPage = (
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
-  async rect(element) {
+  rect(element) {
     if (!element.svgAttributes.fill && !element.svgAttributes.stroke) return;
     page.drawRectangle({
       x: 0,
@@ -361,7 +358,7 @@ const runnersToPage = (
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
-  async ellipse(element) {
+  ellipse(element) {
     page.drawEllipse({
       x: element.svgAttributes.cx || 0,
       y: -(element.svgAttributes.cy || 0),
@@ -377,7 +374,7 @@ const runnersToPage = (
       clipSpaces: element.svgAttributes.clipSpaces,
     });
   },
-  async circle(element) {
+  circle(element) {
     return runnersToPage(page, options).ellipse(element);
   },
 });
@@ -897,12 +894,12 @@ const parse = (
   );
 };
 
-export const drawSvg = async (
+const parseSvg = (
   page: PDFPage,
   svg: string,
   options: PDFPageDrawSVGElementOptions,
 ) => {
-  if (!svg) return;
+  if (!svg) return [];
   const size = page.getSize();
   const firstChild = parseHtml(svg).firstChild as HTMLElement;
 
@@ -947,7 +944,6 @@ export const drawSvg = async (
     options.y || 0,
   ];
 
-  const runners = runnersToPage(page, options);
   const elements = parse(
     firstChild.outerHTML,
     options,
@@ -955,6 +951,42 @@ export const drawSvg = async (
     baseTransformation,
   );
 
+  return elements
+};
+
+export const drawSvg = async (
+  page: PDFPage,
+  svg: string,
+  options: PDFPageDrawSVGElementOptions
+) => {
+  const elements = parseSvg(page, svg, options)
+  const runners = runnersToPage(page, options);
+
+  const parseImage = async (element: SVGElement) => {
+    const { src } = element.svgAttributes;
+    if (!src) return;
+    const isPng = src.match(/\.png(\?|$)|^data:image\/png;base64/gim);
+    const img = isPng
+      ? await page.doc.embedPng(src)
+      : await page.doc.embedJpg(src);
+
+    const { x, y, width, height } = getFittingRectangle(
+      img.width,
+      img.height,
+      element.svgAttributes.width || img.width,
+      element.svgAttributes.height || img.height,
+      element.svgAttributes.preserveAspectRatio,
+    );
+    page.drawImage(img, {
+      x,
+      y: -y - height,
+      width,
+      height,
+      opacity: element.svgAttributes.fillOpacity,
+      matrix: element.svgAttributes.matrix,
+      clipSpaces: element.svgAttributes.clipSpaces,
+    });
+  }
   await elements.reduce(async (prev, elt) => {
     await prev;
     // uncomment these lines to draw the clipSpaces
@@ -987,6 +1019,17 @@ export const drawSvg = async (
     //     thickness: 1
     //   })
     // })
+    if (elt.tagName === 'image') return parseImage(elt);
     return runners[elt.tagName]?.(elt);
   }, Promise.resolve());
-};
+}
+
+export const drawSvgSync = (
+  page: PDFPage,
+  svg: string,
+  options: PDFPageDrawSVGElementOptions
+) => {
+  const elements = parseSvg(page, svg, options);
+  const runners = runnersToPage(page, options);
+  elements.forEach(elt => runners[elt.tagName]?.(elt));
+}
