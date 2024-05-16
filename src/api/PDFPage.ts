@@ -20,6 +20,7 @@ import PDFDocument from './PDFDocument';
 import PDFEmbeddedPage from './PDFEmbeddedPage';
 import PDFFont from './PDFFont';
 import PDFImage from './PDFImage';
+import PDFSvg from './PDFSvg';
 import {
   PDFPageDrawCircleOptions,
   PDFPageDrawEllipseOptions,
@@ -57,7 +58,7 @@ import {
   assertRangeOrUndefined,
   assertIsOneOfOrUndefined,
 } from '../utils';
-import { drawSvg, drawSvgSync } from './svg';
+import { drawSvg } from './svg';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -1585,43 +1586,22 @@ export default class PDFPage {
    * @param svg The SVG to be drawn.
    * @param options The options to be used when drawing the SVG.
    */
-  async drawSvg(
-    svg: string,
-    options: PDFPageDrawSVGElementOptions = {},
-  ): Promise<void> {
-    assertIs(svg, 'svg', ['string']);
-    assertOrUndefined(options.x, 'options.x', ['number']);
-    assertOrUndefined(options.y, 'options.y', ['number']);
-    assertOrUndefined(options.width, 'options.width', ['number']);
-    assertOrUndefined(options.height, 'options.height', ['number']);
-
-    await drawSvg(this, svg, {
-      x: options.x ?? this.x,
-      y: options.y ?? this.y,
-      fonts: options.fonts,
-      width: options.width,
-      height: options.height,
-    });
-  }
-
-  drawSvgSync(
-    svg: string,
+  drawSvg(
+    svg: PDFSvg | string,
     options: PDFPageDrawSVGElementOptions = {},
   ): void {
-    assertIs(svg, 'svg', ['string']);
+    assertIs(svg, 'svg', ['string', [PDFSvg, 'PDFSvg']]);
     assertOrUndefined(options.x, 'options.x', ['number']);
     assertOrUndefined(options.y, 'options.y', ['number']);
     assertOrUndefined(options.width, 'options.width', ['number']);
     assertOrUndefined(options.height, 'options.height', ['number']);
-    assertOrUndefined(options.images, 'options.images', [[PDFImage, 'PDFImage']])
 
-    drawSvgSync(this, svg, {
+    drawSvg(this, svg, {
       x: options.x ?? this.x,
       y: options.y ?? this.y,
       fonts: options.fonts,
       width: options.width,
       height: options.height,
-      images: options.images
     });
   }
 

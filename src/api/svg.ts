@@ -9,6 +9,7 @@ import { Color, colorString } from './colors';
 import { Degrees, degreesToRadians } from './rotations';
 import PDFFont from './PDFFont';
 import PDFPage from './PDFPage';
+import PDFSvg from './PDFSvg';
 import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle, FillRule } from './operators';
 import { TransformationMatrix, identityMatrix } from '../types/matrix';
@@ -218,7 +219,7 @@ const StrokeLineJoinMap: Record<string, LineJoinStyle> = {
 /** methods to draw SVGElements onto a PDFPage */
 const runnersToPage = (
   page: PDFPage,
-  options: PDFPageDrawSVGElementOptions,
+  options: PDFPageDrawSVGElementOptions & { images?: PDFSvg['images'] },
 ): SVGElementToDrawMap => ({
   text(element) {
     const anchor = element.svgAttributes.textAnchor;
@@ -499,7 +500,7 @@ const parseAttributes = (
   };
 
   const svgAttributes: SVGAttributes = {
-    src: attributes.src || attributes['xlink:href'],
+    src: attributes.src ||  attributes.href || attributes['xlink:href'],
     textAnchor: attributes['text-anchor'],
     dominantBaseline: attributes['dominant-baseline'],
     preserveAspectRatio: attributes.preserveAspectRatio,
@@ -894,14 +895,15 @@ const parse = (
   );
 };
 
-const parseSvg = (
+export const drawSvg = (
   page: PDFPage,
-  svg: string,
-  options: PDFPageDrawSVGElementOptions,
+  svg: PDFSvg | string,
+  options: PDFPageDrawSVGElementOptions
 ) => {
-  if (!svg) return [];
+  const pdfSvg = typeof svg === 'string' ? new PDFSvg(svg) : svg
+  if (!pdfSvg.svg) return;
   const size = page.getSize();
-  const firstChild = parseHtml(svg).firstChild as HTMLElement;
+  const firstChild = parseHtml(pdfSvg.svg).firstChild as HTMLElement;
 
   const attributes = firstChild.attributes;
   const style = parseStyles(attributes.style);
@@ -951,44 +953,8 @@ const parseSvg = (
     baseTransformation,
   );
 
-  return elements
-};
-
-export const drawSvg = async (
-  page: PDFPage,
-  svg: string,
-  options: PDFPageDrawSVGElementOptions
-) => {
-  const elements = parseSvg(page, svg, options)
-  const runners = runnersToPage(page, options);
-
-  const parseImage = async (element: SVGElement) => {
-    const { src } = element.svgAttributes;
-    if (!src) return;
-    const isPng = src.match(/\.png(\?|$)|^data:image\/png;base64/gim);
-    const img = isPng
-      ? await page.doc.embedPng(src)
-      : await page.doc.embedJpg(src);
-
-    const { x, y, width, height } = getFittingRectangle(
-      img.width,
-      img.height,
-      element.svgAttributes.width || img.width,
-      element.svgAttributes.height || img.height,
-      element.svgAttributes.preserveAspectRatio,
-    );
-    page.drawImage(img, {
-      x,
-      y: -y - height,
-      width,
-      height,
-      opacity: element.svgAttributes.fillOpacity,
-      matrix: element.svgAttributes.matrix,
-      clipSpaces: element.svgAttributes.clipSpaces,
-    });
-  }
-  await elements.reduce(async (prev, elt) => {
-    await prev;
+  const runners = runnersToPage(page, { ...options, images: pdfSvg.images });
+  elements.forEach(elt => {
     // uncomment these lines to draw the clipSpaces
     // elt.svgAttributes.clipSpaces.forEach(space => {
     //   page.drawLine({
@@ -1019,17 +985,6 @@ export const drawSvg = async (
     //     thickness: 1
     //   })
     // })
-    if (elt.tagName === 'image') return parseImage(elt);
-    return runners[elt.tagName]?.(elt);
-  }, Promise.resolve());
-}
-
-export const drawSvgSync = (
-  page: PDFPage,
-  svg: string,
-  options: PDFPageDrawSVGElementOptions
-) => {
-  const elements = parseSvg(page, svg, options);
-  const runners = runnersToPage(page, options);
-  elements.forEach(elt => runners[elt.tagName]?.(elt));
+    runners[elt.tagName]?.(elt)
+  });
 }

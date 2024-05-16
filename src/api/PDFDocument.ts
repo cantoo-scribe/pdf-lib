@@ -1,3 +1,8 @@
+import {
+  parse as parseHtml,
+  HTMLElement,
+  NodeType,
+} from 'node-html-better-parser';
 import Embeddable from './Embeddable';
 import {
   EncryptedPDFError,
@@ -68,6 +73,7 @@ import PDFEmbeddedFile from './PDFEmbeddedFile';
 import PDFJavaScript from './PDFJavaScript';
 import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
+import PDFSvg from './PDFSvg';
 
 /**
  * Represents a PDF document.
@@ -1110,6 +1116,28 @@ export default class PDFDocument {
     return pdfImage;
   }
 
+  async embedSvg(svg: string): Promise<PDFSvg> {
+    if (!svg) return new PDFSvg(svg)
+    const parsedSvg = parseHtml(svg)
+    const findImages = (element: HTMLElement): HTMLElement[] => {
+      if (element.tagName === 'image') return [element]
+      else return element.childNodes.map(child => child.nodeType === NodeType.ELEMENT_NODE ? findImages(child): []).flat()
+    }
+    const images = findImages(parsedSvg)
+    const imagesDict = {} as Record<string, PDFImage>
+    
+    await Promise.all(
+      images.map(async image => {
+        const href = image.attributes.href
+        if (!href || imagesDict[href]) return
+        const isPng = href.match(/\.png(\?|$)|^data:image\/png;base64/gim)
+        const pdfImage = isPng ? await this.embedPng(href) : await this.embedJpg(href)
+        imagesDict[href] = pdfImage
+      })
+    )
+    
+    return new PDFSvg(svg, imagesDict)
+  }
   /**
    * Embed one or more PDF pages into this document.
    *

@@ -32,7 +32,7 @@
     <iframe id="iframe"></iframe>
   </body>
 
-  <script type="text/javascript">
+  <script type="text/javascript" >
     // startFpsTracker('animation-target');
 
     const renderInIframe = (pdfBytes) => {
@@ -105,10 +105,21 @@
       // drawGrid(firstPage)
       drawLines(firstPage);
 
-      await firstPage.drawSvg(svg, {
+      firstPage.drawSvg(svg, {
         height: 100,
         width: 100,
         x: 100,
+        y: 700,
+      });
+
+      const svg2 = `<svg height="200" width="300">
+        <image width="300" height="200" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAIAQMAAAD+wSzIAAAABlBMVEX///+/v7+jQ3Y5AAAADklEQVQI12P4AIX8EAgALgAD/aNpbtEAAAAASUVORK5CYII" />
+        </svg>`
+      const pdfSvg = await pdfDoc.embedSvg(svg2)
+      firstPage.drawSvg(pdfSvg, {
+        height: 200,
+        width: 300,
+        x: 500,
         y: 700,
       });
       firstPage.moveUp(600);
