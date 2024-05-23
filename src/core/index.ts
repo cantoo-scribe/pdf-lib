@@ -63,6 +63,8 @@ export { default as PDFObjectStreamParser } from './parser/PDFObjectStreamParser
 export { default as PDFParser } from './parser/PDFParser';
 export { default as PDFXRefStreamParser } from './parser/PDFXRefStreamParser';
 
+export { default as PDFSecurity, SecurityOptions } from './security/PDFSecurity';
+
 export { decodePDFRawStream } from './streams/decode';
 
 export * from './annotation';

@@ -74,6 +74,7 @@ import PDFJavaScript from './PDFJavaScript';
 import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
+import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
 
 /**
  * Represents a PDF document.
@@ -1297,6 +1298,10 @@ export default class PDFDocument {
     this.embeddedPages.push(...embeddedPages);
 
     return embeddedPages;
+  }
+
+  encrypt(options: SecurityOptions) {
+    this.context.security = PDFSecurity.create(this.context, options).encrypt();
   }
 
   /**

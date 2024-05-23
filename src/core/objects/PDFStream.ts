@@ -36,6 +36,13 @@ class PDFStream extends PDFObject {
     );
   }
 
+  updateContents(_contents: Uint8Array): void {
+    throw new MethodNotImplementedError(
+      this.constructor.name,
+      'updateContents',
+    );
+  }
+
   updateDict(): void {
     const contentsSize = this.getContentsSize();
     this.dict.set(PDFName.Length, PDFNumber.of(contentsSize));

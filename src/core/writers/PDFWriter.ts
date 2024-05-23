@@ -5,8 +5,10 @@ import PDFTrailerDict from '../document/PDFTrailerDict';
 import PDFDict from '../objects/PDFDict';
 import PDFObject from '../objects/PDFObject';
 import PDFRef from '../objects/PDFRef';
+import PDFStream from '../objects/PDFStream';
 import PDFContext from '../PDFContext';
 import PDFObjectStream from '../structures/PDFObjectStream';
+import PDFSecurity from '../security/PDFSecurity';
 import CharCodes from '../syntax/CharCodes';
 import { copyStringIntoBuffer, waitForTick } from '../../utils';
 
@@ -113,17 +115,20 @@ class PDFWriter {
   }
 
   protected async computeBufferSize(): Promise<SerializationInfo> {
-    const header = PDFHeader.forVersion(1, 7);
+    const header = this.context.header;
 
     let size = header.sizeInBytes() + 2;
 
     const xref = PDFCrossRefSection.create();
 
+    const security = this.context.security;
+
     const indirectObjects = this.context.enumerateIndirectObjects();
 
     for (let idx = 0, len = indirectObjects.length; idx < len; idx++) {
       const indirectObject = indirectObjects[idx];
-      const [ref] = indirectObject;
+      const [ref, object] = indirectObject;
+      if (security) this.encrypt(ref, object, security);
       xref.addEntry(ref, size);
       size += this.computeIndirectObjectSize(indirectObject);
       if (this.shouldWaitForTick(1)) await waitForTick();
@@ -139,6 +144,15 @@ class PDFWriter {
     size += trailer.sizeInBytes();
 
     return { size, header, indirectObjects, xref, trailerDict, trailer };
+  }
+
+  protected encrypt(ref: PDFRef, object: PDFObject, security: PDFSecurity) {
+    if (object instanceof PDFStream) {
+      const encryptFn = security.getEncryptFn(ref.objectNumber, ref.generationNumber);
+      const unencryptedContents = object.getContents();
+      const encryptedContents = encryptFn(unencryptedContents);
+      object.updateContents(encryptedContents);
+    }
   }
 
   protected shouldWaitForTick = (n: number) => {

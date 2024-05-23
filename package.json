@@ -37,7 +37,9 @@
     "Brent McSharry (https://github.com/mcshaz)",
     "Tim Knapp (https://github.com/duffyd)",
     "Ching Chang (https://github.com/ChingChang9)",
-    "François Billioud (https://github.com/Sharcoux)"
+    "François Billioud (https://github.com/Sharcoux)",
+    "Phakorn Kiong (https://github.com/PhakornKiong)",
+    "Donald Ness (https://github.com/programmarchy)"
   ],
   "scripts": {
     "release": "yarn release:prep && release-it",
@@ -98,6 +100,7 @@
     "@pdf-lib/standard-fonts": "^1.0.0",
     "@pdf-lib/upng": "^1.0.1",
     "color": "^4.2.3",
+    "crypto-js": "^4.2.0",
     "node-html-better-parser": "^1.4.0",
     "pako": "^1.0.11"
   },
@@ -108,6 +111,7 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@types/color": "^3.0.1",
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.12",
     "@types/node-fetch": "^2.5.7",
     "@types/pako": "^1.0.1",

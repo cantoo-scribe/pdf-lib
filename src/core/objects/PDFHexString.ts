@@ -8,6 +8,7 @@ import {
   pdfDocEncodingDecode,
   parseDate,
   hasUtf16BOM,
+  byteArrayToHexString,
 } from '../../utils';
 import { InvalidPDFDateStringError } from '../errors';
 
@@ -23,6 +24,10 @@ class PDFHexString extends PDFObject {
     }
 
     return new PDFHexString(hex);
+  };
+
+  static fromBytes = (bytes: Uint8Array) => {
+    return PDFHexString.of(byteArrayToHexString(bytes));
   };
 
   private readonly value: string;

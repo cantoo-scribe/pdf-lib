@@ -156,3 +156,22 @@ export const toUint8Array = (input: string | ArrayBuffer | Uint8Array) => {
     );
   }
 };
+
+// Precompute hex octets for best performance
+// Credit: https://stackoverflow.com/questions/40031688/javascript-arraybuffer-to-hex/40031979#40031979
+
+const byteToHex: string[] = [];
+
+for (let byte = 0x00; byte <= 0xff; ++byte) {
+  byteToHex[byte] = byte.toString(16).padStart(2, '0');
+}
+
+export const byteArrayToHexString = (array: Uint8Array) => {
+  const hexOctets = new Array(array.length);
+
+  for (let idx = 0; idx < array.length; ++idx) {
+    hexOctets[idx] = byteToHex[array[idx]];
+  }
+
+  return hexOctets.join('');
+};

@@ -17,6 +17,7 @@ import PDFString from './objects/PDFString';
 import PDFOperator from './operators/PDFOperator';
 import Ops from './operators/PDFOperatorNames';
 import PDFContentStream from './structures/PDFContentStream';
+import PDFSecurity from './security/PDFSecurity';
 import { typedArrayFor } from '../utils';
 import { SimpleRNG } from '../utils/rng';
 
@@ -64,6 +65,8 @@ class PDFContext {
     ID?: PDFObject;
   };
   rng: SimpleRNG;
+
+  security?: PDFSecurity;
 
   private readonly indirectObjects: Map<PDFRef, PDFObject>;
 
@@ -210,6 +213,8 @@ class PDFContext {
       return PDFNumber.of(literal);
     } else if (typeof literal === 'boolean') {
       return literal ? PDFBool.True : PDFBool.False;
+    } else if (literal instanceof Uint8Array) {
+      return PDFHexString.fromBytes(literal);
     } else if (Array.isArray(literal)) {
       const array = PDFArray.withContext(this);
       for (let idx = 0, len = literal.length; idx < len; idx++) {
