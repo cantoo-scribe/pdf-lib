@@ -1,3 +1,4 @@
+import PDFHeader from '../document/PDFHeader';
 import PDFTrailer from '../document/PDFTrailer';
 import PDFInvalidObject from '../objects/PDFInvalidObject';
 import PDFName from '../objects/PDFName';
@@ -43,7 +44,7 @@ class PDFStreamWriter extends PDFWriter {
   protected async computeBufferSize() {
     let objectNumber = this.context.largestObjectNumber + 1;
 
-    const header = this.context.header;
+    const header = PDFHeader.forVersion(1, 7);
 
     let size = header.sizeInBytes() + 2;
 

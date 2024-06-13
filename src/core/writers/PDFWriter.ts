@@ -115,7 +115,7 @@ class PDFWriter {
   }
 
   protected async computeBufferSize(): Promise<SerializationInfo> {
-    const header = this.context.header;
+    const header = PDFHeader.forVersion(1, 7);
 
     let size = header.sizeInBytes() + 2;
 
