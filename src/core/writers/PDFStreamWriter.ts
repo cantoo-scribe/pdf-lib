@@ -6,6 +6,9 @@ import PDFNumber from '../objects/PDFNumber';
 import PDFObject from '../objects/PDFObject';
 import PDFRef from '../objects/PDFRef';
 import PDFStream from '../objects/PDFStream';
+import PDFCatalog from '../structures/PDFCatalog';
+import PDFPageTree from '../structures/PDFPageTree';
+import PDFPageLeaf from '../structures/PDFPageLeaf';
 import PDFContext from '../PDFContext';
 import PDFCrossRefStream from '../structures/PDFCrossRefStream';
 import PDFObjectStream from '../structures/PDFObjectStream';
@@ -68,6 +71,9 @@ class PDFStreamWriter extends PDFWriter {
         ref === this.context.trailerInfo.Encrypt ||
         object instanceof PDFStream ||
         object instanceof PDFInvalidObject ||
+        object instanceof PDFCatalog ||
+        object instanceof PDFPageTree ||
+        object instanceof PDFPageLeaf ||
         ref.generationNumber !== 0;
 
       if (shouldNotCompress) {
