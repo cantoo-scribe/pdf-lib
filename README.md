@@ -1037,7 +1037,7 @@ page.drawSvg(svg)
 
 // If the svg has images, or if you don't know if it does, you should call embedSVG first
 page.moveTo(200, 10)
-const pdfSvg = await page.embedSvg(svg2)
+const pdfSvg = await pdfDoc.embedSvg(svg2)
 page.drawSvg(pdfSvg)
 
 // Serialize the PDFDocument to bytes (a Uint8Array)

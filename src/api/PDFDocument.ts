@@ -1135,7 +1135,7 @@ export default class PDFDocument {
 
     await Promise.all(
       images.map(async (image) => {
-        const href = image.attributes.href;
+        const href = image.attributes.href ?? image.attributes['xlink:href'];
         if (!href || imagesDict[href]) return;
         const isPng = href.match(/\.png(\?|$)|^data:image\/png;base64/gim);
         const pdfImage = isPng
