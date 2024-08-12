@@ -43,7 +43,7 @@ import { PDFHexString, PDFName, PDFNumber, PDFOperator } from '../core';
 import { asNumber } from './objects';
 import type { Space, TransformationMatrix } from '../types';
 import { transformationToMatrix, combineMatrix } from './svg';
-import { identityMatrix } from 'src/types/matrix';
+import { identityMatrix } from '../types/matrix';
 
 export interface DrawTextOptions {
   color: Color;
@@ -240,6 +240,8 @@ export const drawRectangle = (options: {
   const { width, height, xSkew, ySkew, rotate, matrix } = options;
   const w = typeof width === 'number' ? width : width.asNumber();
   const h = -(typeof height === 'number' ? height : height.asNumber());
+  const x = typeof options.x === 'number' ? options.x : options.x.asNumber()
+  const y = typeof options.y === 'number' ? options.y : options.y.asNumber()
 
   // Ensure rx and ry are within bounds
   const rx = Math.max(0, Math.min(options.rx || 0, w / 2));
@@ -263,12 +265,14 @@ export const drawRectangle = (options: {
       : `M 0,0 H ${w} V ${h} H 0 Z`;
 
   // Transformation to apply rotation and skew
-  let fullMatrix = matrix || identityMatrix;
+  // the drawRectangle applies the rotation around its anchor point (bottom-left), it means that the translation should be applied before the rotation
+  // invert the y parameter because transformationToMatrix expects parameters from an svg space. The same is valid for rotate and ySkew
+  let fullMatrix = combineMatrix(matrix || identityMatrix, transformationToMatrix('translate', [x, -y]));
 
   if (rotate) {
     fullMatrix = combineMatrix(
       fullMatrix,
-      transformationToMatrix('rotate', [toDegrees(rotate)]),
+      transformationToMatrix('rotate', [-toDegrees(rotate)]),
     );
   }
   if (xSkew) {
@@ -280,11 +284,13 @@ export const drawRectangle = (options: {
   if (ySkew) {
     fullMatrix = combineMatrix(
       fullMatrix,
-      transformationToMatrix('skewY', [toDegrees(ySkew)]),
+      transformationToMatrix('skewY', [-toDegrees(ySkew)]),
     );
   }
   return drawSvgPath(d, {
     ...options,
+    x: 0,
+    y: 0,
     rotate: degrees(0), // Already applied in matrix transform
     scale: 1,
     matrix: fullMatrix,
