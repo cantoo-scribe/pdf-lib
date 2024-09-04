@@ -991,13 +991,13 @@ export default class PDFDocument {
       const bytes = toUint8Array(font);
       const fontkit = this.assertFontkit();
       embedder = subset
-        ? await CustomFontSubsetEmbedder.for(
+        ? CustomFontSubsetEmbedder.for(
             fontkit,
             bytes,
             customName,
             features,
           )
-        : await CustomFontEmbedder.for(fontkit, bytes, customName, features);
+        : CustomFontEmbedder.for(fontkit, bytes, customName, features);
     } else {
       throw new TypeError(
         '`font` must be one of `StandardFonts | string | Uint8Array | ArrayBuffer`',
@@ -1070,7 +1070,7 @@ export default class PDFDocument {
   async embedJpg(jpg: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
     assertIs(jpg, 'jpg', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(jpg);
-    const embedder = await JpegEmbedder.for(bytes);
+    const embedder = JpegEmbedder.for(bytes);
     const ref = this.context.nextRef();
     const pdfImage = PDFImage.of(ref, this, embedder);
     this.images.push(pdfImage);
@@ -1110,7 +1110,7 @@ export default class PDFDocument {
   async embedPng(png: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
     assertIs(png, 'png', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(png);
-    const embedder = await PngEmbedder.for(bytes);
+    const embedder = PngEmbedder.for(bytes);
     const ref = this.context.nextRef();
     const pdfImage = PDFImage.of(ref, this, embedder);
     this.images.push(pdfImage);
