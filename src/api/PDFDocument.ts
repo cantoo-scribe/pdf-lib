@@ -1128,17 +1128,13 @@ export default class PDFDocument {
     const images = findImages(parsedSvg);
     const imagesDict = {} as Record<string, PDFImage>;
 
-    
-      images.map(async (image) => {
-        const href = image.attributes.href ?? image.attributes['xlink:href'];
-        if (!href || imagesDict[href]) return;
-        const isPng = href.match(/\.png(\?|$)|^data:image\/png;base64/gim);
-        const pdfImage = isPng
-          ? this.embedPng(href)
-          : this.embedJpg(href);
-        imagesDict[href] = pdfImage;
-      })
-    
+    images.map(async (image) => {
+      const href = image.attributes.href ?? image.attributes['xlink:href'];
+      if (!href || imagesDict[href]) return;
+      const isPng = href.match(/\.png(\?|$)|^data:image\/png;base64/gim);
+      const pdfImage = isPng ? this.embedPng(href) : this.embedJpg(href);
+      imagesDict[href] = pdfImage;
+    });
 
     return new PDFSvg(svg, imagesDict);
   }
