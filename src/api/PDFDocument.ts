@@ -975,10 +975,10 @@ export default class PDFDocument {
    * @param options The options to be used when embedding the font.
    * @returns Resolves with the embedded font.
    */
-  async embedFont(
+  embedFont(
     font: StandardFonts | string | Uint8Array | ArrayBuffer,
     options: EmbedFontOptions = {},
-  ): Promise<PDFFont> {
+  ): PDFFont {
     const { subset = false, customName, features } = options;
 
     assertIs(font, 'font', ['string', Uint8Array, ArrayBuffer]);
@@ -991,13 +991,8 @@ export default class PDFDocument {
       const bytes = toUint8Array(font);
       const fontkit = this.assertFontkit();
       embedder = subset
-        ? await CustomFontSubsetEmbedder.for(
-            fontkit,
-            bytes,
-            customName,
-            features,
-          )
-        : await CustomFontEmbedder.for(fontkit, bytes, customName, features);
+        ? CustomFontSubsetEmbedder.for(fontkit, bytes, customName, features)
+        : CustomFontEmbedder.for(fontkit, bytes, customName, features);
     } else {
       throw new TypeError(
         '`font` must be one of `StandardFonts | string | Uint8Array | ArrayBuffer`',
@@ -1067,10 +1062,10 @@ export default class PDFDocument {
    * @param jpg The input data for a JPEG image.
    * @returns Resolves with the embedded image.
    */
-  async embedJpg(jpg: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
+  embedJpg(jpg: string | Uint8Array | ArrayBuffer): PDFImage {
     assertIs(jpg, 'jpg', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(jpg);
-    const embedder = await JpegEmbedder.for(bytes);
+    const embedder = JpegEmbedder.for(bytes);
     const ref = this.context.nextRef();
     const pdfImage = PDFImage.of(ref, this, embedder);
     this.images.push(pdfImage);
@@ -1107,17 +1102,17 @@ export default class PDFDocument {
    * @param png The input data for a PNG image.
    * @returns Resolves with the embedded image.
    */
-  async embedPng(png: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
+  embedPng(png: string | Uint8Array | ArrayBuffer): PDFImage {
     assertIs(png, 'png', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(png);
-    const embedder = await PngEmbedder.for(bytes);
+    const embedder = PngEmbedder.for(bytes);
     const ref = this.context.nextRef();
     const pdfImage = PDFImage.of(ref, this, embedder);
     this.images.push(pdfImage);
     return pdfImage;
   }
 
-  async embedSvg(svg: string): Promise<PDFSvg> {
+  embedSvg(svg: string): PDFSvg {
     if (!svg) return new PDFSvg(svg);
     const parsedSvg = parseHtml(svg);
     const findImages = (element: HTMLElement): HTMLElement[] => {
@@ -1133,17 +1128,13 @@ export default class PDFDocument {
     const images = findImages(parsedSvg);
     const imagesDict = {} as Record<string, PDFImage>;
 
-    await Promise.all(
-      images.map(async (image) => {
-        const href = image.attributes.href ?? image.attributes['xlink:href'];
-        if (!href || imagesDict[href]) return;
-        const isPng = href.match(/\.png(\?|$)|^data:image\/png;base64/gim);
-        const pdfImage = isPng
-          ? await this.embedPng(href)
-          : await this.embedJpg(href);
-        imagesDict[href] = pdfImage;
-      }),
-    );
+    images.map(async (image) => {
+      const href = image.attributes.href ?? image.attributes['xlink:href'];
+      if (!href || imagesDict[href]) return;
+      const isPng = href.match(/\.png(\?|$)|^data:image\/png;base64/gim);
+      const pdfImage = isPng ? this.embedPng(href) : this.embedJpg(href);
+      imagesDict[href] = pdfImage;
+    });
 
     return new PDFSvg(svg, imagesDict);
   }
