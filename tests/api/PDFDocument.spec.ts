@@ -629,14 +629,14 @@ describe(`PDFDocument`, () => {
       const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
       const attachments = pdfDoc.getAttachments();
       expect(attachments.length).toEqual(2);
-      const jpgAttachmentExtractedBytes = attachments.find(
+      const jpgAttachmentExtracted = attachments.find(
         (attachment) => attachment.name === 'cat_riding_unicorn.jpg',
       )!;
-      const pdfAttachmentExtractedBytes = attachments.find(
+      const pdfAttachmentExtracted = attachments.find(
         (attachment) => attachment.name === 'us_constitution.pdf',
       )!;
-      expect(pdfAttachmentExtractedBytes).toBeDefined();
-      expect(jpgAttachmentExtractedBytes).toBeDefined();
+      expect(pdfAttachmentExtracted).toBeDefined();
+      expect(jpgAttachmentExtracted).toBeDefined();
       const jpgAttachmentBytes = fs.readFileSync(
         'assets/images/cat_riding_unicorn.jpg',
       );
@@ -644,13 +644,19 @@ describe(`PDFDocument`, () => {
         'assets/pdfs/us_constitution.pdf',
       );
       expect(jpgAttachmentBytes).toEqual(
-        Buffer.from(jpgAttachmentExtractedBytes.data),
+        Buffer.from(jpgAttachmentExtracted.data),
       );
-      expect(jpgAttachmentExtractedBytes.type).toEqual('image/jpeg');
+      expect(jpgAttachmentExtracted.description).toEqual(
+        'Cool cat riding a unicorn! 🦄🐈🕶️',
+      );
+      expect(jpgAttachmentExtracted.mimeType).toEqual('image/jpeg');
       expect(pdfAttachmentBytes).toEqual(
-        Buffer.from(pdfAttachmentExtractedBytes.data),
+        Buffer.from(pdfAttachmentExtracted.data),
       );
-      expect(pdfAttachmentExtractedBytes.type).toEqual('application/pdf');
+      expect(pdfAttachmentExtracted.mimeType).toEqual('application/pdf');
+      expect(pdfAttachmentExtracted.description).toEqual(
+        'Constitution of the United States 🇺🇸🦅',
+      );
     });
 
     it(`Saves to the same value after round tripping`, async () => {
