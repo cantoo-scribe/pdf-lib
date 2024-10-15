@@ -646,9 +646,11 @@ describe(`PDFDocument`, () => {
       expect(jpgAttachmentBytes).toEqual(
         Buffer.from(jpgAttachmentExtractedBytes.data),
       );
+      expect(jpgAttachmentExtractedBytes.type).toEqual('image/jpeg');
       expect(pdfAttachmentBytes).toEqual(
         Buffer.from(pdfAttachmentExtractedBytes.data),
       );
+      expect(pdfAttachmentExtractedBytes.type).toEqual('application/pdf');
     });
 
     it(`Saves to the same value after round tripping`, async () => {

@@ -948,7 +948,15 @@ export default class PDFDocument {
     const Names = this.catalog.lookup(PDFName.of('Names'), PDFDict);
 
     if (!Names.has(PDFName.of('EmbeddedFiles'))) return [];
-    const EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+    let EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+
+    if (
+      !EmbeddedFiles.has(PDFName.of('Names')) &&
+      EmbeddedFiles.has(PDFName.of('Kids'))
+    )
+      EmbeddedFiles = EmbeddedFiles.lookup(PDFName.of('Kids'), PDFArray).lookup(
+        0,
+      ) as PDFDict;
 
     if (!EmbeddedFiles.has(PDFName.of('Names'))) return [];
     const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
@@ -977,8 +985,11 @@ export default class PDFDocument {
       const stream = fileSpec
         .lookup(PDFName.of('EF'), PDFDict)
         .lookup(PDFName.of('F'), PDFStream) as PDFRawStream;
+      const subtype = stream.dict.lookup(PDFName.of('Subtype'), PDFName);
+
       return {
         name: fileName.decodeText(),
+        type: subtype.decodeText(),
         data: decodePDFRawStream(stream).decode(),
       };
     });
