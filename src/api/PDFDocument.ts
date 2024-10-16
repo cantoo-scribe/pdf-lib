@@ -985,7 +985,12 @@ export default class PDFDocument {
       const stream = fileSpec
         .lookup(PDFName.of('EF'), PDFDict)
         .lookup(PDFName.of('F'), PDFStream) as PDFRawStream;
-      const description = fileSpec.lookup(PDFName.of('Desc'), PDFHexString);
+
+      const description = fileSpec.lookup(
+        PDFName.of('Desc'),
+        PDFString,
+        PDFHexString,
+      );
       const subtype = stream.dict.lookup(PDFName.of('Subtype'), PDFName);
 
       return {
