@@ -189,6 +189,17 @@ describe(`PDFParser`, () => {
     expect(context.enumerateIndirectObjects().length).toBe(8);
   });
 
+  it(`can parse PDF files with invalid xref table`, async () => {
+    const pdfBytes = fs.readFileSync('./assets/pdfs/normal.pdf');
+
+    const parser = PDFParser.forBytesWithOptions(pdfBytes);
+    const context = await parser.parseDocument();
+
+    expect(context.header).toBeInstanceOf(PDFHeader);
+    expect(context.header.toString()).toEqual('%PDF-1.3\n%');
+    expect(context.enumerateIndirectObjects().length).toBe(108);
+  });
+
   it(`can parse PDF files without object streams or update sections`, async () => {
     const pdfBytes = fs.readFileSync('./assets/pdfs/normal.pdf');
 
