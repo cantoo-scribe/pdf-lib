@@ -166,16 +166,18 @@ describe(`PDFDocument`, () => {
   describe(`setLanguage() method`, () => {
     it(`sets the language of the document`, async () => {
       const pdfDoc = await PDFDocument.create();
-      expect(pdfDoc.catalog.get(PDFName.of('Lang'))).toBeUndefined();
+      expect(pdfDoc.getLanguage()).toBeUndefined();
 
       pdfDoc.setLanguage('fr-FR');
-      expect(String(pdfDoc.catalog.get(PDFName.of('Lang')))).toBe('(fr-FR)');
+      expect(pdfDoc.getLanguage()).toBe(
+        'fr-FR',
+      );
 
       pdfDoc.setLanguage('en');
-      expect(String(pdfDoc.catalog.get(PDFName.of('Lang')))).toBe('(en)');
+      expect(pdfDoc.getLanguage()).toBe('en');
 
       pdfDoc.setLanguage('');
-      expect(String(pdfDoc.catalog.get(PDFName.of('Lang')))).toBe('()');
+      expect(pdfDoc.getLanguage()).toBe('');
     });
   });
 
