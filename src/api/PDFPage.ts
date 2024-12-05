@@ -1610,6 +1610,7 @@ export default class PDFPage {
     assertOrUndefined(options.y, 'options.y', ['number']);
     assertOrUndefined(options.width, 'options.width', ['number']);
     assertOrUndefined(options.height, 'options.height', ['number']);
+    assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
 
     drawSvg(this, svg, {
       x: options.x ?? this.x,
@@ -1617,6 +1618,7 @@ export default class PDFPage {
       fonts: options.fonts,
       width: options.width,
       height: options.height,
+      blendMode: options.blendMode,
     });
   }
 
