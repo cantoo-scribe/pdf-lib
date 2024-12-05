@@ -390,7 +390,7 @@ const runnersToPage = (
       x: 0,
       y: 0,
       width: element.svgAttributes.width,
-      height: element.svgAttributes.height * -1,
+      height: element.svgAttributes.height,
       rx: element.svgAttributes.rx,
       ry: element.svgAttributes.ry,
       borderColor: element.svgAttributes.stroke,
@@ -399,7 +399,7 @@ const runnersToPage = (
       borderLineCap: element.svgAttributes.strokeLineCap,
       color: element.svgAttributes.fill,
       opacity: element.svgAttributes.fillOpacity,
-      matrix: element.svgAttributes.matrix,
+      matrix: combineTransformation(element.svgAttributes.matrix, 'translateY', [element.svgAttributes.height]),
       clipSpaces: element.svgAttributes.clipSpaces,
       blendMode: options.blendMode,
     });
