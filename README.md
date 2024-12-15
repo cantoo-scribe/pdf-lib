@@ -1462,7 +1462,7 @@ If you know the password of the document, or if it was provided by the user, you
 ```js
 // Load an encrypted document with its password:
 const password = "The password"
-const doc = PDFDocument.load(content, { ignoreEncryption: true, password })
+const doc = PDFDocument.load(content, { ignoreEncryption: true, password: password })
 ```
 
 ## Contributing
