@@ -10,7 +10,7 @@ import { Degrees, degreesToRadians } from './rotations';
 import PDFFont from './PDFFont';
 import PDFPage from './PDFPage';
 import PDFSvg from './PDFSvg';
-import { PDFPageDrawSVGElementOptions } from './PDFPageOptions';
+import { BlendMode, PDFPageDrawSVGElementOptions } from './PDFPageOptions';
 import { LineCapStyle, LineJoinStyle, FillRule } from './operators';
 import { TransformationMatrix, identityMatrix } from '../types/matrix';
 import { Coordinates, Space } from '../types';
@@ -46,6 +46,7 @@ type InheritedAttributes = {
   fontSize?: number;
   rotation?: Degrees;
   viewBox: Box;
+  blendMode?: BlendMode;
 };
 type SVGAttributes = {
   rotate?: Degrees;
@@ -316,7 +317,7 @@ const runnersToPage = (
       opacity: element.svgAttributes.fillOpacity,
       matrix: element.svgAttributes.matrix,
       clipSpaces: element.svgAttributes.clipSpaces,
-      blendMode: options.blendMode,
+      blendMode: element.svgAttributes.blendMode || options.blendMode,
     });
   },
   line(element) {
@@ -335,7 +336,7 @@ const runnersToPage = (
       lineCap: element.svgAttributes.strokeLineCap,
       matrix: element.svgAttributes.matrix,
       clipSpaces: element.svgAttributes.clipSpaces,
-      blendMode: options.blendMode,
+      blendMode: element.svgAttributes.blendMode || options.blendMode,
     });
   },
   path(element) {
@@ -358,7 +359,7 @@ const runnersToPage = (
         [1, -1],
       ),
       clipSpaces: element.svgAttributes.clipSpaces,
-      blendMode: options.blendMode,
+      blendMode: element.svgAttributes.blendMode || options.blendMode,
     });
   },
   image(element) {
@@ -381,7 +382,7 @@ const runnersToPage = (
       opacity: element.svgAttributes.fillOpacity,
       matrix: element.svgAttributes.matrix,
       clipSpaces: element.svgAttributes.clipSpaces,
-      blendMode: options.blendMode,
+      blendMode: element.svgAttributes.blendMode || options.blendMode,
     });
   },
   rect(element) {
@@ -390,7 +391,7 @@ const runnersToPage = (
       x: 0,
       y: 0,
       width: element.svgAttributes.width,
-      height: element.svgAttributes.height * -1,
+      height: element.svgAttributes.height,
       rx: element.svgAttributes.rx,
       ry: element.svgAttributes.ry,
       borderColor: element.svgAttributes.stroke,
@@ -399,9 +400,13 @@ const runnersToPage = (
       borderLineCap: element.svgAttributes.strokeLineCap,
       color: element.svgAttributes.fill,
       opacity: element.svgAttributes.fillOpacity,
-      matrix: element.svgAttributes.matrix,
+      matrix: combineTransformation(
+        element.svgAttributes.matrix,
+        'translateY',
+        [element.svgAttributes.height],
+      ),
       clipSpaces: element.svgAttributes.clipSpaces,
-      blendMode: options.blendMode,
+      blendMode: element.svgAttributes.blendMode || options.blendMode,
     });
   },
   ellipse(element) {
@@ -418,7 +423,7 @@ const runnersToPage = (
       opacity: element.svgAttributes.fillOpacity,
       matrix: element.svgAttributes.matrix,
       clipSpaces: element.svgAttributes.clipSpaces,
-      blendMode: options.blendMode,
+      blendMode: element.svgAttributes.blendMode || options.blendMode,
     });
   },
   circle(element) {
@@ -503,6 +508,7 @@ const parseAttributes = (
   const fontStyleRaw = styleOrAttribute(attributes, style, 'font-style');
   const fontWeightRaw = styleOrAttribute(attributes, style, 'font-weight');
   const fontSizeRaw = styleOrAttribute(attributes, style, 'font-size');
+  const blendModeRaw = styleOrAttribute(attributes, style, 'mix-blend-mode');
 
   const width = parseFloatValue(widthRaw, inherited.width);
   const height = parseFloatValue(heightRaw, inherited.height);
@@ -543,6 +549,7 @@ const parseAttributes = (
       element.tagName === 'svg' && element.attributes.viewBox
         ? parseViewBox(element.attributes.viewBox)!
         : inherited.viewBox,
+    blendMode: parseBlendMode(blendModeRaw) || inherited.blendMode,
   };
 
   const svgAttributes: SVGAttributes = {
@@ -904,6 +911,37 @@ const parseFloatValue = (value?: string, reference = 1) => {
   if (isNaN(v)) return undefined;
   if (value.endsWith('%')) return (v * reference) / 100;
   return v;
+};
+
+const parseBlendMode = (blendMode?: string): BlendMode | undefined => {
+  switch (blendMode) {
+    case 'normal':
+      return BlendMode.Normal;
+    case 'multiply':
+      return BlendMode.Multiply;
+    case 'screen':
+      return BlendMode.Screen;
+    case 'overlay':
+      return BlendMode.Overlay;
+    case 'darken':
+      return BlendMode.Darken;
+    case 'lighten':
+      return BlendMode.Lighten;
+    case 'color-dodge':
+      return BlendMode.ColorDodge;
+    case 'color-burn':
+      return BlendMode.ColorBurn;
+    case 'hard-light':
+      return BlendMode.HardLight;
+    case 'soft-light':
+      return BlendMode.SoftLight;
+    case 'difference':
+      return BlendMode.Difference;
+    case 'exclusion':
+      return BlendMode.Exclusion;
+    default:
+      return undefined;
+  }
 };
 
 const parseViewBox = (viewBox?: string): Box | undefined => {

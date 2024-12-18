@@ -239,7 +239,7 @@ export const drawRectangle = (options: {
 }) => {
   const { width, height, xSkew, ySkew, rotate, matrix } = options;
   const w = typeof width === 'number' ? width : width.asNumber();
-  const h = -(typeof height === 'number' ? height : height.asNumber());
+  const h = typeof height === 'number' ? height : height.asNumber();
   const x = typeof options.x === 'number' ? options.x : options.x.asNumber();
   const y = typeof options.y === 'number' ? options.y : options.y.asNumber();
 
@@ -264,7 +264,6 @@ export const drawRectangle = (options: {
         ].join(' ')
       : `M 0,0 H ${w} V ${h} H 0 Z`;
 
-  // Transformation to apply rotation and skew
   // the drawRectangle applies the rotation around its anchor point (bottom-left), it means that the translation should be applied before the rotation
   // invert the y parameter because transformationToMatrix expects parameters from an svg space. The same is valid for rotate and ySkew
   let fullMatrix = combineMatrix(
@@ -272,6 +271,7 @@ export const drawRectangle = (options: {
     transformationToMatrix('translate', [x, -y]),
   );
 
+  // Transformation to apply rotation and skew
   if (rotate) {
     fullMatrix = combineMatrix(
       fullMatrix,
@@ -290,6 +290,13 @@ export const drawRectangle = (options: {
       transformationToMatrix('skewY', [-toDegrees(ySkew)]),
     );
   }
+
+  // move the rectangle upward so that the (x, y) coord is bottom-left
+  fullMatrix = combineMatrix(
+    fullMatrix,
+    transformationToMatrix('translateY', [-h]),
+  );
+
   return drawSvgPath(d, {
     ...options,
     x: 0,

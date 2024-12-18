@@ -264,6 +264,11 @@ class PDFParser extends PDFObjectParser {
       const firstInt = this.parseRawInt();
       this.skipWhitespaceAndComments();
 
+      // Check if second digit is valid integer
+      if (!IsDigit[this.bytes.peek()]) {
+        return PDFCrossRefSection.createEmpty();
+      }
+
       const secondInt = this.parseRawInt();
       this.skipWhitespaceAndComments();
 

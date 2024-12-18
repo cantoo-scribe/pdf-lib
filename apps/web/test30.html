@@ -72,6 +72,28 @@
         });
       }
 
+      const drawGrid = (page) => {
+        const n = 100;
+        Array(parseInt(page.getHeight() / n))
+          .fill(1)
+          .map((v, i) => {
+            page.drawLine({
+              start: { x: 0, y: i * n },
+              end: { x: page.getWidth(), y: i * n },
+            });
+          });
+        Array(parseInt(page.getWidth() / n))
+          .fill(1)
+          .map((v, i) => {
+            page.drawLine({
+              start: { x: i * n, y: 0 },
+              end: { x: i * n, y: page.getHeight() },
+            });
+          });
+      };
+
+      drawGrid(page);
+
       // Draw a filled rectangle with sharp corners
       drawRectangle(50, 500, 100, 50, {
         color: rgb(1, 0, 0), // red
@@ -107,6 +129,12 @@
       });
 
       page.drawSvg(svg, { x: 200, y: 300, width: 100, height: 50 });
+
+      drawRectangle(300, 300, 100, 50, {
+        color: rgb(0.5, 0.5, 0),
+        rx: 25,
+        ry: 25,
+      });
 
       const pdfBytes = await pdfDoc.save();
       renderInIframe(pdfBytes);

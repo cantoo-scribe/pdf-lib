@@ -396,6 +396,22 @@ export default class PDFDocument {
   }
 
   /**
+   * Get this document's language metadata. The language appears in the
+   * "Document Properties" section of most PDF readers. For example:
+   * ```js
+   * const language = pdfDoc.getLanguage()
+   * ```
+   * @returns A string containing the RFC 3066 _Language-Tag_ of this document,
+   *          if it has one.
+   */
+  getLanguage(): string | undefined {
+    const language = this.catalog.get(PDFName.of('Lang'));
+    if (!language) return undefined;
+    assertIsLiteralOrHexString(language);
+    return language.decodeText();
+  }
+
+  /**
    * Get this document's creation date metadata. The creation date appears in
    * the "Document Properties" section of most PDF readers. For example:
    * ```js
@@ -808,6 +824,9 @@ export default class PDFDocument {
     }
     if (this.getCreator() !== undefined) {
       pdfCopy.setCreator(this.getCreator()!);
+    }
+    if (this.getLanguage() !== undefined) {
+      pdfCopy.setLanguage(this.getLanguage()!);
     }
     if (this.getModificationDate() !== undefined) {
       pdfCopy.setModificationDate(this.getModificationDate()!);
