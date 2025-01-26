@@ -37,6 +37,10 @@ export const copyStringIntoBuffer = (
   return length;
 };
 
+export const convertStringToUnicodeArray = (str: string): Buffer => {
+  return Buffer.from(str.split('').map((char) => char.charCodeAt(0)));
+};
+
 export const addRandomSuffix = (prefix: string, suffixLength = 4) =>
   `${prefix}-${Math.floor(Math.random() * 10 ** suffixLength)}`;
 

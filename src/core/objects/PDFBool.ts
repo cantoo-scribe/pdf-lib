@@ -1,6 +1,7 @@
 import { PrivateConstructorError } from '../errors';
 import PDFObject from './PDFObject';
 import CharCodes from '../syntax/CharCodes';
+import { Writable } from 'stream';
 
 const ENFORCER = {};
 
@@ -47,6 +48,22 @@ class PDFBool extends PDFObject {
       buffer[offset++] = CharCodes.e;
       return 5;
     }
+  }
+
+  writeBytesInto(stream: Writable): void {
+    this.value
+      ? stream.write(
+          Buffer.from([CharCodes.t, CharCodes.r, CharCodes.u, CharCodes.e]),
+        )
+      : stream.write(
+          Buffer.from([
+            CharCodes.f,
+            CharCodes.a,
+            CharCodes.l,
+            CharCodes.s,
+            CharCodes.e,
+          ]),
+        );
   }
 }
 

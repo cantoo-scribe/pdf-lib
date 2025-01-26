@@ -1,3 +1,12 @@
+import fs from 'fs';
+import path from 'path';
+import { FileSaveOptions } from 'src/api';
+import { Writable } from 'stream';
+import {
+  convertStringToUnicodeArray,
+  copyStringIntoBuffer,
+  waitForTick,
+} from '../../utils';
 import PDFCrossRefSection from '../document/PDFCrossRefSection';
 import PDFHeader from '../document/PDFHeader';
 import PDFTrailer from '../document/PDFTrailer';
@@ -7,10 +16,9 @@ import PDFObject from '../objects/PDFObject';
 import PDFRef from '../objects/PDFRef';
 import PDFStream from '../objects/PDFStream';
 import PDFContext from '../PDFContext';
-import PDFObjectStream from '../structures/PDFObjectStream';
 import PDFSecurity from '../security/PDFSecurity';
+import PDFObjectStream from '../structures/PDFObjectStream';
 import CharCodes from '../syntax/CharCodes';
-import { copyStringIntoBuffer, waitForTick } from '../../utils';
 
 export interface SerializationInfo {
   size: number;
@@ -33,6 +41,101 @@ class PDFWriter {
   protected constructor(context: PDFContext, objectsPerTick: number) {
     this.context = context;
     this.objectsPerTick = objectsPerTick;
+  }
+
+  async writeToTargetPath(
+    options: Pick<FileSaveOptions, 'forceWrite' | 'outputPath'>,
+  ): Promise<Uint8Array> {
+    const { outputPath, forceWrite } = options;
+    const splitPath = outputPath.split('/');
+    const fileName = splitPath.pop();
+    const dirPath = splitPath.join('/');
+
+    if (!fileName) {
+      throw new Error('File name is Missing');
+    }
+
+    const match = fileName.match(/^(.+)\.([a-zA-Z0-9]+)$/);
+    if (!match || match[2] !== 'pdf') {
+      throw new Error('Invalid file extension. Only ".pdf" files are allowed.');
+    }
+
+    if (forceWrite) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    } else {
+      if (!fs.existsSync(outputPath)) {
+        throw Error('File does not exist');
+      }
+    }
+
+    const destWriteStream = fs.createWriteStream(path.join(dirPath, fileName));
+
+    await new Promise<void>((res, rej) => {
+      destWriteStream.on('finish', res);
+      destWriteStream.on('error', rej);
+
+      this.serializeToStream(destWriteStream)
+        .then(() => destWriteStream.end())
+        .catch(rej);
+    });
+
+    return new Uint8Array(fs.readFileSync(outputPath));
+  }
+
+  async serializeToStream(destStream: Writable): Promise<void> {
+    const { header, indirectObjects, xref, trailerDict, trailer } =
+      await this.computeBufferSize();
+
+    header.writeBytesInto(destStream);
+    destStream.write(Buffer.from([CharCodes.Newline, CharCodes.Newline]));
+
+    for (let idx = 0, len = indirectObjects.length; idx < len; idx++) {
+      const [ref, object] = indirectObjects[idx];
+
+      const objectNumber = String(ref.objectNumber);
+      destStream.write(convertStringToUnicodeArray(objectNumber));
+      destStream.write(Buffer.from([CharCodes.Space]));
+
+      const generationNumber = String(ref.generationNumber);
+      destStream.write(convertStringToUnicodeArray(generationNumber));
+      destStream.write(Buffer.from([CharCodes.Space]));
+
+      destStream.write(
+        Buffer.from([CharCodes.o, CharCodes.b, CharCodes.j, CharCodes.Newline]),
+      );
+
+      object.writeBytesInto(destStream);
+
+      destStream.write(
+        Buffer.from([
+          CharCodes.Newline,
+          CharCodes.e,
+          CharCodes.n,
+          CharCodes.d,
+          CharCodes.o,
+          CharCodes.b,
+          CharCodes.j,
+          CharCodes.Newline,
+          CharCodes.Newline,
+        ]),
+      );
+
+      const n =
+        object instanceof PDFObjectStream ? object.getObjectsCount() : 1;
+      if (this.shouldWaitForTick(n)) await waitForTick();
+    }
+
+    if (xref) {
+      xref.writeBytesInto(destStream);
+      destStream.write(Buffer.from([CharCodes.Newline]));
+    }
+
+    if (trailerDict) {
+      trailerDict.writeBytesInto(destStream);
+      destStream.write(Buffer.from([CharCodes.Newline, CharCodes.Newline]));
+    }
+
+    trailer.writeBytesInto(destStream);
   }
 
   async serializeToBuffer(): Promise<Uint8Array> {

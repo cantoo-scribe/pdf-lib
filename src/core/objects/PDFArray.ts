@@ -12,6 +12,7 @@ import PDFContext from '../PDFContext';
 import CharCodes from '../syntax/CharCodes';
 import { PDFArrayIsNotRectangleError } from '../errors';
 import PDFRawStream from './PDFRawStream';
+import { Writable } from 'stream';
 
 class PDFArray extends PDFObject {
   static withContext = (context: PDFContext) => new PDFArray(context);
@@ -169,6 +170,17 @@ class PDFArray extends PDFObject {
     buffer[offset++] = CharCodes.RightSquareBracket;
 
     return offset - initialOffset;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(Buffer.from([CharCodes.LeftSquareBracket, CharCodes.Space]));
+
+    this.array.forEach((obj) => {
+      obj.writeBytesInto(stream);
+      stream.write(Buffer.from([CharCodes.Space]));
+    });
+
+    stream.write(Buffer.from([CharCodes.RightSquareBracket]));
   }
 
   scalePDFNumbers(x: number, y: number): void {
