@@ -186,6 +186,20 @@ export default class PDFDocument {
   }
 
   /**
+   * Load an existing [[PDFDocument]] by downloading it from a URL.
+   *
+   * @param pdfUrl The URL of the PDF document.
+   * @param options Options for loading the PDF.
+   * @returns Resolves with the loaded PDF document.
+   */
+  static async loadUrl(pdfUrl: string, options: LoadOptions = {}) {
+    assertIs(pdfUrl, 'pdfUrl', ['string']);
+
+    const arrayBuffer = await fetch(pdfUrl).then((res) => res.arrayBuffer());
+    return PDFDocument.load(arrayBuffer, options);
+  }
+
+  /**
    * Create a new [[PDFDocument]].
    * @returns Resolves with the newly created document.
    */
