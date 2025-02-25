@@ -4,6 +4,7 @@ import PDFStream from '../objects/PDFStream';
 import PDFArray from '../objects/PDFArray';
 import PDFRef from '../objects/PDFRef';
 import PDFNumber from '../objects/PDFNumber';
+import { AnnotationTypes } from './AnnotationTypes';
 
 class PDFAnnotation {
   readonly dict: PDFDict;
@@ -15,6 +16,10 @@ class PDFAnnotation {
   }
 
   // These is technically required by the PDF spec
+  Subtype(): PDFName | undefined {
+    return this.dict.lookup(PDFName.of('Subtype'), PDFName);
+  }
+
   Rect(): PDFArray | undefined {
     return this.dict.lookup(PDFName.of('Rect'), PDFArray);
   }
@@ -26,6 +31,18 @@ class PDFAnnotation {
   F(): PDFNumber | undefined {
     const numberOrRef = this.dict.lookup(PDFName.of('F'));
     return this.dict.context.lookupMaybe(numberOrRef, PDFNumber);
+  }
+
+  /**
+   * Get the subtype enum.
+   * This gives `undefined` if the subtype not written in the PDF.
+   * @returns The subtype as AnnotationTypes or undefined
+   */
+  getSubtype(): AnnotationTypes | undefined {
+    const subtypePdfName = this.Subtype();
+    if (subtypePdfName instanceof PDFName)
+      return subtypePdfName.toString() as AnnotationTypes;
+    return undefined;
   }
 
   getRectangle(): { x: number; y: number; width: number; height: number } {
