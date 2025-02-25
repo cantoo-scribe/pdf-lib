@@ -5,6 +5,7 @@ import PDFArray from '../objects/PDFArray';
 import PDFRef from '../objects/PDFRef';
 import PDFNumber from '../objects/PDFNumber';
 import { AnnotationTypes } from './AnnotationTypes';
+import PDFString from '../objects/PDFString';
 
 class PDFAnnotation {
   readonly dict: PDFDict;
@@ -15,7 +16,7 @@ class PDFAnnotation {
     this.dict = dict;
   }
 
-  // These is technically required by the PDF spec
+  // These is technically required by the PDF spec (See table 164)
   Subtype(): PDFName | undefined {
     return this.dict.lookup(PDFName.of('Subtype'), PDFName);
   }
