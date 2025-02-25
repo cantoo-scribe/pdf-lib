@@ -45,6 +45,7 @@ import {
   PDFRef,
   PDFDict,
   PDFArray,
+  PDFAnnotation,
 } from '../core';
 import {
   assertEachIs,
@@ -104,6 +105,9 @@ export default class PDFPage {
   /** The document to which this page belongs. */
   readonly doc: PDFDocument;
 
+  /** The annotations associated with this page. */
+  readonly annotations: PDFAnnotation[] = [];
+
   private fontKey?: PDFName;
   private font?: PDFFont;
   private fontSize = 24;
@@ -122,6 +126,8 @@ export default class PDFPage {
     this.node = leafNode;
     this.ref = ref;
     this.doc = doc;
+
+    this.annotations = this.readAnnotations(leafNode);
   }
 
   /**
@@ -1690,5 +1696,31 @@ export default class PDFPage {
         if (arr instanceof PDFArray) arr.scalePDFNumbers(x, y);
       }
     }
+  }
+
+  /**
+   * Read the annotation dictionaries from this page and convert to PDFAnnotation class instances
+   * @param pageLeaf The page leaf node
+   * @returns {PDFAnnotation[]} The annotations on this page
+   */
+  private readAnnotations(pageLeaf: PDFPageLeaf): PDFAnnotation[] {
+    const annotsArray = pageLeaf.Annots();
+
+    // if there are no annotations...
+    if (!annotsArray || !(annotsArray instanceof PDFArray)) {
+      // ...return an empty array
+      return [];
+    }
+
+    // convert the annotation dictionaries to PDFAnnotation instances
+    const annotations: PDFAnnotation[] = [];
+    for (let i = 0; i < annotsArray.size(); i++) {
+      const annotDict = annotsArray.lookup(i);
+      if (annotDict instanceof PDFDict) {
+        const pdfAnnotation = PDFAnnotation.fromDict(annotDict);
+        annotations.push(pdfAnnotation);
+      }
+    }
+    return annotations;
   }
 }
