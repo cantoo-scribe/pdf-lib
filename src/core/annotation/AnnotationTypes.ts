@@ -1,0 +1,31 @@
+/**
+ * Subtypes of PDF annotations from table 169 in the PDF specification.
+ */
+export enum AnnotationTypes {
+  Text = 'Text',
+  Link = 'Link',
+  FreeText = 'FreeText',
+  Line = 'Line',
+  Square = 'Square',
+  Circle = 'Circle',
+  Polygon = 'Polygon',
+  PolyLine = 'PolyLine',
+  Highlight = 'Highlight',
+  Underline = 'Underline',
+  Squiggly = 'Squiggly',
+  StrikeOut = 'StrikeOut',
+  Stamp = 'Stamp',
+  Caret = 'Caret',
+  Ink = 'Ink',
+  Popup = 'Popup',
+  FileAttachment = 'FileAttachment',
+  Sound = 'Sound',
+  Movie = 'Movie',
+  Widget = 'Widget',
+  Screen = 'Screen',
+  PrinterMark = 'PrinterMark',
+  TrapNet = 'TrapNet',
+  Watermark = 'Watermark',
+  ThreeD = '3D',
+  Redact = 'Redact',
+}
