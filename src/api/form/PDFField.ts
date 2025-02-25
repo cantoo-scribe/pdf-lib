@@ -25,7 +25,7 @@ import {
 import { assertIs, assertMultiple, assertOrUndefined } from '../../utils';
 import { ImageAlignment } from '../image';
 import PDFImage from '../PDFImage';
-import { drawImage, rotateInPlace } from '../drawingOperations';
+import { drawImage, rotateInPlace } from '../operations';
 
 export interface FieldAppearanceOptions {
   x?: number;

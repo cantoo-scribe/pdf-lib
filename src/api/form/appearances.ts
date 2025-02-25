@@ -15,7 +15,7 @@ import {
   drawButton,
   drawTextField,
   drawOptionList,
-} from '../drawingOperations';
+} from '../operations';
 import {
   rgb,
   componentsToColor,

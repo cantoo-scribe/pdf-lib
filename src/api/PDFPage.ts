@@ -7,7 +7,7 @@ import {
   drawRectangle,
   drawSvgPath,
   drawEllipse,
-} from './drawingOperations';
+} from './operations';
 import {
   popGraphicsState,
   pushGraphicsState,
