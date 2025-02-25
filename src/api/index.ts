@@ -4,7 +4,7 @@ export * from './colors';
 export * from './errors';
 export * from './image';
 export * from './objects';
-export * from './operations';
+export * from './drawingOperations';
 export * from './operators';
 export * from './rotations';
 export * from './sizes';

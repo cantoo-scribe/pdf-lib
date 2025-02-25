@@ -16,7 +16,7 @@ import {
 } from '../errors';
 import PDFFont from '../PDFFont';
 import { StandardFonts } from '../StandardFonts';
-import { rotateInPlace } from '../operations';
+import { rotateInPlace } from '../drawingOperations';
 import {
   drawObject,
   popGraphicsState,
