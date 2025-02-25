@@ -16,22 +16,111 @@ class PDFAnnotation {
     this.dict = dict;
   }
 
-  // These is technically required by the PDF spec (See table 164)
+  // entries common to all annotation dictionaries (See table 164)
+
+  /**
+   * annotation subtype
+   * @returns The subtype as a PDFName or undefined if none.
+   */
   Subtype(): PDFName | undefined {
     return this.dict.lookup(PDFName.of('Subtype'), PDFName);
   }
 
+  /**
+   * location of annotation on page
+   * @returns The rectangle as a PDFArray or undefined if none.
+   */
   Rect(): PDFArray | undefined {
     return this.dict.lookup(PDFName.of('Rect'), PDFArray);
   }
 
+  /**
+   * text to be displayed for the annotation.
+   * @returns The text as a PDFString or undefined if none content)
+   */
+  Contents(): PDFString | undefined {
+    return this.dict.lookup(PDFName.of('Contents'), PDFString);
+  }
+
+  /**
+   * Indirect reference to the page object with which this annotation is associated.
+   * @returns The page object as a PDFRef or undefined if none.
+   */
+  P(): PDFRef | undefined {
+    return this.dict.lookup(PDFName.of('P'), PDFRef);
+  }
+
+  /**
+   * Name of the annotation, typically an identifier.
+   * @returns The name as a PDFString or undefined if none.
+   */
+  NM(): PDFString | undefined {
+    return this.dict.lookup(PDFName.of('NM'), PDFString);
+  }
+
+  /**
+   * Date and time when the annotation was created.
+   * @returns The date as a PDFString or undefined if none.
+   */
+  M(): PDFString | undefined {
+    return this.dict.lookup(PDFName.of('M'), PDFString);
+  }
+
+  /**
+   * A set of flags specifying various characteristics of the annotation.
+   * @returns The flags as a PDFNumber or undefined if none.
+   */
+  F(): PDFNumber | undefined {
+    const numberOrRef = this.dict.lookup(PDFName.of('F'));
+    return this.dict.context.lookupMaybe(numberOrRef, PDFNumber);
+  }
+
+  /**
+   * appearance dictionary
+   * @returns The appearance dictionary as a PDFDict or undefined if none.
+   */
   AP(): PDFDict | undefined {
     return this.dict.lookupMaybe(PDFName.of('AP'), PDFDict);
   }
 
-  F(): PDFNumber | undefined {
-    const numberOrRef = this.dict.lookup(PDFName.of('F'));
-    return this.dict.context.lookupMaybe(numberOrRef, PDFNumber);
+  /**
+   * Annotation's appearance state
+   * @returns The appearance state as a PDFName or undefined if none.
+   */
+  AS(): PDFName | undefined {
+    return this.dict.lookupMaybe(PDFName.of('AS'), PDFName);
+  }
+
+  /**
+   * Array specifying annotation's border characteristics
+   * @returns The border characteristics as a PDFArray or undefined if none.
+   */
+  Boader(): PDFArray | undefined {
+    return this.dict.lookup(PDFName.of('Boader'), PDFArray);
+  }
+
+  /**
+   * The annotation's color
+   * @returns The color as a PDFArray or undefined if none.
+   */
+  C(): PDFArray | undefined {
+    return this.dict.lookup(PDFName.of('C'), PDFArray);
+  }
+
+  /**
+   * Integer key of annotation's entry in structural parent tree
+   * @returns
+   */
+  StructParent(): PDFNumber | undefined {
+    return this.dict.lookup(PDFName.of('StructParent'), PDFNumber);
+  }
+
+  /**
+   * Optional content group or optional content membership dictionary
+   * @returns The optional content group as a PDFDict or undefined if none.
+   */
+  OC(): PDFDict | undefined {
+    return this.dict.lookup(PDFName.of('OC'), PDFDict);
   }
 
   /**
