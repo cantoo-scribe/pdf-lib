@@ -14,7 +14,7 @@ class PDFAnnotation {
     this.dict = dict;
   }
 
-  // This is technically required by the PDF spec
+  // These is technically required by the PDF spec
   Rect(): PDFArray | undefined {
     return this.dict.lookup(PDFName.of('Rect'), PDFArray);
   }
