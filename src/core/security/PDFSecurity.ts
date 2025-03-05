@@ -620,7 +620,7 @@ const getEncryptedPermissionsR5 = (
 };
 
 const processPasswordR2R3R4 = (password = '') => {
-  const out = Buffer.alloc(32);
+  const out = new Uint8Array(32);
   const length = password.length;
   let index = 0;
   while (index < length && index < 32) {
@@ -644,7 +644,7 @@ const processPasswordR5 = (password = '') => {
   // password = unescape(encodeURIComponent(saslprep(password)));
 
   const length = Math.min(127, password.length);
-  const out = Buffer.alloc(length);
+  const out = new Uint8Array(length);
 
   for (let i = 0; i < length; i++) {
     out[i] = password.charCodeAt(i);
