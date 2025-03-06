@@ -1,6 +1,7 @@
 import { PrivateConstructorError } from '../errors';
 import PDFObject from '../objects/PDFObject';
-import { copyStringIntoBuffer } from '../../utils';
+import { convertStringToUnicodeArray, copyStringIntoBuffer } from '../../utils';
+import { Writable } from 'stream';
 
 const ENFORCER = {};
 const pool = new Map<string, PDFRef>();
@@ -49,6 +50,10 @@ class PDFRef extends PDFObject {
   copyBytesInto(buffer: Uint8Array, offset: number): number {
     offset += copyStringIntoBuffer(this.tag, buffer, offset);
     return this.tag.length;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(convertStringToUnicodeArray(this.tag));
   }
 }
 

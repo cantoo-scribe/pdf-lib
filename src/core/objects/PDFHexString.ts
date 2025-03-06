@@ -9,8 +9,10 @@ import {
   parseDate,
   hasUtf16BOM,
   byteArrayToHexString,
+  convertStringToUnicodeArray,
 } from '../../utils';
 import { InvalidPDFDateStringError } from '../errors';
+import { Writable } from 'stream';
 
 class PDFHexString extends PDFObject {
   static of = (value: string) => new PDFHexString(value);
@@ -92,6 +94,12 @@ class PDFHexString extends PDFObject {
     offset += copyStringIntoBuffer(this.value, buffer, offset);
     buffer[offset++] = CharCodes.GreaterThan;
     return this.value.length + 2;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(Buffer.from([CharCodes.LessThan]));
+    stream.write(convertStringToUnicodeArray(this.value));
+    stream.write(Buffer.from([CharCodes.GreaterThan]));
   }
 }
 

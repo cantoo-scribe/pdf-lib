@@ -1,3 +1,6 @@
+import { Writable } from 'stream';
+import PDFContext from '../PDFContext';
+import CharCodes from '../syntax/CharCodes';
 import PDFArray from './PDFArray';
 import PDFBool from './PDFBool';
 import PDFHexString from './PDFHexString';
@@ -8,8 +11,6 @@ import PDFObject from './PDFObject';
 import PDFRef from './PDFRef';
 import PDFStream from './PDFStream';
 import PDFString from './PDFString';
-import PDFContext from '../PDFContext';
-import CharCodes from '../syntax/CharCodes';
 
 export type DictMap = Map<PDFName, PDFObject>;
 
@@ -222,6 +223,22 @@ class PDFDict extends PDFObject {
     buffer[offset++] = CharCodes.GreaterThan;
 
     return offset - initialOffset;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(
+      Buffer.from([CharCodes.LessThan, CharCodes.LessThan, CharCodes.Newline]),
+    );
+
+    this.entries().forEach((ent) => {
+      const [key, value] = ent;
+      key.writeBytesInto(stream);
+      stream.write(Buffer.from([CharCodes.Space]));
+      value.writeBytesInto(stream);
+      stream.write(Buffer.from([CharCodes.Newline]));
+    });
+
+    stream.write(Buffer.from([CharCodes.GreaterThan, CharCodes.GreaterThan]));
   }
 }
 

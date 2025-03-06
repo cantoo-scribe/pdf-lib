@@ -1,5 +1,10 @@
+import { Writable } from 'stream';
 import CharCodes from '../syntax/CharCodes';
-import { charFromCode, copyStringIntoBuffer } from '../../utils';
+import {
+  charFromCode,
+  convertStringToUnicodeArray,
+  copyStringIntoBuffer,
+} from '../../utils';
 
 class PDFHeader {
   static forVersion = (major: number, minor: number) =>
@@ -47,6 +52,23 @@ class PDFHeader {
     buffer[offset++] = 129;
 
     return offset - initialOffset;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(
+      Buffer.from([
+        CharCodes.Percent,
+        CharCodes.P,
+        CharCodes.D,
+        CharCodes.F,
+        CharCodes.Dash,
+      ]),
+    );
+    stream.write(convertStringToUnicodeArray(this.major));
+    stream.write(Buffer.from([CharCodes.Period]));
+    stream.write(convertStringToUnicodeArray(this.minor));
+    stream.write(Buffer.from([CharCodes.Newline]));
+    stream.write(Buffer.from([CharCodes.Percent, 129, 129, 129, 129]));
   }
 }
 

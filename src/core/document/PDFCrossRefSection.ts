@@ -1,6 +1,11 @@
+import { Writable } from 'stream';
 import PDFRef from '../objects/PDFRef';
 import CharCodes from '../syntax/CharCodes';
-import { copyStringIntoBuffer, padStart } from '../../utils';
+import {
+  convertStringToUnicodeArray,
+  copyStringIntoBuffer,
+  padStart,
+} from '../../utils';
 
 export interface Entry {
   ref: PDFRef;
@@ -80,6 +85,45 @@ class PDFCrossRefSection {
       size += 20 * subsectionLength;
     }
     return size;
+  }
+
+  writeBytesInto(stream: Writable) {
+    stream.write(
+      Buffer.from([
+        CharCodes.x,
+        CharCodes.r,
+        CharCodes.e,
+        CharCodes.f,
+        CharCodes.Newline,
+      ]),
+    );
+
+    const writeEntriesIntoStream = (entries: Entry[], stream: Writable) => {
+      entries.forEach((entry) => {
+        const entryOffset = padStart(String(entry.offset), 10, '0');
+        stream.write(convertStringToUnicodeArray(entryOffset));
+        stream.write(Buffer.from([CharCodes.Space]));
+
+        const entryGen = padStart(String(entry.ref.generationNumber), 5, '0');
+        stream.write(convertStringToUnicodeArray(entryGen));
+        stream.write(Buffer.from([CharCodes.Space]));
+        stream.write(Buffer.from([entry.deleted ? CharCodes.f : CharCodes.n]));
+        stream.write(Buffer.from([CharCodes.Space]));
+        stream.write(Buffer.from([CharCodes.Newline]));
+      });
+    };
+
+    // NOTE: String그냥쓰는 코드 있는지 확인해야해....
+    this.subsections.forEach((subsection) => {
+      stream.write(
+        convertStringToUnicodeArray(String(subsection[0].ref.objectNumber)),
+      );
+      stream.write(Buffer.from([CharCodes.Space]));
+
+      stream.write(convertStringToUnicodeArray(String(subsection.length)));
+      stream.write(Buffer.from([CharCodes.Newline]));
+      writeEntriesIntoStream(subsection, stream);
+    });
   }
 
   copyBytesInto(buffer: Uint8Array, offset: number): number {

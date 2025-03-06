@@ -1,4 +1,9 @@
-import { copyStringIntoBuffer, numberToString } from '../../utils/index';
+import { Writable } from 'stream';
+import {
+  convertStringToUnicodeArray,
+  copyStringIntoBuffer,
+  numberToString,
+} from '../../utils/index';
 
 import PDFObject from './PDFObject';
 
@@ -38,6 +43,10 @@ class PDFNumber extends PDFObject {
   copyBytesInto(buffer: Uint8Array, offset: number): number {
     offset += copyStringIntoBuffer(this.stringValue, buffer, offset);
     return this.stringValue.length;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(convertStringToUnicodeArray(this.stringValue));
   }
 }
 

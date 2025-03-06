@@ -14,13 +14,20 @@ import {
   PrintScaling,
   ReadingDirection,
   ViewerPreferences,
+  degrees,
+  rgb,
+  grayscale,
 } from '../../src/index';
+import path from 'path';
 
 const examplePngImage =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
 
 const unencryptedPdfBytes = fs.readFileSync('assets/pdfs/normal.pdf');
 const oldEncryptedPdfBytes1 = fs.readFileSync('assets/pdfs/encrypted_old.pdf');
+
+const validWriteTargetPath = 'assets/pdfs/stream/normal.pdf';
+const anotherValidWriteTargetPath = 'assets/pdfs/stream/normal_another.pdf';
 
 // Had to remove this file due to DMCA complaint, so commented this line out
 // along with the 2 tests that depend on it. Would be nice to find a new file
@@ -160,6 +167,39 @@ describe(`PDFDocument`, () => {
       const savedDoc2 = await pdfDoc2.save();
 
       expect(savedDoc1).toEqual(savedDoc2);
+    });
+  });
+
+  describe(`saveToTargetPath() method with embedFont()`, () => {
+    it(`should be same result comparing with [save()] result After Embedding font`, async () => {
+      const customFont = fs.readFileSync('assets/fonts/ubuntu/Ubuntu-B.ttf');
+      const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
+      const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });
+      const pdfDoc3 = await PDFDocument.create({ updateMetadata: false });
+
+      pdfDoc1.registerFontkit(fontkit);
+      pdfDoc2.registerFontkit(fontkit);
+      pdfDoc3.registerFontkit(fontkit);
+
+      await pdfDoc1.embedFont(customFont);
+      await pdfDoc2.embedFont(customFont);
+      await pdfDoc3.embedFont(customFont);
+
+      const savedDoc1 = await pdfDoc1.save();
+
+      const savedDoc2 = await pdfDoc2.saveToTargetPath({
+        outputPath: validWriteTargetPath,
+        forceWrite: true,
+      });
+
+      const savedDoc3 = await pdfDoc3.saveToTargetPath({
+        outputPath: anotherValidWriteTargetPath,
+        forceWrite: true,
+      });
+
+      expect(savedDoc1).toEqual(savedDoc2);
+      expect(savedDoc1).toEqual(savedDoc3);
+      expect(savedDoc2).toEqual(savedDoc3);
     });
   });
 
@@ -525,6 +565,132 @@ describe(`PDFDocument`, () => {
       };
 
       await expect(noErrorFunc()).resolves.not.toThrowError();
+    });
+  });
+
+  describe(`saveToTargetPath() method`, () => {
+    const validDirPath = 'assets/pdfs/stream/';
+    const invalidDirPath = '/invalid/directory/path/';
+    const validFileName = 'valid_output.pdf';
+    const invalidFileName = 'invalid_output.txt';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // Ensure the valid directory exists
+      if (!fs.existsSync(validDirPath)) {
+        fs.mkdirSync(validDirPath, { recursive: true });
+      }
+    });
+
+    afterEach(() => {
+      // Cleanup generated files
+      const testFiles = [validFileName, 'created_dir_test.pdf'];
+      testFiles.forEach((file) => {
+        const filePath = path.join(validDirPath, file);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    });
+
+    it(`should throw an error when provided with an invalid target directory path`, async () => {
+      const pdfDoc = await PDFDocument.create();
+      await expect(
+        pdfDoc.saveToTargetPath({
+          outputPath: path.join(invalidDirPath, validFileName),
+          forceWrite: false,
+        }),
+      ).rejects.toThrow('File does not exist');
+    });
+
+    it(`should throw an error when no file name is provided in the output path`, async () => {
+      const pdfDoc = await PDFDocument.create();
+      await expect(
+        pdfDoc.saveToTargetPath({
+          outputPath: validDirPath, // Directory only, no file name
+          forceWrite: true,
+        }),
+      ).rejects.toThrow('File name is Missing');
+    });
+
+    it(`should throw an error when the file name does not have a .pdf extension`, async () => {
+      const pdfDoc = await PDFDocument.create();
+      await expect(
+        pdfDoc.saveToTargetPath({
+          outputPath: path.join(validDirPath, invalidFileName),
+          forceWrite: true,
+        }),
+      ).rejects.toThrow(
+        'Invalid file extension. Only ".pdf" files are allowed.',
+      );
+    });
+
+    it(`can create non-existing directory path when 'forceWrite' flag is enabled`, async () => {
+      const pdfDoc = await PDFDocument.create();
+      const nonExistingDirPath = path.join(validDirPath, 'created_dir');
+      const outputPath = path.join(nonExistingDirPath, 'created_dir_test.pdf');
+
+      await expect(
+        pdfDoc.saveToTargetPath({
+          outputPath,
+          forceWrite: true,
+        }),
+      ).resolves.toBeInstanceOf(Uint8Array);
+
+      // Ensure the directory and file are created
+      expect(fs.existsSync(nonExistingDirPath)).toBe(true);
+      expect(fs.existsSync(outputPath)).toBe(true);
+    });
+
+    it(`should throw an error when the outputPath directory does not exist and 'forceWrite' flag is disabled`, async () => {
+      const pdfDoc = await PDFDocument.create();
+      const outputPath = path.join(invalidDirPath, validFileName);
+
+      await expect(
+        pdfDoc.saveToTargetPath({
+          outputPath,
+          forceWrite: false,
+        }),
+      ).rejects.toThrow('File does not exist');
+    });
+
+    it(`should produce the same result as the save() method`, async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.setTitle('Test PDF Document');
+
+      pdfDoc.addPage();
+      pdfDoc.addPage();
+
+      pdfDoc.getPages().forEach((page) => {
+        page.drawRectangle({
+          x: 25,
+          y: 75,
+          rx: 5, // This is the border radius
+          ry: 5,
+          width: 250,
+          height: 75,
+          rotate: degrees(-15),
+          borderWidth: 5,
+          borderColor: grayscale(0.5),
+          color: rgb(0.75, 0.2, 0.2),
+          opacity: 0.5,
+          borderOpacity: 0.75,
+        });
+      });
+
+      const saveBytes = await pdfDoc.save();
+      const saveToTargetBytes = await pdfDoc.saveToTargetPath({
+        outputPath: path.join(validDirPath, validFileName),
+        forceWrite: true,
+      });
+
+      expect(saveToTargetBytes).toEqual(saveBytes);
+
+      const writtenBytes = new Uint8Array(
+        fs.readFileSync(path.join(validDirPath, validFileName)),
+      );
+
+      expect(writtenBytes).toEqual(saveBytes);
     });
   });
 

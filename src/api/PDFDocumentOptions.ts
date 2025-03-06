@@ -21,6 +21,11 @@ export interface Base64SaveOptions extends SaveOptions {
   dataUri?: boolean;
 }
 
+export interface FileSaveOptions extends SaveOptions {
+  outputPath: string;
+  forceWrite?: boolean;
+}
+
 export interface LoadOptions {
   ignoreEncryption?: boolean;
   parseSpeed?: ParseSpeeds | number;
