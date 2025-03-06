@@ -144,6 +144,17 @@ describe(`PDFDocument`, () => {
     });
   });
 
+  describe(`loadUrl() method`, () => {
+    it(`does not throw an error for unencrypted PDFs`, async () => {
+      const url = 'https://pdf-lib.js.org/assets/normal.pdf';
+      const pdfDoc = await PDFDocument.loadUrl(url, {
+        parseSpeed: ParseSpeeds.Fastest,
+      });
+      expect(pdfDoc).toBeInstanceOf(PDFDocument);
+      expect(pdfDoc.isEncrypted).toBe(false);
+    });
+  });
+
   describe(`embedFont() method`, () => {
     it(`serializes the same value on every save`, async () => {
       const customFont = fs.readFileSync('assets/fonts/ubuntu/Ubuntu-B.ttf');
