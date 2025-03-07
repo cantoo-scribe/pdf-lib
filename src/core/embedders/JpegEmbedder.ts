@@ -28,7 +28,7 @@ const ChannelToColorSpace: { [idx: number]: ColorSpace | undefined } = {
  *   https://github.com/foliojs/pdfkit/blob/a6af76467ce06bd6a2af4aa7271ccac9ff152a7d/lib/image/jpeg.js
  */
 class JpegEmbedder {
-  static async for(imageData: Uint8Array) {
+  static for(imageData: Uint8Array) {
     const dataView = new DataView(imageData.buffer);
 
     const soi = dataView.getUint16(0);

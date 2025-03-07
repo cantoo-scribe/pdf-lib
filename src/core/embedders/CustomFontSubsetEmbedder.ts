@@ -16,13 +16,13 @@ import { Cache, mergeUint8Arrays, toHexStringOfMinLength } from '../../utils';
  *   https://github.com/devongovett/pdfkit/blob/e71edab0dd4657b5a767804ba86c94c58d01fbca/lib/image/jpeg.coffee
  */
 class CustomFontSubsetEmbedder extends CustomFontEmbedder {
-  static async for(
+  static for(
     fontkit: Fontkit,
     fontData: Uint8Array,
     customFontName?: string,
     fontFeatures?: TypeFeatures,
   ) {
-    const font = await fontkit.create(fontData);
+    const font = fontkit.create(fontData);
     return new CustomFontSubsetEmbedder(
       font,
       fontData,
