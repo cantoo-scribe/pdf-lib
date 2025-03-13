@@ -19,13 +19,13 @@ import {
  *   https://github.com/devongovett/pdfkit/blob/e71edab0dd4657b5a767804ba86c94c58d01fbca/lib/image/jpeg.coffee
  */
 class CustomFontEmbedder {
-  static async for(
+  static for(
     fontkit: Fontkit,
     fontData: Uint8Array,
     customName?: string,
     fontFeatures?: TypeFeatures,
   ) {
-    const font = await fontkit.create(fontData);
+    const font = fontkit.create(fontData);
     return new CustomFontEmbedder(font, fontData, customName, fontFeatures);
   }
 
