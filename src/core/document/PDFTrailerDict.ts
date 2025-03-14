@@ -1,3 +1,4 @@
+import { Writable } from 'stream';
 import PDFDict from '../objects/PDFDict';
 import CharCodes from '../syntax/CharCodes';
 
@@ -33,6 +34,23 @@ class PDFTrailerDict {
     offset += this.dict.copyBytesInto(buffer, offset);
 
     return offset - initialOffset;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(
+      Buffer.from([
+        CharCodes.t,
+        CharCodes.r,
+        CharCodes.a,
+        CharCodes.i,
+        CharCodes.l,
+        CharCodes.e,
+        CharCodes.r,
+        CharCodes.Newline,
+      ]),
+    );
+
+    this.dict.writeBytesInto(stream);
   }
 }
 

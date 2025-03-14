@@ -1,3 +1,4 @@
+import { Writable } from 'stream';
 import PDFObject from './PDFObject';
 
 class PDFInvalidObject extends PDFObject {
@@ -28,6 +29,10 @@ class PDFInvalidObject extends PDFObject {
       buffer[offset++] = this.data[idx];
     }
     return length;
+  }
+
+  writeBytesInto(stream: Writable): void {
+    stream.write(this.data);
   }
 }
 

@@ -50,6 +50,7 @@ import {
   CreateOptions,
   EmbedFontOptions,
   SetTitleOptions,
+  FileSaveOptions,
 } from './PDFDocumentOptions';
 import PDFObject from '../core/objects/PDFObject';
 import PDFRef from '../core/objects/PDFRef';
@@ -1358,28 +1359,10 @@ export default class PDFDocument {
    * @returns Resolves with the bytes of the serialized document.
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
-    const {
-      useObjectStreams = true,
-      addDefaultPage = true,
-      objectsPerTick = 50,
-      updateFieldAppearances = true,
-    } = options;
+    const defaultOptions = this.getDefaultSaveOptions(options);
+    const { objectsPerTick } = defaultOptions;
 
-    assertIs(useObjectStreams, 'useObjectStreams', ['boolean']);
-    assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
-    assertIs(objectsPerTick, 'objectsPerTick', ['number']);
-    assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
-
-    if (addDefaultPage && this.getPageCount() === 0) this.addPage();
-
-    if (updateFieldAppearances) {
-      const form = this.formCache.getValue();
-      if (form) form.updateFieldAppearances();
-    }
-
-    await this.flush();
-
-    const Writer = useObjectStreams ? PDFStreamWriter : PDFWriter;
+    const Writer = await this.validateAndGetAdaptWriter(defaultOptions);
     return Writer.forContext(this.context, objectsPerTick).serializeToBuffer();
   }
 
@@ -1406,6 +1389,32 @@ export default class PDFDocument {
     return dataUri ? `data:application/pdf;base64,${base64}` : base64;
   }
 
+  /**
+   *
+   * Serialize this document to specific directory path formed with A PDF file
+   * For example:
+   * ```js
+   * const pdfBuffer = await saveToTargetPath { destPath: "/some/your/directory.pdf" }
+   * ```
+   *
+   * @param options The options are used to determine which path to write
+   * @returns Serialized Buffer Array from input Destination Path which is located The PDF file
+   *
+   */
+  async saveToTargetPath(options: FileSaveOptions): Promise<Uint8Array> {
+    options && options.outputPath && assertIsValidString(options.outputPath);
+    const resolvedSaveOptions = this.getDefaultSaveOptions(options);
+    const { objectsPerTick } = resolvedSaveOptions;
+
+    const Writer = await this.validateAndGetAdaptWriter(resolvedSaveOptions);
+    const { outputPath, forceWrite } = options;
+
+    return Writer.forContext(this.context, objectsPerTick).writeToTargetPath({
+      outputPath,
+      forceWrite: forceWrite !== undefined ? forceWrite : true,
+    });
+  }
+
   findPageForAnnotationRef(ref: PDFRef): PDFPage | undefined {
     const pages = this.getPages();
     for (let idx = 0, len = pages.length; idx < len; idx++) {
@@ -1418,6 +1427,53 @@ export default class PDFDocument {
     }
 
     return undefined;
+  }
+
+  private async validateAndGetAdaptWriter(
+    options: SaveOptions,
+  ): Promise<typeof PDFStreamWriter | typeof PDFWriter> {
+    const {
+      useObjectStreams,
+      addDefaultPage,
+      objectsPerTick,
+      updateFieldAppearances,
+    } = options;
+
+    assertIs(useObjectStreams, 'useObjectStreams', ['boolean']);
+    assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
+    assertIs(objectsPerTick, 'objectsPerTick', ['number']);
+    assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
+
+    if (addDefaultPage && this.getPageCount() === 0) this.addPage();
+
+    if (updateFieldAppearances) {
+      const form = this.formCache.getValue();
+      if (form) form.updateFieldAppearances();
+    }
+
+    await this.flush();
+    return useObjectStreams ? PDFStreamWriter : PDFWriter;
+  }
+
+  private getDefaultSaveOptions(options: SaveOptions): {
+    useObjectStreams: boolean;
+    addDefaultPage: boolean;
+    objectsPerTick: number;
+    updateFieldAppearances: boolean;
+  } {
+    const {
+      useObjectStreams = true,
+      addDefaultPage = true,
+      objectsPerTick = 50,
+      updateFieldAppearances = true,
+    } = options;
+
+    return {
+      useObjectStreams,
+      addDefaultPage,
+      objectsPerTick,
+      updateFieldAppearances,
+    };
   }
 
   private async embedAll(embeddables: Embeddable[]): Promise<void> {
@@ -1485,4 +1541,8 @@ function assertIsLiteralOrHexString(
   ) {
     throw new UnexpectedObjectTypeError([PDFHexString, PDFString], pdfObject);
   }
+}
+
+function assertIsValidString(str?: any): str is string {
+  return str !== null && str !== undefined && typeof str === 'string';
 }
