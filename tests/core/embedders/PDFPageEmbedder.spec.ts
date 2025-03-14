@@ -2,6 +2,7 @@ import fs from 'fs';
 import { PDFDocument } from '../../../src/api';
 import {
   PDFContext,
+  PDFName,
   PDFPageEmbedder,
   PDFRawStream,
   PDFRef,
@@ -61,5 +62,47 @@ describe(`PDFPageEmbedder`, () => {
 
     expect(embedder.width).toEqual(122);
     expect(embedder.height).toEqual(233);
+  });
+
+  it(`handles MediaBox coordinates in any order`, async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage();
+
+    // Set MediaBox with reversed coordinates
+    const mediaBox = doc.context.obj([200, 300, -100, -100]);
+    page.node.set(PDFName.MediaBox, mediaBox);
+    const embedder = await PDFPageEmbedder.for(page.node);
+
+    // Should normalize the MediaBox coordinates
+    expect(embedder.boundingBox).toEqual({
+      left: -100, // Min of x coordinates
+      bottom: -100, // Min of y coordinates
+      right: 200, // Max of x coordinates
+      top: 300, // Max of y coordinates
+    });
+
+    // Width and height should be positive
+    expect(embedder.width).toBe(300); // right - left
+    expect(embedder.height).toBe(400); // top - bottom
+  });
+
+  it(`respects the provided bounding box for clipping`, async () => {
+    const page = await examplePage();
+
+    // Define a clipping region
+    const clipBox = {
+      left: 100,
+      bottom: 200,
+      right: 200,
+      top: 300,
+    };
+    const embedder = await PDFPageEmbedder.for(page.node, clipBox);
+
+    // Should use the clipping box as-is
+    expect(embedder.boundingBox).toEqual(clipBox);
+
+    // Width and height should match the clipping dimensions
+    expect(embedder.width).toBe(100); // right - left
+    expect(embedder.height).toBe(100); // top - bottom
   });
 });
