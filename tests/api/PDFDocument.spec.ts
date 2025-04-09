@@ -14,6 +14,11 @@ import {
   PrintScaling,
   ReadingDirection,
   ViewerPreferences,
+  AFRelationship,
+  PDFStream,
+  PDFRawStream,
+  PDFString,
+  decodePDFRawStream,
 } from '../../src/index';
 
 const examplePngImage =
@@ -37,6 +42,14 @@ const normalPdfBytes = fs.readFileSync('assets/pdfs/normal.pdf');
 const withViewerPrefsPdfBytes = fs.readFileSync(
   'assets/pdfs/with_viewer_prefs.pdf',
 );
+
+type Attachment = {
+  name: string;
+  data: Uint8Array;
+  mimeType: string | undefined;
+  afRelationship: AFRelationship;
+  description: string;
+};
 
 describe(`PDFDocument`, () => {
   describe(`load() method`, () => {
@@ -571,6 +584,154 @@ describe(`PDFDocument`, () => {
       expect(pdfDoc.getSubject()).toBe(srcDoc.getSubject());
       expect(pdfDoc.getTitle()).toBe(srcDoc.getTitle());
       expect(pdfDoc.defaultWordBreaks).toEqual(srcDoc.defaultWordBreaks);
+    });
+  });
+
+  describe('attach method', () => {
+    let pdfDoc: PDFDocument;
+    const mimeType = 'text/plain';
+    const description = '🥚 Haikus are short. So is the life of an egg. 🍳';
+    const attachment = `Cradled in silence,
+sunlight warms the fragile shell —
+breakfast is reborn.`;
+    const afRelationship = AFRelationship.Alternative;
+    let attachments: Attachment[];
+
+    const extractRawAttachments = (
+      pdfDoc: PDFDocument,
+    ): { fileName: PDFHexString | PDFString; fileSpec: PDFDict }[] => {
+      if (!pdfDoc.catalog.has(PDFName.of('Names'))) return [];
+      const Names = pdfDoc.catalog.lookup(PDFName.of('Names'), PDFDict);
+
+      if (!Names.has(PDFName.of('EmbeddedFiles'))) return [];
+      const EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+
+      if (!EmbeddedFiles.has(PDFName.of('Names'))) return [];
+      const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
+
+      const rawAttachments: {
+        fileName: PDFHexString | PDFString;
+        fileSpec: PDFDict;
+      }[] = [];
+      for (let idx = 0, len = EFNames.size(); idx < len; idx += 2) {
+        const fileName = EFNames.lookup(idx) as PDFHexString | PDFString;
+        const fileSpec = EFNames.lookup(idx + 1, PDFDict);
+        rawAttachments.push({ fileName, fileSpec });
+      }
+
+      return rawAttachments;
+    };
+
+    const extractAttachments = (pdfDoc: PDFDocument): Attachment[] => {
+      const rawAttachments = extractRawAttachments(pdfDoc);
+
+      return rawAttachments.map(({ fileName, fileSpec }) => {
+        const stream = fileSpec
+          .lookup(PDFName.of('EF'), PDFDict)
+          .lookup(PDFName.of('F'), PDFStream) as PDFRawStream;
+
+        const afr = fileSpec.lookup(PDFName.of('AFRelationship'));
+        const afRelationship =
+          afr instanceof PDFName
+            ? afr.toString().slice(1) // Remove leading slash
+            : afr instanceof PDFString
+              ? afr.decodeText()
+              : undefined;
+
+        const embeddedFileDict = stream.dict;
+        const subtype = embeddedFileDict.lookup(PDFName.of('Subtype'));
+
+        const mimeType =
+          subtype instanceof PDFName
+            ? subtype.toString().slice(1)
+            : subtype instanceof PDFString
+              ? subtype.decodeText()
+              : undefined;
+
+        const description = (
+          fileSpec.lookup(PDFName.of('Desc')) as PDFHexString
+        ).decodeText();
+
+        return {
+          name: fileName.decodeText(),
+          data: decodePDFRawStream(stream).decode(),
+          mimeType: mimeType?.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) =>
+            String.fromCharCode(parseInt(hex, 16)),
+          ),
+          afRelationship: afRelationship as AFRelationship,
+          description,
+        };
+      });
+    };
+
+    beforeAll(async () => {
+      const parseSpeed = ParseSpeeds.Fastest;
+      pdfDoc = await PDFDocument.load(unencryptedPdfBytes, { parseSpeed });
+
+      await pdfDoc.attach(attachment, 'string.txt', {
+        mimeType,
+        description,
+        afRelationship,
+      });
+
+      await pdfDoc.attach(new TextEncoder().encode(attachment), 'uint8array.txt', {
+        mimeType,
+        description,
+        afRelationship,
+      });
+
+      await pdfDoc.attach(Buffer.from(attachment), 'buffer.txt', {
+        mimeType,
+        description,
+        afRelationship,
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      pdfDoc = await PDFDocument.load(pdfBytes);
+      attachments = extractAttachments(pdfDoc);
+    });
+
+    it('should attach 3 attachments', () => {
+      expect(attachments).toHaveLength(3);
+    });
+
+    it('should attach string attachments', () => {
+      const stringAttachments = attachments.filter(
+        a => a.name === 'string.txt',
+      );
+      expect(stringAttachments.length).toBe(1);
+      expect(stringAttachments[0].data).toEqual(
+        new TextEncoder().encode(attachment),
+      );
+      expect(stringAttachments[0].mimeType).toBe(mimeType);
+      expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+      expect(stringAttachments[0].description).toBe(description);
+    });
+
+    it('should attach Uint8Array attachments', () => {
+      const stringAttachments = attachments.filter(
+        a => a.name === 'uint8array.txt',
+      );
+      expect(stringAttachments.length).toBe(1);
+      expect(stringAttachments[0].data).toEqual(
+        new TextEncoder().encode(attachment),
+      );
+      expect(stringAttachments[0].mimeType).toBe(mimeType);
+      expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+      expect(stringAttachments[0].description).toBe(description);
+    });
+
+    it('should attach string attachments', () => {
+      const stringAttachments = attachments.filter(
+        a => a.name === 'buffer.txt',
+      );
+      expect(stringAttachments.length).toBe(1);
+      expect(stringAttachments[0].data).toEqual(
+        new TextEncoder().encode(attachment),
+      );
+      expect(stringAttachments[0].mimeType).toBe(mimeType);
+      expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+      expect(stringAttachments[0].description).toBe(description);
     });
   });
 });
