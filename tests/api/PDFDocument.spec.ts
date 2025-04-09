@@ -668,7 +668,14 @@ breakfast is reborn.`;
       const parseSpeed = ParseSpeeds.Fastest;
       pdfDoc = await PDFDocument.load(unencryptedPdfBytes, { parseSpeed });
 
-      await pdfDoc.attach(attachment, 'string.txt', {
+      const base64Attachment = Buffer.from(attachment).toString('base64');
+      await pdfDoc.attach(base64Attachment, 'string.txt', {
+        mimeType,
+        description,
+        afRelationship,
+      });
+
+      await pdfDoc.attach(`data:text/plain;base64,${base64Attachment}`, 'data-url.txt', {
         mimeType,
         description,
         afRelationship,
@@ -691,13 +698,26 @@ breakfast is reborn.`;
       attachments = extractAttachments(pdfDoc);
     });
 
-    it('should attach 3 attachments', () => {
-      expect(attachments).toHaveLength(3);
+    it('should attach 4 attachments', () => {
+      expect(attachments).toHaveLength(4);
     });
 
-    it('should attach string attachments', () => {
+    it('should attach string (base64) attachments', () => {
       const stringAttachments = attachments.filter(
         a => a.name === 'string.txt',
+      );
+      expect(stringAttachments.length).toBe(1);
+      expect(stringAttachments[0].data).toEqual(
+        new TextEncoder().encode(attachment),
+      );
+      expect(stringAttachments[0].mimeType).toBe(mimeType);
+      expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+      expect(stringAttachments[0].description).toBe(description);
+    });
+
+    it('should attach data URL attachments', () => {
+      const stringAttachments = attachments.filter(
+        a => a.name === 'data-url.txt',
       );
       expect(stringAttachments.length).toBe(1);
       expect(stringAttachments[0].data).toEqual(
@@ -721,7 +741,7 @@ breakfast is reborn.`;
       expect(stringAttachments[0].description).toBe(description);
     });
 
-    it('should attach string attachments', () => {
+    it('should attach Buffer attachments', () => {
       const stringAttachments = attachments.filter(
         a => a.name === 'buffer.txt',
       );
