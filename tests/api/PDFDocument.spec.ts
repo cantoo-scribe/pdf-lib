@@ -675,17 +675,25 @@ breakfast is reborn.`;
         afRelationship,
       });
 
-      await pdfDoc.attach(`data:text/plain;base64,${base64Attachment}`, 'data-url.txt', {
-        mimeType,
-        description,
-        afRelationship,
-      });
+      await pdfDoc.attach(
+        `data:text/plain;base64,${base64Attachment}`,
+        'data-url.txt',
+        {
+          mimeType,
+          description,
+          afRelationship,
+        },
+      );
 
-      await pdfDoc.attach(new TextEncoder().encode(attachment), 'uint8array.txt', {
-        mimeType,
-        description,
-        afRelationship,
-      });
+      await pdfDoc.attach(
+        new TextEncoder().encode(attachment),
+        'uint8array.txt',
+        {
+          mimeType,
+          description,
+          afRelationship,
+        },
+      );
 
       await pdfDoc.attach(Buffer.from(attachment), 'buffer.txt', {
         mimeType,
@@ -704,7 +712,7 @@ breakfast is reborn.`;
 
     it('should attach string (base64) attachments', () => {
       const stringAttachments = attachments.filter(
-        a => a.name === 'string.txt',
+        (a) => a.name === 'string.txt',
       );
       expect(stringAttachments.length).toBe(1);
       expect(stringAttachments[0].data).toEqual(
@@ -717,7 +725,7 @@ breakfast is reborn.`;
 
     it('should attach data URL attachments', () => {
       const stringAttachments = attachments.filter(
-        a => a.name === 'data-url.txt',
+        (a) => a.name === 'data-url.txt',
       );
       expect(stringAttachments.length).toBe(1);
       expect(stringAttachments[0].data).toEqual(
@@ -730,7 +738,7 @@ breakfast is reborn.`;
 
     it('should attach Uint8Array attachments', () => {
       const stringAttachments = attachments.filter(
-        a => a.name === 'uint8array.txt',
+        (a) => a.name === 'uint8array.txt',
       );
       expect(stringAttachments.length).toBe(1);
       expect(stringAttachments[0].data).toEqual(
@@ -743,7 +751,7 @@ breakfast is reborn.`;
 
     it('should attach Buffer attachments', () => {
       const stringAttachments = attachments.filter(
-        a => a.name === 'buffer.txt',
+        (a) => a.name === 'buffer.txt',
       );
       expect(stringAttachments.length).toBe(1);
       expect(stringAttachments[0].data).toEqual(
