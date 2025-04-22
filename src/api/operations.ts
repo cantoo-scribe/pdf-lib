@@ -237,6 +237,15 @@ export const drawRectangle = (options: {
   matrix?: TransformationMatrix;
   clipSpaces?: Space[];
 }) => {
+  if (
+    (!options.borderWidth && !options.borderColor && !options.color)
+    || (!options.borderWidth && options.borderColor && !options.color)
+    || (options.borderColor && !options.borderColor && !options.color)
+  ) {
+    // no-op
+    return []
+  }
+
   const { width, height, xSkew, ySkew, rotate, matrix } = options;
   const w = typeof width === 'number' ? width : width.asNumber();
   const h = typeof height === 'number' ? height : height.asNumber();
@@ -463,13 +472,13 @@ export const drawSvgPath = (
 
     setDashPattern(options.borderDashArray ?? [], options.borderDashPhase ?? 0),
 
-    ...svgPathToOperators(path),
-
     // prettier-ignore
-    options.color && options.borderWidth ? fillAndStroke()
-  : options.color                      ? options.fillRule === FillRule.EvenOdd ? fillEvenOdd() : fill()
-  : options.borderColor                ? stroke()
-  : closePath(),
+    options.color && options.borderColor && options.borderWidth ? fillAndStroke()
+      : options.color ? options.fillRule === FillRule.EvenOdd ? fillEvenOdd() : fill()
+      : options.borderColor && options.borderWidth ? stroke()
+      : closePath(),
+
+    ...svgPathToOperators(path),
 
     popGraphicsState(),
   ].filter(Boolean) as PDFOperator[];
