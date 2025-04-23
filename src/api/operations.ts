@@ -472,13 +472,13 @@ export const drawSvgPath = (
 
     setDashPattern(options.borderDashArray ?? [], options.borderDashPhase ?? 0),
 
+    ...svgPathToOperators(path),
+
     // prettier-ignore
     options.color && options.borderColor && options.borderWidth ? fillAndStroke()
       : options.color ? options.fillRule === FillRule.EvenOdd ? fillEvenOdd() : fill()
       : options.borderColor && options.borderWidth ? stroke()
       : closePath(),
-
-    ...svgPathToOperators(path),
 
     popGraphicsState(),
   ].filter(Boolean) as PDFOperator[];
