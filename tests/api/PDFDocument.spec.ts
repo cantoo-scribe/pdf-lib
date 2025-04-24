@@ -637,6 +637,12 @@ describe(`PDFDocument`, () => {
       )!;
       expect(pdfAttachment).toBeDefined();
       expect(jpgAttachment).toBeDefined();
+      expect(jpgAttachment.description).toBe('Cool cat riding a unicorn! 🦄🐈🕶️');
+      expect(pdfAttachment.description).toBe('Constitution of the United States 🇺🇸🦅');
+      expect(jpgAttachment.mimeType).toBe('image/jpeg');
+      expect(pdfAttachment.mimeType).toBe('application/pdf');
+      expect(jpgAttachment.afRelationship).not.toBeDefined();
+      expect(pdfAttachment.afRelationship).not.toBeDefined();
       const jpgAttachmentBytes = fs.readFileSync(
         'assets/images/cat_riding_unicorn.jpg',
       );

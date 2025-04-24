@@ -999,9 +999,36 @@ export default class PDFDocument {
       const stream = efDict.lookup(PDFName.of('F'));
       if (!(stream instanceof PDFStream)) return [];
   
+      const afr = fileSpec.lookup(PDFName.of('AFRelationship'));
+      const afRelationship =
+        afr instanceof PDFName
+          ? afr.toString().slice(1) // Remove leading slash
+          : afr instanceof PDFString
+            ? afr.decodeText()
+            : undefined;
+
+      const embeddedFileDict = stream.dict;
+      const subtype = embeddedFileDict.lookup(PDFName.of('Subtype'));
+
+      const mimeType =
+        subtype instanceof PDFName
+          ? subtype.toString().slice(1)
+          : subtype instanceof PDFString
+            ? subtype.decodeText()
+            : undefined;
+
+      const description = (
+        fileSpec.lookup(PDFName.of('Desc')) as PDFHexString
+      ).decodeText();
+
       return [{
         name: fileName.decodeText(),
         data: decodePDFRawStream(stream as PDFRawStream).decode(),
+        mimeType: mimeType?.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) =>
+          String.fromCharCode(parseInt(hex, 16)),
+        ),
+        afRelationship: afRelationship as AFRelationship,
+        description,
       }];
     });
   }
