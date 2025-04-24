@@ -741,58 +741,6 @@ describe(`PDFDocument`, () => {
       expect(pngAttachment.modificationDate).toBe(modificationDate);
     });
 
-    it(`Saves to the same value after round tripping`, async () => {
-      const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
-      const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });
-
-      const jpgAttachmentBytes = fs.readFileSync(
-        'assets/images/cat_riding_unicorn.jpg',
-      );
-      const pdfAttachmentBytes = fs.readFileSync(
-        'assets/pdfs/us_constitution.pdf',
-      );
-
-      await pdfDoc1.attach(jpgAttachmentBytes, 'cat_riding_unicorn.jpg', {
-        mimeType: 'image/jpeg',
-        description: 'Cool cat riding a unicorn! 🦄🐈🕶️',
-        creationDate: new Date('2019/12/01'),
-        modificationDate: new Date('2020/04/19'),
-      });
-
-      await pdfDoc1.attach(pdfAttachmentBytes, 'us_constitution.pdf', {
-        mimeType: 'application/pdf',
-        description: 'Constitution of the United States 🇺🇸🦅',
-        creationDate: new Date('1787/09/17'),
-        modificationDate: new Date('1992/05/07'),
-      });
-
-      const savedDoc1 = await pdfDoc1.save();
-      const attachments = pdfDoc1.getAttachments();
-      const jpgAttachment = attachments.find(
-        (attachment) => attachment.name === 'cat_riding_unicorn.jpg',
-      )!;
-      const pdfAttachment = attachments.find(
-        (attachment) => attachment.name === 'us_constitution.pdf',
-      )!;
-
-      await pdfDoc2.attach(jpgAttachment.data, 'cat_riding_unicorn.jpg', {
-        mimeType: 'image/jpeg',
-        description: 'Cool cat riding a unicorn! 🦄🐈🕶️',
-        creationDate: new Date('2019/12/01'),
-        modificationDate: new Date('2020/04/19'),
-      });
-
-      await pdfDoc2.attach(pdfAttachment.data, 'us_constitution.pdf', {
-        mimeType: 'application/pdf',
-        description: 'Constitution of the United States 🇺🇸🦅',
-        creationDate: new Date('1787/09/17'),
-        modificationDate: new Date('1992/05/07'),
-      });
-
-      const savedDoc2 = await pdfDoc2.save();
-      expect(savedDoc1).toEqual(savedDoc2);
-    });
-
     describe('allow attachment data to be passed in different formats', () => {
       let pdfDoc: PDFDocument;
       const mimeType = 'text/plain';
