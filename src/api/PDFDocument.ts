@@ -992,17 +992,20 @@ export default class PDFDocument {
    */
   getAttachments() {
     const rawAttachments = this.getRawAttachments();
-    return rawAttachments.map(({ fileName, fileSpec }) => {
-      const stream = fileSpec
-        .lookup(PDFName.of('EF'), PDFDict)
-        .lookup(PDFName.of('F'), PDFStream) as PDFRawStream;
-      return {
+    return rawAttachments.flatMap(({ fileName, fileSpec }) => {
+      const efDict = fileSpec.lookup(PDFName.of('EF'));
+      if (!(efDict instanceof PDFDict)) return [];
+  
+      const stream = efDict.lookup(PDFName.of('F'));
+      if (!(stream instanceof PDFStream)) return [];
+  
+      return [{
         name: fileName.decodeText(),
-        data: decodePDFRawStream(stream).decode(),
-      };
+        data: decodePDFRawStream(stream as PDFRawStream).decode(),
+      }];
     });
   }
-
+  
   /**
    * Embed a font into this document. The input data can be provided in multiple
    * formats:

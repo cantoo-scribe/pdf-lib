@@ -629,14 +629,14 @@ describe(`PDFDocument`, () => {
       const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
       const attachments = pdfDoc.getAttachments();
       expect(attachments.length).toEqual(2);
-      const jpgAttachmentExtractedBytes = attachments.find(
+      const jpgAttachment = attachments.find(
         (attachment) => attachment.name === 'cat_riding_unicorn.jpg',
       )!;
-      const pdfAttachmentExtractedBytes = attachments.find(
+      const pdfAttachment = attachments.find(
         (attachment) => attachment.name === 'us_constitution.pdf',
       )!;
-      expect(pdfAttachmentExtractedBytes).toBeDefined();
-      expect(jpgAttachmentExtractedBytes).toBeDefined();
+      expect(pdfAttachment).toBeDefined();
+      expect(jpgAttachment).toBeDefined();
       const jpgAttachmentBytes = fs.readFileSync(
         'assets/images/cat_riding_unicorn.jpg',
       );
@@ -644,10 +644,10 @@ describe(`PDFDocument`, () => {
         'assets/pdfs/us_constitution.pdf',
       );
       expect(jpgAttachmentBytes).toEqual(
-        Buffer.from(jpgAttachmentExtractedBytes.data),
+        Buffer.from(jpgAttachment.data),
       );
       expect(pdfAttachmentBytes).toEqual(
-        Buffer.from(pdfAttachmentExtractedBytes.data),
+        Buffer.from(pdfAttachment.data),
       );
     });
 
@@ -682,15 +682,15 @@ describe(`PDFDocument`, () => {
 
       const savedDoc1 = await pdfDoc1.save();
       const attachments = pdfDoc1.getAttachments();
-      const jpgAttachmentExtractedBytes = attachments.find(
+      const jpgAttachment = attachments.find(
         (attachment) => attachment.name === 'cat_riding_unicorn.jpg',
       )!;
-      const pdfAttachmentExtractedBytes = attachments.find(
+      const pdfAttachment = attachments.find(
         (attachment) => attachment.name === 'us_constitution.pdf',
       )!;
 
       await pdfDoc2.attach(
-        jpgAttachmentExtractedBytes.data,
+        jpgAttachment.data,
         'cat_riding_unicorn.jpg',
         {
           mimeType: 'image/jpeg',
@@ -701,7 +701,7 @@ describe(`PDFDocument`, () => {
       );
 
       await pdfDoc2.attach(
-        pdfAttachmentExtractedBytes.data,
+        pdfAttachment.data,
         'us_constitution.pdf',
         {
           mimeType: 'application/pdf',
