@@ -990,15 +990,7 @@ export default class PDFDocument {
     return rawAttachments;
   }
 
-  /**
-   * Get all attachments that are embedded in this document.
-   *
-   * > **NOTE:** If you build a document with this library, this won't return
-   * > anything until you call [[save]] on the document.
-   *
-   * @returns Array of attachments with name and data
-   */
-  getAttachments() {
+  private getSavedAttachments() {
     const rawAttachments = this.getRawAttachments();
     return rawAttachments.flatMap(({ fileName, fileSpec }) => {
       const efDict = fileSpec.lookup(PDFName.of('EF'));
@@ -1040,7 +1032,39 @@ export default class PDFDocument {
       }];
     });
   }
-  
+
+  private getUnsavedAttachments() {
+    type ExposedEmbeddedFile = {
+      embedder: FileEmbedder;
+    };
+
+    const attachments = this.embeddedFiles.map(file => {
+      const { embedder } = (file as unknown as ExposedEmbeddedFile);
+
+      return {
+        name: embedder.fileName,
+        data: embedder.getFileData(),
+        description: embedder.options.description,
+        mimeType: embedder.options.mimeType,
+        afRelationship: embedder.options.afRelationship,
+      };
+    });
+
+    return attachments;
+  }
+
+  /**
+   * Get all attachments that are embedded in this document.
+   *
+   * @returns Array of attachments with name and data
+   */
+  getAttachments() {
+    const savedAttachments = this.getSavedAttachments();
+    const unsavedAttachments = this.getUnsavedAttachments();
+
+    return [...savedAttachments, ...unsavedAttachments];
+  }
+
   /**
    * Embed a font into this document. The input data can be provided in multiple
    * formats:

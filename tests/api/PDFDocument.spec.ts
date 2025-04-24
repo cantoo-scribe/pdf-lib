@@ -659,6 +659,58 @@ describe(`PDFDocument`, () => {
       );
     });
 
+    it(`Can get saved and unsaved attachments`, async () => {
+      const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
+      const mimeType = 'text/plain';
+      const description = '🥚 Haikus are short. So is the life of an egg. 🍳';
+      const attachment = `Cradled in silence,
+      sunlight warms the fragile shell —
+      breakfast is reborn.`;
+      const afRelationship = AFRelationship.Supplement;
+      await pdfDoc.attach(Buffer.from(attachment), 'haiku.txt', {
+        mimeType,
+        description,
+        afRelationship,
+      });
+
+      const attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(3);
+      const jpgAttachment = attachments.find(
+        (attachment) => attachment.name === 'cat_riding_unicorn.jpg',
+      )!;
+      const pdfAttachment = attachments.find(
+        (attachment) => attachment.name === 'us_constitution.pdf',
+      )!;
+      const txtAttachment = attachments.find(
+        (attachment) => attachment.name === 'haiku.txt',
+      )!;
+      expect(pdfAttachment).toBeDefined();
+      expect(jpgAttachment).toBeDefined();
+      expect(txtAttachment).toBeDefined();
+      expect(jpgAttachment.description).toBe('Cool cat riding a unicorn! 🦄🐈🕶️');
+      expect(pdfAttachment.description).toBe('Constitution of the United States 🇺🇸🦅');
+      expect(txtAttachment.description).toBe(description);
+      expect(jpgAttachment.mimeType).toBe('image/jpeg');
+      expect(pdfAttachment.mimeType).toBe('application/pdf');
+      expect(txtAttachment.mimeType).toBe(mimeType);
+      expect(jpgAttachment.afRelationship).not.toBeDefined();
+      expect(pdfAttachment.afRelationship).not.toBeDefined();
+      expect(txtAttachment.afRelationship).toBe(AFRelationship.Supplement);
+      const jpgAttachmentBytes = fs.readFileSync(
+        'assets/images/cat_riding_unicorn.jpg',
+      );
+      const pdfAttachmentBytes = fs.readFileSync(
+        'assets/pdfs/us_constitution.pdf',
+      );
+      expect(jpgAttachmentBytes).toEqual(
+        Buffer.from(jpgAttachment.data),
+      );
+      expect(pdfAttachmentBytes).toEqual(
+        Buffer.from(pdfAttachment.data),
+      );
+      expect(new TextDecoder().decode(txtAttachment.data)).toBe(attachment);
+    });
+
     it(`Saves to the same value after round tripping`, async () => {
       const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
       const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });
@@ -683,10 +735,6 @@ describe(`PDFDocument`, () => {
         creationDate: new Date('1787/09/17'),
         modificationDate: new Date('1992/05/07'),
       });
-
-      // This is the currently documented behavior before save has been called
-      const noAttachments = pdfDoc1.getAttachments();
-      expect(noAttachments).toEqual([]);
 
       const savedDoc1 = await pdfDoc1.save();
       const attachments = pdfDoc1.getAttachments();
