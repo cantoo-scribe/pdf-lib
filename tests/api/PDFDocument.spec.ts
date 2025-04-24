@@ -14,7 +14,9 @@ import {
   PrintScaling,
   ReadingDirection,
   ViewerPreferences,
+  AFRelationship,
 } from '../../src/index';
+import { PDFAttachment } from '../../src/api/PDFDocument';
 
 const examplePngImage =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
@@ -719,6 +721,86 @@ describe(`PDFDocument`, () => {
 
       const savedDoc2 = await pdfDoc2.save();
       expect(savedDoc1).toEqual(savedDoc2);
+    });
+
+    describe('allow attachment data to be passed in different formats', () => {
+      let pdfDoc: PDFDocument;
+      const mimeType = 'text/plain';
+      const description = '🥚 Haikus are short. So is the life of an egg. 🍳';
+      const attachment = `Cradled in silence,
+  sunlight warms the fragile shell —
+  breakfast is reborn.`;
+      const afRelationship = AFRelationship.Alternative;
+      let attachments: PDFAttachment[];
+
+      beforeAll(async () => {
+        const parseSpeed = ParseSpeeds.Fastest;
+        pdfDoc = await PDFDocument.load(unencryptedPdfBytes, { parseSpeed });
+        const base64 = Buffer.from(attachment).toString('base64');
+        const dataUrl = `data:${mimeType};base64,${base64}`;
+  
+        await pdfDoc.attach(dataUrl, 'string.txt', {
+          mimeType,
+          description,
+          afRelationship,
+        });
+
+        await pdfDoc.attach(new TextEncoder().encode(attachment), 'uint8array.txt', {
+          mimeType,
+          description,
+          afRelationship,
+        });
+
+        await pdfDoc.attach(Buffer.from(attachment), 'buffer.txt', {
+          mimeType,
+          description,
+          afRelationship,
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        pdfDoc = await PDFDocument.load(pdfBytes);
+        attachments = pdfDoc.getAttachments();
+      });
+
+      it('should attach 3 attachments', () => {
+        expect(attachments).toHaveLength(3);
+      });
+
+      it('should attach data URL attachments', () => {
+        const stringAttachments = attachments.filter(
+          a => a.name === 'string.txt',
+        );
+        expect(stringAttachments.length).toBe(1);
+        const extracted = new TextDecoder().decode(stringAttachments[0].data);
+        expect(extracted).toEqual(attachment);
+        expect(stringAttachments[0].mimeType).toBe(mimeType);
+        expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+        expect(stringAttachments[0].description).toBe(description);
+      });
+
+      it('should attach Uint8Array attachments', () => {
+        const stringAttachments = attachments.filter(
+          a => a.name === 'uint8array.txt',
+        );
+        expect(stringAttachments.length).toBe(1);
+        const extracted = new TextDecoder().decode(stringAttachments[0].data);
+        expect(extracted).toEqual(attachment);
+        expect(stringAttachments[0].mimeType).toBe(mimeType);
+        expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+        expect(stringAttachments[0].description).toBe(description);
+      });
+
+      it('should attach buffer attachments', () => {
+        const stringAttachments = attachments.filter(
+          a => a.name === 'buffer.txt',
+        );
+        expect(stringAttachments.length).toBe(1);
+        const extracted = new TextDecoder().decode(stringAttachments[0].data);
+        expect(extracted).toEqual(attachment);
+        expect(stringAttachments[0].mimeType).toBe(mimeType);
+        expect(stringAttachments[0].afRelationship).toBe(afRelationship);
+        expect(stringAttachments[0].description).toBe(description);
+      });
     });
   });
 });

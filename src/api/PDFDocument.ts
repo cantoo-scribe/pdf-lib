@@ -79,6 +79,14 @@ import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
 
+export type PDFAttachment = {
+  name: string;
+  data: Uint8Array;
+  mimeType: string | undefined;
+  afRelationship: AFRelationship | undefined;
+  description: string | undefined;
+};
+
 /**
  * Represents a PDF document.
  */
