@@ -27,7 +27,6 @@ import {
   PDFCatalog,
   PDFContext,
   PDFDict,
-  PDFArray,
   decodePDFRawStream,
   PDFStream,
   PDFRawStream,
