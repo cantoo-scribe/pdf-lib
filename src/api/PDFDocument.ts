@@ -85,6 +85,8 @@ export type PDFAttachment = {
   mimeType: string | undefined;
   afRelationship: AFRelationship | undefined;
   description: string | undefined;
+  creationDate: Date | undefined;
+  modificationDate: Date | undefined;
 };
 
 /**
@@ -990,7 +992,7 @@ export default class PDFDocument {
     return rawAttachments;
   }
 
-  private getSavedAttachments() {
+  private getSavedAttachments(): PDFAttachment[] {
     const rawAttachments = this.getRawAttachments();
     return rawAttachments.flatMap(({ fileName, fileSpec }) => {
       const efDict = fileSpec.lookup(PDFName.of('EF'));
@@ -1017,6 +1019,24 @@ export default class PDFDocument {
             ? subtype.decodeText()
             : undefined;
 
+      const paramsDict = embeddedFileDict.lookup(PDFName.of('Params'), PDFDict);
+
+      let creationDate: Date | undefined;
+      let modificationDate: Date | undefined;
+      
+      if (paramsDict instanceof PDFDict) {
+        const creationDateRaw = paramsDict.lookup(PDFName.of('CreationDate'));
+        const modDateRaw = paramsDict.lookup(PDFName.of('ModDate'));
+      
+        if (creationDateRaw instanceof PDFString) {
+          creationDate = creationDateRaw.decodeDate();
+        }
+      
+        if (modDateRaw instanceof PDFString) {
+          modificationDate = modDateRaw.decodeDate();
+        }
+      }
+            
       const description = (
         fileSpec.lookup(PDFName.of('Desc')) as PDFHexString
       ).decodeText();
@@ -1029,11 +1049,13 @@ export default class PDFDocument {
         ),
         afRelationship: afRelationship as AFRelationship,
         description,
+        creationDate,
+        modificationDate,
       }];
     });
   }
 
-  private getUnsavedAttachments() {
+  private getUnsavedAttachments(): PDFAttachment[] {
     type ExposedEmbeddedFile = {
       embedder: FileEmbedder;
     };
@@ -1047,6 +1069,8 @@ export default class PDFDocument {
         description: embedder.options.description,
         mimeType: embedder.options.mimeType,
         afRelationship: embedder.options.afRelationship,
+        creationDate: embedder.options.creationDate,
+        modificationDate: embedder.options.modificationDate,
       };
     });
 
@@ -1058,7 +1082,7 @@ export default class PDFDocument {
    *
    * @returns Array of attachments with name and data
    */
-  getAttachments() {
+  getAttachments(): PDFAttachment[] {
     const savedAttachments = this.getSavedAttachments();
     const unsavedAttachments = this.getUnsavedAttachments();
 

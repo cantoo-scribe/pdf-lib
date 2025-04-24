@@ -18,8 +18,8 @@ import {
 } from '../../src/index';
 import { PDFAttachment } from '../../src/api/PDFDocument';
 
-const examplePngImage =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
+const examplePngImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
+const examplePngImage = `data:image/png;base64,${examplePngImageBase64}`;
 
 const unencryptedPdfBytes = fs.readFileSync('assets/pdfs/normal.pdf');
 const oldEncryptedPdfBytes1 = fs.readFileSync('assets/pdfs/encrypted_old.pdf');
@@ -661,20 +661,28 @@ describe(`PDFDocument`, () => {
 
     it(`Can get saved and unsaved attachments`, async () => {
       const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
-      const mimeType = 'text/plain';
-      const description = '🥚 Haikus are short. So is the life of an egg. 🍳';
-      const attachment = `Cradled in silence,
+      const haiku = `Cradled in silence,
       sunlight warms the fragile shell —
       breakfast is reborn.`;
-      const afRelationship = AFRelationship.Supplement;
-      await pdfDoc.attach(Buffer.from(attachment), 'haiku.txt', {
-        mimeType,
-        description,
-        afRelationship,
+      const creationDate = new Date(Date.now() - 60 * 60 * 1000);
+      const modificationDate = new Date();
+      await pdfDoc.attach(Buffer.from(haiku), 'haiku.txt', {
+        mimeType: 'text/plain',
+        description: '🥚 Haikus are short. So is the life of an egg. 🍳',
+        afRelationship: AFRelationship.Supplement,
+        creationDate,
+        modificationDate,
+      });
+      await pdfDoc.attach(examplePngImage, 'example.png', {
+        mimeType: 'image/png',
+        description: 'An example image',
+        afRelationship: AFRelationship.Alternative,
+        creationDate,
+        modificationDate,
       });
 
       const attachments = pdfDoc.getAttachments();
-      expect(attachments.length).toEqual(3);
+      expect(attachments.length).toEqual(4);
       const jpgAttachment = attachments.find(
         (attachment) => attachment.name === 'cat_riding_unicorn.jpg',
       )!;
@@ -684,18 +692,24 @@ describe(`PDFDocument`, () => {
       const txtAttachment = attachments.find(
         (attachment) => attachment.name === 'haiku.txt',
       )!;
+      const pngAttachment = attachments.find(
+        (attachment) => attachment.name === 'example.png',
+      )!;
       expect(pdfAttachment).toBeDefined();
       expect(jpgAttachment).toBeDefined();
       expect(txtAttachment).toBeDefined();
       expect(jpgAttachment.description).toBe('Cool cat riding a unicorn! 🦄🐈🕶️');
       expect(pdfAttachment.description).toBe('Constitution of the United States 🇺🇸🦅');
-      expect(txtAttachment.description).toBe(description);
+      expect(txtAttachment.description).toBe('🥚 Haikus are short. So is the life of an egg. 🍳');
+      expect(pngAttachment.description).toBe('An example image');
       expect(jpgAttachment.mimeType).toBe('image/jpeg');
       expect(pdfAttachment.mimeType).toBe('application/pdf');
-      expect(txtAttachment.mimeType).toBe(mimeType);
+      expect(txtAttachment.mimeType).toBe('text/plain');
+      expect(pngAttachment.mimeType).toBe('image/png');
       expect(jpgAttachment.afRelationship).not.toBeDefined();
       expect(pdfAttachment.afRelationship).not.toBeDefined();
       expect(txtAttachment.afRelationship).toBe(AFRelationship.Supplement);
+      expect(pngAttachment.afRelationship).toBe(AFRelationship.Alternative);
       const jpgAttachmentBytes = fs.readFileSync(
         'assets/images/cat_riding_unicorn.jpg',
       );
@@ -708,7 +722,20 @@ describe(`PDFDocument`, () => {
       expect(pdfAttachmentBytes).toEqual(
         Buffer.from(pdfAttachment.data),
       );
-      expect(new TextDecoder().decode(txtAttachment.data)).toBe(attachment);
+      expect(new TextDecoder().decode(txtAttachment.data)).toBe(haiku);
+      const expectedImageBytes = Uint8Array.from(
+        atob(examplePngImageBase64),
+        c => c.charCodeAt(0)
+      );
+      expect(pngAttachment.data).toEqual(expectedImageBytes);
+      expect(jpgAttachment.creationDate).toBeDefined();
+      expect(pdfAttachment.creationDate).toBeDefined();
+      expect(txtAttachment.creationDate).toBe(creationDate);
+      expect(pngAttachment.creationDate).toBe(creationDate);
+      expect(jpgAttachment.modificationDate).toBeDefined();
+      expect(pdfAttachment.modificationDate).toBeDefined();
+      expect(txtAttachment.modificationDate).toBe(modificationDate);
+      expect(pngAttachment.modificationDate).toBe(modificationDate);
     });
 
     it(`Saves to the same value after round tripping`, async () => {
