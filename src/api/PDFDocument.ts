@@ -997,10 +997,10 @@ export default class PDFDocument {
     return rawAttachments.flatMap(({ fileName, fileSpec }) => {
       const efDict = fileSpec.lookup(PDFName.of('EF'));
       if (!(efDict instanceof PDFDict)) return [];
-  
+
       const stream = efDict.lookup(PDFName.of('F'));
       if (!(stream instanceof PDFStream)) return [];
-  
+
       const afr = fileSpec.lookup(PDFName.of('AFRelationship'));
       const afRelationship =
         afr instanceof PDFName
@@ -1023,35 +1023,37 @@ export default class PDFDocument {
 
       let creationDate: Date | undefined;
       let modificationDate: Date | undefined;
-      
+
       if (paramsDict instanceof PDFDict) {
         const creationDateRaw = paramsDict.lookup(PDFName.of('CreationDate'));
         const modDateRaw = paramsDict.lookup(PDFName.of('ModDate'));
-      
+
         if (creationDateRaw instanceof PDFString) {
           creationDate = creationDateRaw.decodeDate();
         }
-      
+
         if (modDateRaw instanceof PDFString) {
           modificationDate = modDateRaw.decodeDate();
         }
       }
-            
+
       const description = (
         fileSpec.lookup(PDFName.of('Desc')) as PDFHexString
       ).decodeText();
 
-      return [{
-        name: fileName.decodeText(),
-        data: decodePDFRawStream(stream as PDFRawStream).decode(),
-        mimeType: mimeType?.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) =>
-          String.fromCharCode(parseInt(hex, 16)),
-        ),
-        afRelationship: afRelationship as AFRelationship,
-        description,
-        creationDate,
-        modificationDate,
-      }];
+      return [
+        {
+          name: fileName.decodeText(),
+          data: decodePDFRawStream(stream as PDFRawStream).decode(),
+          mimeType: mimeType?.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) =>
+            String.fromCharCode(parseInt(hex, 16)),
+          ),
+          afRelationship: afRelationship as AFRelationship,
+          description,
+          creationDate,
+          modificationDate,
+        },
+      ];
     });
   }
 
@@ -1060,8 +1062,8 @@ export default class PDFDocument {
       embedder: FileEmbedder;
     };
 
-    const attachments = this.embeddedFiles.map(file => {
-      const { embedder } = (file as unknown as ExposedEmbeddedFile);
+    const attachments = this.embeddedFiles.map((file) => {
+      const { embedder } = file as unknown as ExposedEmbeddedFile;
 
       return {
         name: embedder.fileName,

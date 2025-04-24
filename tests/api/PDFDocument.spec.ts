@@ -18,7 +18,8 @@ import {
 } from '../../src/index';
 import { PDFAttachment } from '../../src/api/PDFDocument';
 
-const examplePngImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
+const examplePngImageBase64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
 const examplePngImage = `data:image/png;base64,${examplePngImageBase64}`;
 
 const unencryptedPdfBytes = fs.readFileSync('assets/pdfs/normal.pdf');
@@ -639,8 +640,12 @@ describe(`PDFDocument`, () => {
       )!;
       expect(pdfAttachment).toBeDefined();
       expect(jpgAttachment).toBeDefined();
-      expect(jpgAttachment.description).toBe('Cool cat riding a unicorn! 🦄🐈🕶️');
-      expect(pdfAttachment.description).toBe('Constitution of the United States 🇺🇸🦅');
+      expect(jpgAttachment.description).toBe(
+        'Cool cat riding a unicorn! 🦄🐈🕶️',
+      );
+      expect(pdfAttachment.description).toBe(
+        'Constitution of the United States 🇺🇸🦅',
+      );
       expect(jpgAttachment.mimeType).toBe('image/jpeg');
       expect(pdfAttachment.mimeType).toBe('application/pdf');
       expect(jpgAttachment.afRelationship).not.toBeDefined();
@@ -651,12 +656,8 @@ describe(`PDFDocument`, () => {
       const pdfAttachmentBytes = fs.readFileSync(
         'assets/pdfs/us_constitution.pdf',
       );
-      expect(jpgAttachmentBytes).toEqual(
-        Buffer.from(jpgAttachment.data),
-      );
-      expect(pdfAttachmentBytes).toEqual(
-        Buffer.from(pdfAttachment.data),
-      );
+      expect(jpgAttachmentBytes).toEqual(Buffer.from(jpgAttachment.data));
+      expect(pdfAttachmentBytes).toEqual(Buffer.from(pdfAttachment.data));
     });
 
     it(`Can get saved and unsaved attachments`, async () => {
@@ -698,9 +699,15 @@ describe(`PDFDocument`, () => {
       expect(pdfAttachment).toBeDefined();
       expect(jpgAttachment).toBeDefined();
       expect(txtAttachment).toBeDefined();
-      expect(jpgAttachment.description).toBe('Cool cat riding a unicorn! 🦄🐈🕶️');
-      expect(pdfAttachment.description).toBe('Constitution of the United States 🇺🇸🦅');
-      expect(txtAttachment.description).toBe('🥚 Haikus are short. So is the life of an egg. 🍳');
+      expect(jpgAttachment.description).toBe(
+        'Cool cat riding a unicorn! 🦄🐈🕶️',
+      );
+      expect(pdfAttachment.description).toBe(
+        'Constitution of the United States 🇺🇸🦅',
+      );
+      expect(txtAttachment.description).toBe(
+        '🥚 Haikus are short. So is the life of an egg. 🍳',
+      );
       expect(pngAttachment.description).toBe('An example image');
       expect(jpgAttachment.mimeType).toBe('image/jpeg');
       expect(pdfAttachment.mimeType).toBe('application/pdf');
@@ -716,16 +723,12 @@ describe(`PDFDocument`, () => {
       const pdfAttachmentBytes = fs.readFileSync(
         'assets/pdfs/us_constitution.pdf',
       );
-      expect(jpgAttachmentBytes).toEqual(
-        Buffer.from(jpgAttachment.data),
-      );
-      expect(pdfAttachmentBytes).toEqual(
-        Buffer.from(pdfAttachment.data),
-      );
+      expect(jpgAttachmentBytes).toEqual(Buffer.from(jpgAttachment.data));
+      expect(pdfAttachmentBytes).toEqual(Buffer.from(pdfAttachment.data));
       expect(new TextDecoder().decode(txtAttachment.data)).toBe(haiku);
       const expectedImageBytes = Uint8Array.from(
         atob(examplePngImageBase64),
-        c => c.charCodeAt(0)
+        (c) => c.charCodeAt(0),
       );
       expect(pngAttachment.data).toEqual(expectedImageBytes);
       expect(jpgAttachment.creationDate).toBeDefined();
@@ -772,27 +775,19 @@ describe(`PDFDocument`, () => {
         (attachment) => attachment.name === 'us_constitution.pdf',
       )!;
 
-      await pdfDoc2.attach(
-        jpgAttachment.data,
-        'cat_riding_unicorn.jpg',
-        {
-          mimeType: 'image/jpeg',
-          description: 'Cool cat riding a unicorn! 🦄🐈🕶️',
-          creationDate: new Date('2019/12/01'),
-          modificationDate: new Date('2020/04/19'),
-        },
-      );
+      await pdfDoc2.attach(jpgAttachment.data, 'cat_riding_unicorn.jpg', {
+        mimeType: 'image/jpeg',
+        description: 'Cool cat riding a unicorn! 🦄🐈🕶️',
+        creationDate: new Date('2019/12/01'),
+        modificationDate: new Date('2020/04/19'),
+      });
 
-      await pdfDoc2.attach(
-        pdfAttachment.data,
-        'us_constitution.pdf',
-        {
-          mimeType: 'application/pdf',
-          description: 'Constitution of the United States 🇺🇸🦅',
-          creationDate: new Date('1787/09/17'),
-          modificationDate: new Date('1992/05/07'),
-        },
-      );
+      await pdfDoc2.attach(pdfAttachment.data, 'us_constitution.pdf', {
+        mimeType: 'application/pdf',
+        description: 'Constitution of the United States 🇺🇸🦅',
+        creationDate: new Date('1787/09/17'),
+        modificationDate: new Date('1992/05/07'),
+      });
 
       const savedDoc2 = await pdfDoc2.save();
       expect(savedDoc1).toEqual(savedDoc2);
@@ -813,18 +808,22 @@ describe(`PDFDocument`, () => {
         pdfDoc = await PDFDocument.load(unencryptedPdfBytes, { parseSpeed });
         const base64 = Buffer.from(attachment).toString('base64');
         const dataUrl = `data:${mimeType};base64,${base64}`;
-  
+
         await pdfDoc.attach(dataUrl, 'string.txt', {
           mimeType,
           description,
           afRelationship,
         });
 
-        await pdfDoc.attach(new TextEncoder().encode(attachment), 'uint8array.txt', {
-          mimeType,
-          description,
-          afRelationship,
-        });
+        await pdfDoc.attach(
+          new TextEncoder().encode(attachment),
+          'uint8array.txt',
+          {
+            mimeType,
+            description,
+            afRelationship,
+          },
+        );
 
         await pdfDoc.attach(Buffer.from(attachment), 'buffer.txt', {
           mimeType,
@@ -843,7 +842,7 @@ describe(`PDFDocument`, () => {
 
       it('should attach data URL attachments', () => {
         const stringAttachments = attachments.filter(
-          a => a.name === 'string.txt',
+          (a) => a.name === 'string.txt',
         );
         expect(stringAttachments.length).toBe(1);
         const extracted = new TextDecoder().decode(stringAttachments[0].data);
@@ -855,7 +854,7 @@ describe(`PDFDocument`, () => {
 
       it('should attach Uint8Array attachments', () => {
         const stringAttachments = attachments.filter(
-          a => a.name === 'uint8array.txt',
+          (a) => a.name === 'uint8array.txt',
         );
         expect(stringAttachments.length).toBe(1);
         const extracted = new TextDecoder().decode(stringAttachments[0].data);
@@ -867,7 +866,7 @@ describe(`PDFDocument`, () => {
 
       it('should attach buffer attachments', () => {
         const stringAttachments = attachments.filter(
-          a => a.name === 'buffer.txt',
+          (a) => a.name === 'buffer.txt',
         );
         expect(stringAttachments.length).toBe(1);
         const extracted = new TextDecoder().decode(stringAttachments[0].data);
