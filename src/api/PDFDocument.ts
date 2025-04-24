@@ -1058,12 +1058,8 @@ export default class PDFDocument {
   }
 
   private getUnsavedAttachments(): PDFAttachment[] {
-    type ExposedEmbeddedFile = {
-      embedder: FileEmbedder;
-    };
-
     const attachments = this.embeddedFiles.map((file) => {
-      const { embedder } = file as unknown as ExposedEmbeddedFile;
+      const embedder = file.getEmbedder();
 
       return {
         name: embedder.fileName,
