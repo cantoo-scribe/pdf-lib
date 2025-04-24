@@ -780,9 +780,8 @@ const csv = attachments.find(({ name }) => name === 'cars.csv')
 fs.writeFileSync(csv.name, csv.data)
 ```
 
-> NOTE: If you are building a pdf file with this library, any attachments you've
-> added won't be returned by this function until after you call `save` on the
-> document.
+> NOTE: The method also finds attachments added after the last call to
+> `save()`.
 
 ### Set Document Metadata
 
