@@ -27,6 +27,9 @@ import {
   PDFCatalog,
   PDFContext,
   PDFDict,
+  decodePDFRawStream,
+  PDFStream,
+  PDFRawStream,
   PDFHexString,
   PDFName,
   PDFObjectCopier,
@@ -75,6 +78,16 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
+
+export type PDFAttachment = {
+  name: string;
+  data: Uint8Array;
+  mimeType: string | undefined;
+  afRelationship: AFRelationship | undefined;
+  description: string | undefined;
+  creationDate: Date | undefined;
+  modificationDate: Date | undefined;
+};
 
 /**
  * Represents a PDF document.
@@ -957,6 +970,121 @@ export default class PDFDocument {
     const ref = this.context.nextRef();
     const embeddedFile = PDFEmbeddedFile.of(ref, this, embedder);
     this.embeddedFiles.push(embeddedFile);
+  }
+
+  private getRawAttachments() {
+    if (!this.catalog.has(PDFName.of('Names'))) return [];
+    const Names = this.catalog.lookup(PDFName.of('Names'), PDFDict);
+
+    if (!Names.has(PDFName.of('EmbeddedFiles'))) return [];
+    const EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+
+    if (!EmbeddedFiles.has(PDFName.of('Names'))) return [];
+    const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
+
+    const rawAttachments = [];
+    for (let idx = 0, len = EFNames.size(); idx < len; idx += 2) {
+      const fileName = EFNames.lookup(idx) as PDFHexString | PDFString;
+      const fileSpec = EFNames.lookup(idx + 1, PDFDict);
+      rawAttachments.push({ fileName, fileSpec });
+    }
+
+    return rawAttachments;
+  }
+
+  private getSavedAttachments(): PDFAttachment[] {
+    const rawAttachments = this.getRawAttachments();
+    return rawAttachments.flatMap(({ fileName, fileSpec }) => {
+      const efDict = fileSpec.lookup(PDFName.of('EF'));
+      if (!(efDict instanceof PDFDict)) return [];
+
+      const stream = efDict.lookup(PDFName.of('F'));
+      if (!(stream instanceof PDFStream)) return [];
+
+      const afr = fileSpec.lookup(PDFName.of('AFRelationship'));
+      const afRelationship =
+        afr instanceof PDFName
+          ? afr.toString().slice(1) // Remove leading slash
+          : afr instanceof PDFString
+            ? afr.decodeText()
+            : undefined;
+
+      const embeddedFileDict = stream.dict;
+      const subtype = embeddedFileDict.lookup(PDFName.of('Subtype'));
+
+      const mimeType =
+        subtype instanceof PDFName
+          ? subtype.toString().slice(1)
+          : subtype instanceof PDFString
+            ? subtype.decodeText()
+            : undefined;
+
+      const paramsDict = embeddedFileDict.lookup(PDFName.of('Params'), PDFDict);
+
+      let creationDate: Date | undefined;
+      let modificationDate: Date | undefined;
+
+      if (paramsDict instanceof PDFDict) {
+        const creationDateRaw = paramsDict.lookup(PDFName.of('CreationDate'));
+        const modDateRaw = paramsDict.lookup(PDFName.of('ModDate'));
+
+        if (creationDateRaw instanceof PDFString) {
+          creationDate = creationDateRaw.decodeDate();
+        }
+
+        if (modDateRaw instanceof PDFString) {
+          modificationDate = modDateRaw.decodeDate();
+        }
+      }
+
+      const description = (
+        fileSpec.lookup(PDFName.of('Desc')) as PDFHexString
+      ).decodeText();
+
+      return [
+        {
+          name: fileName.decodeText(),
+          data: decodePDFRawStream(stream as PDFRawStream).decode(),
+          mimeType: mimeType?.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) =>
+            String.fromCharCode(parseInt(hex, 16)),
+          ),
+          afRelationship: afRelationship as AFRelationship,
+          description,
+          creationDate,
+          modificationDate,
+        },
+      ];
+    });
+  }
+
+  private getUnsavedAttachments(): PDFAttachment[] {
+    const attachments = this.embeddedFiles.map((file) => {
+      const embedder = file.getEmbedder();
+
+      return {
+        name: embedder.fileName,
+        data: embedder.getFileData(),
+        description: embedder.options.description,
+        mimeType: embedder.options.mimeType,
+        afRelationship: embedder.options.afRelationship,
+        creationDate: embedder.options.creationDate,
+        modificationDate: embedder.options.modificationDate,
+      };
+    });
+
+    return attachments;
+  }
+
+  /**
+   * Get all attachments that are embedded in this document.
+   *
+   * @returns Array of attachments with name and data
+   */
+  getAttachments(): PDFAttachment[] {
+    const savedAttachments = this.getSavedAttachments();
+    const unsavedAttachments = this.getUnsavedAttachments();
+
+    return [...savedAttachments, ...unsavedAttachments];
   }
 
   /**

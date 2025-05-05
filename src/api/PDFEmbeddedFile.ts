@@ -87,4 +87,12 @@ export default class PDFEmbeddedFile implements Embeddable {
       this.alreadyEmbedded = true;
     }
   }
+
+  /**
+   * Get the embedder used to embed the file.
+   * @returns the embedder.
+   */
+  getEmbedder() {
+    return this.embedder;
+  }
 }

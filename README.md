@@ -71,6 +71,7 @@ Install with: `npm install @cantoo/pdf-lib`
   - [Embed PDF Pages](#embed-pdf-pages)
   - [Embed Font and Measure Text](#embed-font-and-measure-text)
   - [Add Attachments](#add-attachments)
+  - [Extract Attachments](#extract-attachments)
   - [Set Document Metadata](#set-document-metadata)
   - [Read Document Metadata](#read-document-metadata)
   - [Set Viewer Preferences](#set-viewer-preferences)
@@ -117,6 +118,7 @@ Install with: `npm install @cantoo/pdf-lib`
 - Set viewer preferences
 - Read viewer preferences
 - Add attachments
+- Extract attachments
 
 ## Motivation
 
@@ -764,6 +766,22 @@ const pdfBytes = await pdfDoc.save()
 //   • Downloaded from the browser
 //   • Rendered in an <iframe>
 ```
+
+### Extract Attachments
+
+If you load a PDF that has `cars.csv` as an attachment, you can use the
+following to extract the attachments:
+
+<!-- prettier-ignore -->
+```js
+const pdfDoc = await PDFDocument.load(...)
+const attachments = pdfDoc.getAttachments()
+const csv = attachments.find(({ name }) => name === 'cars.csv')
+fs.writeFileSync(csv.name, csv.data)
+```
+
+> NOTE: The method also finds attachments added after the last call to
+> `save()`.
 
 ### Set Document Metadata
 
