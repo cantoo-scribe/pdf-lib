@@ -237,11 +237,6 @@ export const drawRectangle = (options: {
   matrix?: TransformationMatrix;
   clipSpaces?: Space[];
 }) => {
-  if (!getDrawingOperator(options)) {
-    // no-op when there is no fill and no border color or fill.
-    return [];
-  }
-
   const { width, height, xSkew, ySkew, rotate, matrix } = options;
   const w = typeof width === 'number' ? width : width.asNumber();
   const h = typeof height === 'number' ? height : height.asNumber();
@@ -396,7 +391,7 @@ export const drawEllipse = (options: {
 }) => {
   const drawingOperator = getDrawingOperator(options);
   if (!drawingOperator) {
-    // no-op when there is no fill and no border color or fill.
+    // no-op when there is no fill and no border color/width.
     return [];
   }
 
@@ -455,7 +450,7 @@ export const drawSvgPath = (
 ) => {
   const drawingOperator = getDrawingOperator(options);
   if (!drawingOperator) {
-    // no-op when there is no fill and no border color or fill.
+    // no-op when there is no fill and no border color/width.
     return [];
   }
 
@@ -913,7 +908,7 @@ const getDrawingOperator = ({
   fillRule
 }: {
   color?: Color;
-  borderWidth: number | PDFNumber | undefined;
+  borderWidth?: number | PDFNumber;
   borderColor?: Color;
   fillRule?: FillRule;
 }) => {
