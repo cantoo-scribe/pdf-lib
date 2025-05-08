@@ -1,4 +1,3 @@
-import { readLines } from 'https://deno.land/std@0.67.0/io/bufio.ts';
 import { SEP, dirname } from 'https://deno.land/std@0.67.0/path/mod.ts';
 
 import { default as test1 } from './tests/test1.ts';
@@ -20,11 +19,14 @@ import { default as test16 } from './tests/test16.ts';
 import { default as test17 } from './tests/test17.ts';
 import { default as test18 } from './tests/test18.ts';
 import { default as test19 } from './tests/test19.ts';
+import test20 from './tests/test20.ts';
 
 const promptToContinue = () => {
   const prompt = 'Press <enter> to run the next test...';
   Deno.stdout.write(new TextEncoder().encode(prompt));
-  return readLines(Deno.stdin).next();
+
+  const buff = new Uint8Array(128);
+  return Deno.stdin.read(buff);
 };
 
 // This needs to be more sophisticated to work on Linux as well.
@@ -171,7 +173,8 @@ const main = async () => {
   // prettier-ignore
   const allTests = [
       test1, test2, test3, test4, test5, test6, test7, test8, test9, test10,
-      test11, test12, test13, test14, test15, test16, test17, test18, test19
+      test11, test12, test13, test14, test15, test16, test17, test18, test19,
+      test20
     ];
 
   const tests = testIdx ? [allTests[testIdx - 1]] : allTests;

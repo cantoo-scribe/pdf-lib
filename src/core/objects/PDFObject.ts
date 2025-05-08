@@ -2,6 +2,12 @@ import { MethodNotImplementedError } from '../errors';
 import PDFContext from '../PDFContext';
 
 class PDFObject {
+  registerChange() {
+    throw new MethodNotImplementedError(
+      this.constructor.name,
+      'registerChange',
+    );
+  }
   clone(_context?: PDFContext): PDFObject {
     throw new MethodNotImplementedError(this.constructor.name, 'clone');
   }

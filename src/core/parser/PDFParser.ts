@@ -33,6 +33,7 @@ class PDFParser extends PDFObjectParser {
     warnOnInvalidObjects?: boolean,
     capNumbers?: boolean,
     cryptoFactory?: CipherTransformFactory,
+    forIncrementalUpdate?: boolean,
   ) =>
     new PDFParser(
       pdfBytes,
@@ -41,6 +42,7 @@ class PDFParser extends PDFObjectParser {
       warnOnInvalidObjects,
       capNumbers,
       cryptoFactory,
+      forIncrementalUpdate,
     );
 
   private readonly objectsPerTick: number;
@@ -56,6 +58,7 @@ class PDFParser extends PDFObjectParser {
     warnOnInvalidObjects = false,
     capNumbers = false,
     cryptoFactory?: CipherTransformFactory,
+    forIncrementalUpdate = false,
   ) {
     super(
       ByteStream.of(pdfBytes),
@@ -68,6 +71,9 @@ class PDFParser extends PDFObjectParser {
     this.warnOnInvalidObjects = warnOnInvalidObjects;
     this.context.isDecrypted = !!cryptoFactory?.encryptionKey;
     this.context.pdfFileDetails.pdfSize = pdfBytes.length;
+    if (forIncrementalUpdate) {
+      this.context.pdfFileDetails.originalBytes = pdfBytes;
+    }
   }
 
   async parseDocument(): Promise<PDFContext> {

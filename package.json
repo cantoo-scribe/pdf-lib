@@ -41,7 +41,8 @@
     "François Billioud (https://github.com/Sharcoux)",
     "Phakorn Kiong (https://github.com/PhakornKiong)",
     "Donald Ness (https://github.com/programmarchy)",
-    "Remus DRAICA (https://github.com/remdra)"
+    "Remus DRAICA (https://github.com/remdra)",
+    "David Abdala (https://github.com/adnsistemas)"
   ],
   "scripts": {
     "release": "yarn release:prep && release-it",

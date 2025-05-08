@@ -931,6 +931,99 @@ describe(`PDFDocument`, () => {
       pdfDoc.detach('not_existing.txt');
       attachments = pdfDoc.getAttachments();
       expect(attachments.length).toEqual(2);
+    })
+  });
+  
+  describe(`load({forIncrementalUpdate}) cycle`, () => {
+    it(`can be used with different pages`, async () => {
+      const noErrorFunc = async (pageIndex: number) => {
+        const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+          forIncrementalUpdate: true,
+        });
+        const page = pdfDoc.getPage(pageIndex);
+        const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const fontSize = 30;
+        page.drawText('Incremental saving is also awesome!', {
+          x: 50,
+          y: 4 * fontSize,
+          size: fontSize,
+          font: timesRomanFont,
+        });
+
+        const pdfIncrementalBytes = await pdfDoc.save();
+        const rewritedBytes = await pdfDoc.save({ rewrite: true });
+        expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(
+          simplePdfBytes.byteLength,
+        );
+        expect(rewritedBytes.byteLength).toBeGreaterThan(0);
+        expect(rewritedBytes.byteLength).toBeLessThan(
+          pdfIncrementalBytes.byteLength,
+        );
+      };
+
+      await expect(noErrorFunc(0)).resolves.not.toThrowError();
+      await expect(noErrorFunc(1)).resolves.not.toThrowError();
+    });
+
+    it(`can be used with object-stream PDFs`, async () => {
+      const noErrorFunc = async () => {
+        const pdfDoc = await PDFDocument.load(simpleStreamsPdfBytes, {
+          forIncrementalUpdate: true,
+        });
+        const page = pdfDoc.getPage(0);
+        const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const fontSize = 30;
+        page.drawText('Incremental saving is also awesome!', {
+          x: 50,
+          y: 4 * fontSize,
+          size: fontSize,
+          font: timesRomanFont,
+        });
+
+        const pdfIncrementalBytes = await pdfDoc.save();
+        const pdfRewriteBytes = await pdfDoc.save({ rewrite: true });
+        expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(
+          simpleStreamsPdfBytes.byteLength,
+        );
+        expect(pdfRewriteBytes.byteLength).toBeGreaterThan(
+          simpleStreamsPdfBytes.byteLength,
+        );
+      };
+
+      await expect(noErrorFunc()).resolves.not.toThrowError();
+    });
+
+    it(`produces same output than manual incremental update`, async () => {
+      const noErrorFunc = async (pageIndex: number) => {
+        const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+          forIncrementalUpdate: true,
+        });
+        const snapshot = pdfDoc.takeSnapshot();
+        const page = pdfDoc.getPage(pageIndex);
+        snapshot.markRefForSave(page.ref);
+        const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const fontSize = 30;
+        page.drawText('Incremental saving is also awesome!', {
+          x: 50,
+          y: 4 * fontSize,
+          size: fontSize,
+          font: timesRomanFont,
+        });
+
+        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot);
+        const finalPdfBytes = Buffer.concat([
+          simplePdfBytes,
+          pdfIncrementalBytes,
+        ]);
+        const pdfSaveBytes = await pdfDoc.save();
+        expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(0);
+        expect(finalPdfBytes.byteLength).toBeLessThanOrEqual(
+          pdfSaveBytes.byteLength,
+        );
+      };
+
+      await expect(noErrorFunc(0)).resolves.not.toThrowError();
+      await expect(noErrorFunc(1)).resolves.not.toThrowError();
     });
   });
 });

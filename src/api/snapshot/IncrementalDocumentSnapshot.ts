@@ -40,7 +40,9 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
   }
 
   markRefsForSave(refs: PDFRef[]): void {
-    refs.forEach((ref) => this.changedObjects.push(ref.objectNumber));
+    refs.forEach((ref) => {
+      if (ref) this.changedObjects.push(ref.objectNumber);
+    });
   }
 
   markObjForSave(obj: PDFObject): void {
@@ -48,9 +50,10 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
   }
 
   markObjsForSave(objs: PDFObject[]): void {
-    objs.forEach((obj) => {
-      const ref = obj instanceof PDFRef ? obj : this.context.getObjectRef(obj)!;
-      this.markRefForSave(ref);
-    });
+    this.markRefsForSave(
+      objs.map((obj) =>
+        obj instanceof PDFRef ? obj : this.context.getObjectRef(obj)!,
+      ),
+    );
   }
 }
