@@ -946,12 +946,13 @@ export default class PDFPage {
     const fontSize = options.size || this.fontSize;
 
     const textWidth = (t: string) => newFont.widthOfTextAtSize(t, fontSize);
+    const width = textWidth(text);
 
     if (options.font) {
       if (oldFont) this.setFont(oldFont);
       else this.resetFont();
     }
-    return textWidth;
+    return width;
   }
 
   /**
