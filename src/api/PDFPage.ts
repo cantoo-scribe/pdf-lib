@@ -930,6 +930,31 @@ export default class PDFPage {
   }
 
   /**
+   *
+   * Calulates the width of a given text string at the current font size.
+   *
+   * @param text
+   * @param options
+   * @returns
+   */
+  widthOfText(text: string, options: PDFPageDrawTextOptions = {}): number {
+    assertIs(text, 'text', ['string']);
+    assertOrUndefined(options.font, 'options.font', [[PDFFont, 'PDFFont']]);
+    assertOrUndefined(options.size, 'options.size', ['number']);
+
+    const { oldFont, newFont } = this.setOrEmbedFont(options.font);
+    const fontSize = options.size || this.fontSize;
+
+    const textWidth = (t: string) => newFont.widthOfTextAtSize(t, fontSize);
+
+    if (options.font) {
+      if (oldFont) this.setFont(oldFont);
+      else this.resetFont();
+    }
+    return textWidth;
+  }
+
+  /**
    * Draw one or more lines of text on this page. For example:
    * ```js
    * import { StandardFonts, rgb } from 'pdf-lib'
