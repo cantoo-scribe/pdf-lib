@@ -55,14 +55,8 @@ class PDFWriter {
 
   async serializeToBuffer(): Promise<Uint8Array> {
     const incremental = !(this.snapshot instanceof DefaultDocumentSnapshot);
-    const {
-      size,
-      header,
-      indirectObjects,
-      xref,
-      trailerDict,
-      trailer,
-    } = await this.computeBufferSize(incremental);
+    const { size, header, indirectObjects, xref, trailerDict, trailer } =
+      await this.computeBufferSize(incremental);
 
     let offset = 0;
     const buffer = new Uint8Array(size);

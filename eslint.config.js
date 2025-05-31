@@ -23,7 +23,7 @@ module.exports = [
   },
   eslint.configs.recommended,
   {
-    files: ['**/*.{ts,tsx,js,jsx,mjs}'],
+    files: ['src/**/*.{ts,tsx,js,jsx,mjs}','tests/**/*.{ts,tsx,js,jsx,mjs}','apps/**/*.{ts,tsx,js,jsx,mjs}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -64,32 +64,29 @@ module.exports = [
         },
       ],
       'no-console': 'off',
-      curly: ['error', 'multi-line'],
-      quotes: ['error', 'single', { avoidEscape: true }],
       'no-empty-interface': 'off',
       '@typescript-eslint/no-empty-interface': 'off',
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always'],
-      'no-multiple-empty-lines': ['error', { max: 1 }],
-      'no-trailing-spaces': 'error',
-      'eol-last': 'error',
       'no-unused-vars': 'off',
       'no-dupe-class-members': 'off',
+      'no-undef': 'off',
     },
   },
   {
     files: [
-      '**/tests/**/*.{ts,tsx,js,jsx}',
+      'tests/**/*.{ts,tsx,js,jsx}',
       '**/*.spec.{ts,tsx,js,jsx}',
       '**/*.test.{ts,tsx,js,jsx}',
     ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+      'quotes': 'off',
     },
   },
   {
-    files: ['**/apps/rn/**/*.{ts,tsx,js,jsx,mjs}'],
+    files: ['apps/rn/**/*.{ts,tsx,js,jsx,mjs}'],
     languageOptions: {
       globals: {
         require: 'readonly',
@@ -97,7 +94,7 @@ module.exports = [
     },
   },
   {
-    files: ['**/apps/deno/**/*.{ts,tsx,js,jsx,mjs}'],
+    files: ['apps/deno/**/*.{ts,tsx,js,jsx,mjs}'],
     languageOptions: {
       globals: {
         Deno: 'readonly',

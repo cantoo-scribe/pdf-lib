@@ -406,4 +406,21 @@ describe('PDFParser', () => {
     const object2 = context.lookup(PDFRef.of(2));
     expect(object2).toBeInstanceOf(PDFString);
   });
+
+  it('preserves pdfBytes when created for incremental update', async () => {
+    const pdfBytes = fs.readFileSync('./assets/pdfs/bixby_guide.pdf');
+
+    const parser = PDFParser.forBytesWithOptions(
+      pdfBytes,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+    const context = await parser.parseDocument();
+
+    expect(context.pdfFileDetails.originalBytes).toBeDefined();
+  });
 });
