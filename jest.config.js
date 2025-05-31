@@ -1,3 +1,4 @@
+/*eslint no-undef: "off"*/
 module.exports = {
   // Base configuration
   preset: 'ts-jest',
