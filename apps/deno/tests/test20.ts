@@ -23,7 +23,8 @@ export default async (assets: Assets) => {
   const page = pdfDoc.addPage([500, 200]);
   const font = pdfDoc.embedStandardFont(StandardFonts.Helvetica);
   const fontBold = pdfDoc.embedStandardFont(StandardFonts.HelveticaBoldOblique);
-  const advertencia = `-- Esta nota es meramente informativa, no es la firma real del documento --`;
+  const advertencia =
+    '-- Esta nota es meramente informativa, no es la firma real del documento --';
   const usarLibreOffice =
     '-- Si su visor de PDF no incluye la función de validar firmas, puede utilizar "LibreOffice Draw" --';
   const tamLetra = 14;
@@ -32,8 +33,9 @@ export default async (assets: Assets) => {
   let lw = fontBold.widthOfTextAtSize(usarLibreOffice, tamAdvertencia);
   if (lw > tw) tw = lw;
   let th = font.heightAtSize(tamLetra);
-  if (fontBold.heightAtSize(tamAdvertencia) > th)
+  if (fontBold.heightAtSize(tamAdvertencia) > th) {
     th = fontBold.heightAtSize(tamAdvertencia);
+  }
   th += 2;
   const stx = Math.trunc((page.getWidth() - tw) / 2);
   let curry = th * 4 + 20;
@@ -80,7 +82,7 @@ export default async (assets: Assets) => {
   });
 
   // Add an AcroForm or update the existing one
-  let acroForm = pdfDoc.catalog.getOrCreateAcroForm();
+  const acroForm = pdfDoc.catalog.getOrCreateAcroForm();
 
   // Create a placeholder where the the last 3 parameters of the
   // actual range will be replaced when signing is done.

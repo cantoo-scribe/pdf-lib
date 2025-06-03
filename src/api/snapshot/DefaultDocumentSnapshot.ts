@@ -1,4 +1,4 @@
-import { PDFObject, PDFRef } from 'src/core';
+import { PDFObject, PDFRef } from '../../core';
 import { DocumentSnapshot } from './DocumentSnapshot';
 
 export class DefaultDocumentSnapshot implements DocumentSnapshot {

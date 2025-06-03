@@ -1560,12 +1560,16 @@ export default class PDFDocument {
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
     const {
       useObjectStreams = true,
+      addDefaultPage = true,
       objectsPerTick = 50,
+      updateFieldAppearances = true,
       rewrite = false,
     } = options;
 
     assertIs(useObjectStreams, 'useObjectStreams', ['boolean']);
+    assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
+    assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
     assertIs(rewrite, 'rewrite', ['boolean']);
     const incrementalUpdate =
       !rewrite &&
@@ -1732,9 +1736,7 @@ export default class PDFDocument {
 
   private getInfoDict(): PDFDict {
     const existingInfo = this.context.lookup(this.context.trailerInfo.Info);
-    if (existingInfo instanceof PDFDict) {
-      return existingInfo;
-    }
+    if (existingInfo instanceof PDFDict) return existingInfo;
 
     const newInfo = this.context.obj({});
     this.context.trailerInfo.Info = this.context.register(newInfo);

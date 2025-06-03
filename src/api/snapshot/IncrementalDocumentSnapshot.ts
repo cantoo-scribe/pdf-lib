@@ -1,4 +1,4 @@
-import { PDFContext, PDFObject, PDFRef } from 'src/core';
+import { PDFContext, PDFObject, PDFRef } from '../../core';
 import { DocumentSnapshot } from './DocumentSnapshot';
 
 export class IncrementalDocumentSnapshot implements DocumentSnapshot {

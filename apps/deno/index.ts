@@ -1,3 +1,4 @@
+import { readLines } from 'https://deno.land/std@0.67.0/io/bufio.ts';
 import { SEP, dirname } from 'https://deno.land/std@0.67.0/path/mod.ts';
 
 import { default as test1 } from './tests/test1.ts';
@@ -19,14 +20,12 @@ import { default as test16 } from './tests/test16.ts';
 import { default as test17 } from './tests/test17.ts';
 import { default as test18 } from './tests/test18.ts';
 import { default as test19 } from './tests/test19.ts';
-import test20 from './tests/test20.ts';
+import { default as test20 } from './tests/test20.ts';
 
 const promptToContinue = () => {
   const prompt = 'Press <enter> to run the next test...';
   Deno.stdout.write(new TextEncoder().encode(prompt));
-
-  const buff = new Uint8Array(128);
-  return Deno.stdin.read(buff);
+  return readLines(Deno.stdin).next();
 };
 
 // This needs to be more sophisticated to work on Linux as well.
@@ -41,8 +40,6 @@ const openPdf = (path: string, reader: string = '') => {
   } else if (Deno.build.os === 'windows') {
     // Opens with the default PDF Reader, has room for improvment
     Deno.run({ cmd: ['cmd', '/c', 'start', path] });
-  } else if (Deno.build.os === 'linux') {
-    Deno.run({ cmd: ['xdg-open', path] });
   } else {
     const msg1 =
       "Note: Automatically opening PDFs currently only works on Macs and Windows. If you're using a Linux machine, please consider contributing to expand support for this feature";

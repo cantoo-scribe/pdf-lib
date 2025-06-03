@@ -3,7 +3,7 @@
   "version": "2.5.3",
   "description": "Create and modify PDF files with JavaScript",
   "author": "Andrew Dillon <andrew.dillon.j@gmail.com>",
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "packageManager": "yarn@1.22.19",
   "exports": {
     ".": {
       "types": "./cjs/index.d.ts",
@@ -40,9 +40,7 @@
     "Ching Chang (https://github.com/ChingChang9)",
     "François Billioud (https://github.com/Sharcoux)",
     "Phakorn Kiong (https://github.com/PhakornKiong)",
-    "Donald Ness (https://github.com/programmarchy)",
-    "Remus DRAICA (https://github.com/remdra)",
-    "David Abdala (https://github.com/adnsistemas)"
+    "Donald Ness (https://github.com/programmarchy)"
   ],
   "scripts": {
     "release": "yarn release:prep && release-it",
