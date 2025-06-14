@@ -1037,9 +1037,12 @@ export default class PDFDocument {
         }
       }
 
-      const description = (
-        fileSpec.lookup(PDFName.of('Desc')) as PDFHexString
-      ).decodeText();
+      const descRaw = fileSpec.lookup(PDFName.of('Desc'));
+      let description: string | undefined;
+
+      if (descRaw instanceof PDFHexString) {
+        description = descRaw.decodeText();
+      }
 
       return [
         {
