@@ -190,6 +190,11 @@ class PDFContext {
     throw new UnexpectedObjectTypeError(types, result);
   }
 
+  getRef(pdfObject: PDFObject | PDFRef): PDFRef | undefined {
+    if (pdfObject instanceof PDFRef) return pdfObject;
+    return this.getObjectRef(pdfObject);
+  }
+
   getObjectRef(pdfObject: PDFObject): PDFRef | undefined {
     const entries = Array.from(this.indirectObjects.entries());
     for (let idx = 0, len = entries.length; idx < len; idx++) {

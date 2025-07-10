@@ -19,7 +19,6 @@ const IgnoredWarnings = [
   'Circular dependency: es/api/PDFPage.js -> es/api/PDFDocument.js -> es/api/form/PDFForm.js -> es/api/form/PDFOptionList.js -> es/api/PDFPage.js',
   'Circular dependency: es/api/PDFPage.js -> es/api/PDFDocument.js -> es/api/form/PDFForm.js -> es/api/form/PDFRadioGroup.js -> es/api/PDFPage.js',
   'Circular dependency: es/api/PDFPage.js -> es/api/PDFDocument.js -> es/api/form/PDFForm.js -> es/api/form/PDFTextField.js -> es/api/PDFPage.js',
-  'Circular dependency: es/core/index.js -> es/core/writers/PDFWriter.js -> es/api/snapshot/index.js -> es/api/snapshot/IncrementalDocumentSnapshot.js -> es/core/index.js',
 
   // Windows
   'Circular dependency: es\\api\\PDFDocument.js -> es\\api\\PDFFont.js -> es\\api\\PDFDocument.js',
@@ -36,7 +35,6 @@ const IgnoredWarnings = [
   'Circular dependency: es\\api\\PDFPage.js -> es\\api\\PDFDocument.js -> es\\api\\form\\PDFForm.js -> es\\api\\form\\PDFOptionList.js -> es\\api\\PDFPage.js',
   'Circular dependency: es\\api\\PDFPage.js -> es\\api\\PDFDocument.js -> es\\api\\form\\PDFForm.js -> es\\api\\form\\PDFRadioGroup.js -> es\\api\\PDFPage.js',
   'Circular dependency: es\\api\\PDFPage.js -> es\\api\\PDFDocument.js -> es\\api\\form\\PDFForm.js -> es\\api\\form\\PDFTextField.js -> es\\api\\PDFPage.js',
-  'Circular dependency: es\\core\\index.js -> es\\core\\writers\\PDFWriter.js -> es\\api\\snapshot\\index.js -> es\\api\\snapshot\\IncrementalDocumentSnapshot.js -> es\\core\\index.js',
 ];
 
 // Silence circular dependency warnings we don't care about

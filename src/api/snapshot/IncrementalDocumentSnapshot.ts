@@ -1,4 +1,4 @@
-import { PDFContext, PDFObject, PDFRef } from '../../core';
+import type { PDFContext, PDFObject, PDFRef } from '../../core';
 import { DocumentSnapshot } from './DocumentSnapshot';
 
 export class IncrementalDocumentSnapshot implements DocumentSnapshot {
@@ -51,9 +51,9 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
 
   markObjsForSave(objs: PDFObject[]): void {
     this.markRefsForSave(
-      objs.map((obj) =>
-        obj instanceof PDFRef ? obj : this.context.getObjectRef(obj)!,
-      ),
+      objs
+        .map((obj) => this.context.getRef(obj))
+        .filter((ref) => ref !== undefined) as PDFRef[],
     );
   }
 }

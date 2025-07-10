@@ -14,8 +14,8 @@ import { copyStringIntoBuffer, waitForTick } from '../../utils';
 import {
   DefaultDocumentSnapshot,
   defaultDocumentSnapshot,
-  DocumentSnapshot,
 } from '../../api/snapshot';
+import type { DocumentSnapshot } from '../../api/snapshot';
 import PDFNumber from '../objects/PDFNumber';
 
 export interface SerializationInfo {
