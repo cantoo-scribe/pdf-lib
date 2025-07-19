@@ -63,6 +63,7 @@ Install with: `npm install @cantoo/pdf-lib`
 - [Usage Examples](#usage-examples)
   - [Create Document](#create-document)
   - [Modify Document](#modify-document)
+  - [Incremental Document Modification](#incremental-document-modification)
   - [Create Form](#create-form)
   - [Fill Form](#fill-form)
   - [Flatten Form](#flatten-form)
@@ -221,6 +222,212 @@ const pdfBytes = await pdfDoc.save()
 //   • Written to a file in Node
 //   • Downloaded from the browser
 //   • Rendered in an <iframe>
+```
+
+### Incremental Document Modification
+
+You can load a PDF for incremental update, generating the original document plus the increment, on save. You can also handle incremental update manually.
+The incremental modification saving is designed to be used for pdf signing. The signature is added to an existing page, then only the 'incremental' PDF is generated and concatenated to the initial version.
+
+_This example produces [this PDF](assets/pdfs/examples/incremental_document_modification.pdf)_ (when [this PDF](assets/pdfs/simple.pdf) is used for the `existingPdfBytes` variable).
+
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+
+// This should be a Uint8Array or ArrayBuffer
+// This data can be obtained in a number of different ways
+// If your running in a Node environment, you could use fs.readFile()
+// In the browser, you could make a fetch() call and use res.arrayBuffer()
+const existingPdfBytes = ...
+
+// Load a PDFDocument from the existing PDF bytes
+const pdfDoc = await PDFDocument.load(existingPdfBytes)
+
+// Take a snapshot of the document
+const snapshot = pdfDoc.takeSnapshot();
+
+// Get the first page of the document
+const pages = pdfDoc.getPages()
+const firstPage = pages[0]
+
+// Mark the page as modified
+snapshot.markRefForSave(firstPage.ref)
+
+// Draw a string of text diagonally across the first page
+firstPage.drawText('Incremental saving is also awesome!', {
+  x: 50,
+  y: 4 * fontSize,
+  size: fontSize
+})
+
+// Serialize the PDFDocument to bytes (a Uint8Array)
+const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot)
+const pdfBytes = Buffer.concatenate([ existingPdfBytes, pdfIncrementalBytes ])
+
+// For example, `pdfBytes` can be:
+//   • Written to a file in Node
+//   • Downloaded from the browser
+//   • Rendered in an <iframe>
+```
+
+Loading an existing PDF forIncrementalUpdate, makes things easier:
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+
+// This should be a Uint8Array or ArrayBuffer
+const existingPdfBytes = ...
+
+// Load a PDFDocument from the existing PDF bytes, for incremental update
+const pdfDoc = await PDFDocument.load(existingPdfBytes,{forIncrementalUpdate:true})
+
+// Get the first page of the document
+const pages = pdfDoc.getPages()
+const firstPage = pages[0]
+
+// Draw a string of text diagonally across the first page
+firstPage.drawText('Incremental saving is also awesome!', {
+  x: 50,
+  y: 4 * fontSize,
+  size: fontSize
+})
+
+// Serialize the PDFDocument to bytes (a Uint8Array), using incremental updates
+const pdfBytes = await pdfDoc.save()
+
+// For example, `pdfBytes` can be:
+//   • Written to a file in Node
+//   • Downloaded from the browser
+//   • Rendered in an <iframe>
+```
+You can force a rewrite of a PDF that was open for incremental update with the right parameter on save:
+<!-- prettier-ignore -->
+```js
+import { PDFDocument } from 'pdf-lib';
+
+// This should be a Uint8Array or ArrayBuffer
+const existingPdfBytes = ...
+
+// Load a PDFDocument from the existing PDF bytes, for incremental update
+const pdfDoc = await PDFDocument.load(existingPdfBytes,{forIncrementalUpdate:true})
+
+// Do something..
+
+// Serialize the PDFDocument to bytes (a Uint8Array), NOT using incremental updates
+const pdfBytes = await pdfDoc.save({rewrite: true})
+```
+
+#### Using pdf-lib to generate a placeholder for an electronic signature
+@signpdf includes a pdf-lib-placeholder component, but it is based on the pdf-lib package that has no incremental update functionality. This code is taken from that library and modified to use incremental update for not invalidating previous file signatures. Is an example, that can be seen in integration test #20, some @signpdf constants has been changed to arbitrary values for the example to work "out of the box".
+
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, StandardFonts, rgb, PDFArray, PDFNumber, PDFName, PDFHexString, PDFString, PDFInvalidObject } from 'pdf-lib';
+const pdfBytes = ...
+
+const pdfDoc = await PDFDocument.load(pdfBytes, {forIncrementalUpdate: true});
+// visual representation of the signature
+const page = pdfDoc.addPage([500, 200]);
+const font = pdfDoc.embedStandardFont(StandardFonts.Helvetica);
+page.drawRectangle({
+  x: 10,
+  y: 30,
+  width: 280,
+  height: 150,
+  borderWidth: 2,
+  borderColor: rgb(0.45, 0.45, 0.45),
+});
+page.drawText(`Electronic Signature Example\nSigned on ${(new Date()).toIsoString()}\nThis is not the real signature!!`, {
+  x: 20,
+  y: 200,
+  size: 14,
+  font,
+});
+// Add an AcroForm or update the existing one
+let acroForm = pdfDoc.catalog.getOrCreateAcroForm();
+// Create a placeholder where the the last 3 parameters of the
+// actual range will be replaced when signing is done.
+const byteRange = PDFArray.withContext(pdfDoc.context);
+byteRange.push(PDFNumber.of(0));
+byteRange.push(PDFName.of('*********'));
+byteRange.push(PDFName.of('*********'));
+byteRange.push(PDFName.of('*********'));
+// Fill the contents of the placeholder with 00s.
+const placeholder = PDFHexString.of(String.fromCharCode(0).repeat(8096));
+// Create a signature dictionary to be referenced in the signature widget.
+const appBuild = { App: { Name: 'Signature Example pdf-lib' } };
+const signatureDict = pdfDoc.context.obj({
+    Type: 'Sig',
+    Filter: 'Adobe.PPKLite',
+    SubFilter: 'adbe.pkcs7.detached',
+    ByteRange: byteRange,
+    Contents: placeholder,
+    Reason: PDFString.of('Example Signature'),
+    M: PDFString.fromDate(new Date()),
+    ContactInfo: PDFString.of('me@pdf-lib.org'),
+    Name: PDFString.of('Example Signer'),
+    Location: PDFString.of('In a far away galaxy..'),
+    Prop_Build: {
+      Filter: { Name: 'Adobe.PPKLite' },
+      ...appBuild,
+    },
+});
+// Register signatureDict as a PDFInvalidObject to prevent PDFLib from serializing it
+// in an object stream.
+const signatureBuffer = new Uint8Array(signatureDict.sizeInBytes());
+signatureDict.copyBytesInto(signatureBuffer, 0);
+const signatureObj = PDFInvalidObject.of(signatureBuffer);
+const signatureDictRef = pdfDoc.context.register(signatureObj);
+// Create the signature widget
+const widgetRect = [0, 0, 0, 0];
+const rect = PDFArray.withContext(pdfDoc.context);
+widgetRect.forEach((c) => rect.push(PDFNumber.of(c)));
+const apStream = pdfDoc.context.formXObject([], {
+  BBox: widgetRect,
+  Resources: {}, // Necessary to avoid Acrobat bug (see https://stackoverflow.com/a/73011571)
+});
+const widgetDict = pdfDoc.context.obj({
+  Type: 'Annot',
+  Subtype: 'Widget',
+  FT: 'Sig',
+  Rect: rect,
+  V: signatureDictRef,
+  T: PDFString.of('TestSig'),
+  TU: PDFString.of('Electronic Signature Example'),
+  F: 2,
+  P: page.ref,
+  AP: { N: pdfDoc.context.register(apStream) }, // Required for PDF/A compliance
+});
+const widgetDictRef = pdfDoc.context.register(widgetDict);
+// Annotate the widget on the given page
+let annotations = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+if (typeof annotations === 'undefined') {
+  annotations = pdfDoc.context.obj([]);
+}
+annotations.push(widgetDictRef);
+page.node.set(PDFName.of('Annots'), annotations);
+let sigFlags: PDFNumber;
+if (acroForm.dict.has(PDFName.of('SigFlags'))) {
+  // Already has some flags, will merge
+  sigFlags = acroForm.dict.get(PDFName.of('SigFlags')) as PDFNumber;
+} else {
+  // Create blank flags
+  sigFlags = PDFNumber.of(0);
+}
+const updatedFlags = PDFNumber.of(sigFlags!.asNumber() | 1 | 2);
+acroForm.dict.set(PDFName.of('SigFlags'), updatedFlags);
+let fields = acroForm.dict.get(PDFName.of('Fields'));
+if (!(fields instanceof PDFArray)) {
+  fields = pdfDoc.context.obj([]);
+  acroForm.dict.set(PDFName.of('Fields'), fields);
+}
+(fields as PDFArray).push(widgetDictRef);
+// Serialize the PDFDocument to bytes (a Uint8Array), using incremental updates
+const pdfBytes = await pdfDoc.save()
+
+// `pdfBytes` should be handled to the signing library to calculate the
+//  file hash and fill in the generated placeholder for the signature
 ```
 
 ### Create Form
