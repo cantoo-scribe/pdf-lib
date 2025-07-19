@@ -170,6 +170,18 @@ describe('PDFDocument', () => {
     });
   });
 
+  describe('largestObjectNumber detection', () => {
+    it('loads pdfs with XREF streams', async () => {
+      const pdfDoc = await PDFDocument.load(simpleStreamsPdfBytes);
+      expect(pdfDoc.context.largestObjectNumber).toBe(8);
+    });
+
+    it('loads pdfs without XREF streams', async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes);
+      expect(pdfDoc.context.largestObjectNumber).toBe(8);
+    });
+  });
+
   describe('embedFont() method', () => {
     it('serializes the same value on every save', async () => {
       const customFont = fs.readFileSync('assets/fonts/ubuntu/Ubuntu-B.ttf');

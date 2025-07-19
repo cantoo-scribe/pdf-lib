@@ -196,9 +196,9 @@ class PDFParser extends PDFObjectParser {
       object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')
     ) {
       PDFXRefStreamParser.forStream(object).parseIntoContext();
-    } else {
-      this.context.assign(ref, object);
     }
+    // always register the object and the ref, to properly handle object numeration
+    this.context.assign(ref, object);
 
     return ref;
   }
