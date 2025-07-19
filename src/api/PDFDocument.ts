@@ -79,7 +79,8 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
-import { DocumentSnapshot, IncrementalDocumentSnapshot } from './snapshot';
+import { IncrementalDocumentSnapshot } from './snapshot';
+import type { DocumentSnapshot } from './snapshot';
 
 export type BasePDFAttachment = {
   name: string;

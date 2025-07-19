@@ -1,5 +1,5 @@
 import type { PDFContext, PDFObject, PDFRef } from '../../core';
-import { DocumentSnapshot } from './DocumentSnapshot';
+import type { DocumentSnapshot } from './DocumentSnapshot';
 
 export class IncrementalDocumentSnapshot implements DocumentSnapshot {
   pdfSize: number;

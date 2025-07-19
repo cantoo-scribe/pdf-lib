@@ -8,6 +8,7 @@ export * from './operations';
 export * from './operators';
 export * from './rotations';
 export * from './sizes';
+export * from './snapshot';
 export * from './PDFPageOptions';
 export * from './PDFDocumentOptions';
 export * from './StandardFonts';

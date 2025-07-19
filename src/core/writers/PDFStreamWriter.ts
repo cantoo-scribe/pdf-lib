@@ -14,7 +14,8 @@ import PDFCrossRefStream from '../structures/PDFCrossRefStream';
 import PDFObjectStream from '../structures/PDFObjectStream';
 import PDFWriter from './PDFWriter';
 import { last, waitForTick } from '../../utils';
-import { defaultDocumentSnapshot, DocumentSnapshot } from '../../api/snapshot';
+import { defaultDocumentSnapshot } from '../../api/snapshot';
+import type { DocumentSnapshot } from '../../api/snapshot';
 import PDFDict from '../objects/PDFDict';
 
 class PDFStreamWriter extends PDFWriter {

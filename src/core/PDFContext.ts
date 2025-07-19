@@ -1,5 +1,5 @@
 import pako from 'pako';
-import { DocumentSnapshot } from '../api';
+import type { DocumentSnapshot } from '../api';
 
 import PDFHeader from './document/PDFHeader';
 import { UnexpectedObjectTypeError } from './errors';
