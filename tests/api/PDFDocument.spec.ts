@@ -180,6 +180,20 @@ describe('PDFDocument', () => {
       const pdfDoc = await PDFDocument.load(simplePdfBytes);
       expect(pdfDoc.context.largestObjectNumber).toBe(8);
     });
+
+    it('preserves deleted objects numbers if open for update', async () => {
+      const pdfBytes = fs.readFileSync(
+        './assets/pdfs/with_update_sections.pdf',
+      );
+      const pdfDoc = await PDFDocument.load(pdfBytes, {
+        forIncrementalUpdate: false,
+      });
+      expect(pdfDoc.context.largestObjectNumber).toBeGreaterThanOrEqual(131);
+      const pdfUpdDoc = await PDFDocument.load(pdfBytes, {
+        forIncrementalUpdate: true,
+      });
+      expect(pdfUpdDoc.context.largestObjectNumber).toBe(334);
+    });
   });
 
   describe('embedFont() method', () => {
@@ -611,6 +625,23 @@ describe('PDFDocument', () => {
 
       await expect(noErrorFunc()).resolves.not.toThrowError();
     });
+
+    it(`saves deleted objects`, async () => {
+      const noErrorFunc = async (pageIndex: number) => {
+        const pdfDoc = await PDFDocument.load(simplePdfBytes);
+        const snapshot = pdfDoc.takeSnapshot();
+        const page = pdfDoc.getPage(pageIndex);
+        snapshot.markDeletedRef(page.ref);
+        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot);
+        expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(0);
+        expect(Buffer.from(pdfIncrementalBytes).toString()).toMatch(
+          `xref\n0 1\n${page.ref.objectNumber.toString().padStart(10, '0')} 65535 f \n${page.ref.objectNumber.toString()} 1\n0000000000 00001 f`,
+        );
+      };
+
+      await expect(noErrorFunc(0)).resolves.not.toThrowError();
+      await expect(noErrorFunc(1)).resolves.not.toThrowError();
+    });
   });
 
   describe('copy() method', () => {
@@ -717,7 +748,45 @@ describe('PDFDocument', () => {
       await expect(noErrorFunc()).resolves.not.toThrowError();
     });
 
-    it('produces same output than manual incremental update', async () => {
+    it(`registers deleted objects`, async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+        forIncrementalUpdate: true,
+      });
+      let page = pdfDoc.getPage(0);
+      const delONum = page.ref.objectNumber;
+      const delOGen = (page.ref.generationNumber + 1).toString();
+      pdfDoc.context.delete(page.ref);
+      page = pdfDoc.getPage(1);
+      const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const fontSize = 30;
+      page.drawText('Incremental saving is also awesome!', {
+        x: 50,
+        y: 4 * fontSize,
+        size: fontSize,
+        font: timesRomanFont,
+      });
+
+      const pdfIncrementalBytes = await pdfDoc.save({
+        useObjectStreams: false,
+      });
+      const pdfRewriteBytes = await pdfDoc.save({
+        rewrite: true,
+        useObjectStreams: false,
+      });
+      expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(
+        simpleStreamsPdfBytes.byteLength,
+      );
+      expect(pdfRewriteBytes.byteLength).toBeGreaterThan(
+        simpleStreamsPdfBytes.byteLength,
+      );
+      // first element in table must point to deleted page, deleted page must have next gen number
+      const rex = new RegExp(
+        `xref[\n|\r\n]0 .*[\n|\r\n]${delONum.toString().padStart(10, '0')} 65535 f[\\s\\S]*0000000000 ${delOGen.padStart(5, '0')} f`,
+      );
+      expect(Buffer.from(pdfIncrementalBytes).toString()).toMatch(rex);
+    });
+
+    it(`produces same output than manual incremental update`, async () => {
       const noErrorFunc = async (pageIndex: number) => {
         const pdfDoc = await PDFDocument.load(simplePdfBytes, {
           forIncrementalUpdate: true,

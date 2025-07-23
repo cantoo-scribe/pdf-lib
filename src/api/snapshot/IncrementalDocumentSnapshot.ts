@@ -4,7 +4,9 @@ import type { DocumentSnapshot } from './DocumentSnapshot';
 export class IncrementalDocumentSnapshot implements DocumentSnapshot {
   pdfSize: number;
   prevStartXRef: number;
+  deletedCount: number = 0;
 
+  private deleted: PDFRef[] = [];
   private lastObjectNumber: number;
   private changedObjects: number[];
 
@@ -55,5 +57,23 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
         .map((obj) => this.context.getRef(obj))
         .filter((ref) => ref !== undefined) as PDFRef[],
     );
+  }
+
+  markDeletedRef(ref: PDFRef): void {
+    if (
+      this.deleted.findIndex((dref) => dref.objectNumber === ref.objectNumber) <
+      0
+    )
+      this.deletedCount = this.deleted.push(ref);
+  }
+
+  markDeletedObj(obj: PDFObject): void {
+    const oref = this.context.getRef(obj);
+    if (oref) this.markDeletedRef(oref);
+  }
+
+  deletedRef(index: number): PDFRef | null {
+    if (index < 0 || index >= this.deleted.length) return null;
+    return this.deleted[index];
   }
 }

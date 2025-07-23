@@ -65,6 +65,7 @@
         forIncrementalUpdate: true,
       });
       const page = pdfDoc.addPage([500, 150]);
+      pdfDoc.removePage(0);
       const font = pdfDoc.embedStandardFont(StandardFonts.Helvetica);
       const fontBold = pdfDoc.embedStandardFont(
         StandardFonts.HelveticaBoldOblique,

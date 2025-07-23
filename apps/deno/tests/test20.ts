@@ -14,6 +14,7 @@ import {
 
 /**
  * This test modifies the pdf adding a page and a placeholder for an electronic signature.
+ * It also deletes the first page of the PDF.
  * The file should have an incremental update at the end, and the start of the file be exactly the original file.
  */
 export default async (assets: Assets) => {
@@ -21,6 +22,7 @@ export default async (assets: Assets) => {
     forIncrementalUpdate: true,
   });
   const page = pdfDoc.addPage([500, 200]);
+  pdfDoc.removePage(0);
   const font = pdfDoc.embedStandardFont(StandardFonts.Helvetica);
   const fontBold = pdfDoc.embedStandardFont(StandardFonts.HelveticaBoldOblique);
   const advertencia =
@@ -166,5 +168,5 @@ export default async (assets: Assets) => {
     acroForm.dict.set(PDFName.of('Fields'), fields);
   }
   (fields as PDFArray).push(widgetDictRef);
-  return await pdfDoc.save();
+  return await pdfDoc.save({ useObjectStreams: false });
 };

@@ -24,6 +24,7 @@ import { Keywords } from '../syntax/Keywords';
 import { IsDigit } from '../syntax/Numeric';
 import { waitForTick } from '../../utils';
 import { CipherTransformFactory } from '../crypto';
+import PDFNumber from '../objects/PDFNumber';
 
 class PDFParser extends PDFObjectParser {
   static forBytesWithOptions = (
@@ -307,11 +308,17 @@ class PDFParser extends PDFObjectParser {
 
     const { context } = this;
     context.trailerInfo = {
+      Size:
+        dict.lookupMaybe(PDFName.of('Size'), PDFNumber) ||
+        context.trailerInfo.Size,
       Root: dict.get(PDFName.of('Root')) || context.trailerInfo.Root,
       Encrypt: dict.get(PDFName.of('Encrypt')) || context.trailerInfo.Encrypt,
       Info: dict.get(PDFName.of('Info')) || context.trailerInfo.Info,
       ID: dict.get(PDFName.of('ID')) || context.trailerInfo.ID,
     };
+    // if open for incremental update, then deleted objects need to be preserved, and largestObjectNumber has to be Size-1
+    if (context.trailerInfo.Size && context.pdfFileDetails.originalBytes)
+      context.largestObjectNumber = context.trailerInfo.Size.asNumber() - 1;
   }
 
   private maybeParseTrailer(): PDFTrailer | void {

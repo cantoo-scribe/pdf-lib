@@ -22,7 +22,7 @@ describe('PDFCrossRefSection', () => {
     expect(String(xref1)).toEqual(
       'xref\n' +
         '0 5\n' +
-        '0000000000 65535 f \n' +
+        '0000000002 65535 f \n' +
         '0000000021 00000 n \n' +
         '0000000024 00001 f \n' +
         '0192188923 00000 n \n' +
@@ -34,7 +34,7 @@ describe('PDFCrossRefSection', () => {
     expect(String(xref2)).toEqual(
       'xref\n' +
         '0 1\n' +
-        '0000000000 65535 f \n' +
+        '0000000004 65535 f \n' +
         '3 2\n' +
         '0000000021 00000 n \n' +
         '0000000024 00001 f \n' +
@@ -59,7 +59,7 @@ describe('PDFCrossRefSection', () => {
       typedArrayFor(
         '   xref\n' +
           '0 5\n' +
-          '0000000000 65535 f \n' +
+          '0000000002 65535 f \n' +
           '0000000021 00000 n \n' +
           '0000000024 00001 f \n' +
           '0192188923 00000 n \n' +
@@ -75,7 +75,7 @@ describe('PDFCrossRefSection', () => {
       typedArrayFor(
         '   xref\n' +
           '0 1\n' +
-          '0000000000 65535 f \n' +
+          '0000000004 65535 f \n' +
           '3 2\n' +
           '0000000021 00000 n \n' +
           '0000000024 00001 f \n' +

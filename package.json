@@ -69,7 +69,7 @@
     "scratchpad:flame": "rimraf isolate*.log && node --prof scratchpad/build/scratchpad/index.js && node --prof-process --preprocess -j isolate*.log | flamebearer",
     "apps:node": "tsc --build apps/node/tsconfig.json && node apps/node-build/index.js",
     "apps:deno": "deno run --allow-read --allow-write --allow-run apps/deno/index.ts",
-    "apps:web": "http-server -c-1 .",
+    "apps:web": "http-server -c-1 -o apps/web/test1.html",
     "apps:web:mac": "bash -c 'sleep 1 && open http://localhost:8080/apps/web/test1.html' & yarn apps:web",
     "apps:rn:ios": "cd apps/rn && yarn add ./../.. --force && react-native run-ios",
     "apps:rn:android": "yarn apps:rn:emulator & cd apps/rn && yarn add ./../.. --force && react-native run-android",
