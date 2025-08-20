@@ -79,7 +79,8 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
-import { DocumentSnapshot, IncrementalDocumentSnapshot } from './snapshot';
+import { IncrementalDocumentSnapshot } from './snapshot';
+import type { DocumentSnapshot } from './snapshot';
 
 export type PDFAttachment = {
   name: string;
@@ -687,8 +688,10 @@ export default class PDFDocument {
     const pageCount = this.getPageCount();
     if (this.pageCount === 0) throw new RemovePageFromEmptyDocumentError();
     assertRange(index, 'index', 0, pageCount - 1);
+    const page = this.getPage(index);
     this.catalog.removeLeafNode(index);
     this.pageCount = pageCount - 1;
+    this.context.delete(page.ref);
   }
 
   /**

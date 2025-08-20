@@ -166,6 +166,17 @@ class PDFWriter {
       size += this.computeIndirectObjectSize(indirectObject);
       if (this.shouldWaitForTick(1)) await waitForTick();
     }
+    // deleted objects
+    for (let idx = 0; idx < this.snapshot.deletedCount; idx++) {
+      const dref = this.snapshot.deletedRef(idx);
+      if (!dref) break;
+      const nextdref = this.snapshot.deletedRef(idx + 1);
+      // add 1 to generation number for deleted ref
+      xref.addDeletedEntry(
+        PDFRef.of(dref.objectNumber, dref.generationNumber + 1),
+        nextdref ? nextdref.objectNumber : 0,
+      );
+    }
 
     const xrefOffset = size;
     size += xref.sizeInBytes() + 1; // '\n'

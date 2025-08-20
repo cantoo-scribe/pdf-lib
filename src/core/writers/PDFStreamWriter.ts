@@ -1,4 +1,5 @@
-import { defaultDocumentSnapshot, DocumentSnapshot } from '../../api/snapshot';
+import { defaultDocumentSnapshot } from '../../api/snapshot';
+import type { DocumentSnapshot } from '../../api/snapshot';
 import PDFHeader from '../document/PDFHeader';
 import PDFTrailer from '../document/PDFTrailer';
 import PDFInvalidObject from '../objects/PDFInvalidObject';

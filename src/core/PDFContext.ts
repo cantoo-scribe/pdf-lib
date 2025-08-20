@@ -1,5 +1,5 @@
 import pako from 'pako';
-import { DocumentSnapshot } from '../api';
+import type { DocumentSnapshot } from '../api';
 
 import PDFHeader from './document/PDFHeader';
 import { UnexpectedObjectTypeError } from './errors';
@@ -60,6 +60,7 @@ class PDFContext {
   largestObjectNumber: number;
   header: PDFHeader;
   trailerInfo: {
+    Size?: PDFNumber;
     Root?: PDFObject;
     Encrypt?: PDFObject;
     Info?: PDFObject;
@@ -114,6 +115,7 @@ class PDFContext {
   }
 
   delete(ref: PDFRef): boolean {
+    if (this.snapshot) this.snapshot.markDeletedRef(ref);
     return this.indirectObjects.delete(ref);
   }
 
