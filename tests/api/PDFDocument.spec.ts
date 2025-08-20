@@ -610,7 +610,7 @@ describe('PDFDocument', () => {
       await expect(noErrorFunc()).resolves.not.toThrowError();
     });
 
-    it(`saves deleted objects`, async () => {
+    it('saves deleted objects', async () => {
       const noErrorFunc = async (pageIndex: number) => {
         const pdfDoc = await PDFDocument.load(simplePdfBytes);
         const snapshot = pdfDoc.takeSnapshot();
@@ -732,7 +732,7 @@ describe('PDFDocument', () => {
       await expect(noErrorFunc()).resolves.not.toThrowError();
     });
 
-    it(`registers deleted objects`, async () => {
+    it('registers deleted objects', async () => {
       const pdfDoc = await PDFDocument.load(simplePdfBytes, {
         forIncrementalUpdate: true,
       });
@@ -770,13 +770,14 @@ describe('PDFDocument', () => {
       expect(Buffer.from(pdfIncrementalBytes).toString()).toMatch(rex);
     });
 
-    it(`produces same output than manual incremental update`, async () => {
+    it('produces same output than manual incremental update', async () => {
       const noErrorFunc = async (pageIndex: number) => {
         const pdfDoc = await PDFDocument.load(simplePdfBytes, {
           forIncrementalUpdate: true,
         });
         const snapshot = pdfDoc.takeSnapshot();
         const page = pdfDoc.getPage(pageIndex);
+        snapshot.markObjForSave(pdfDoc.catalog);
         snapshot.markRefForSave(page.ref);
         const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
         const fontSize = 30;
@@ -792,10 +793,12 @@ describe('PDFDocument', () => {
           simplePdfBytes,
           pdfIncrementalBytes,
         ]);
-        const pdfSaveBytes = await pdfDoc.save();
+        const pdfSaveBytes = Buffer.from(
+          await pdfDoc.save({ useObjectStreams: false }),
+        );
         expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(0);
         expect(finalPdfBytes.byteLength).toBe(pdfSaveBytes.byteLength);
-        expect(finalPdfBytes.toString('base64')).toEqual(Buffer.from(pdfSaveBytes).toString('base64'));
+        expect(finalPdfBytes).toEqual(pdfSaveBytes);
       };
 
       await expect(noErrorFunc(0)).resolves.not.toThrowError();

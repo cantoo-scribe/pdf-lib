@@ -317,8 +317,9 @@ class PDFParser extends PDFObjectParser {
       ID: dict.get(PDFName.of('ID')) || context.trailerInfo.ID,
     };
     // if open for incremental update, then deleted objects need to be preserved, and largestObjectNumber has to be Size-1
-    if (context.trailerInfo.Size && context.pdfFileDetails.originalBytes)
+    if (context.trailerInfo.Size && context.pdfFileDetails.originalBytes) {
       context.largestObjectNumber = context.trailerInfo.Size.asNumber() - 1;
+    }
   }
 
   private maybeParseTrailer(): PDFTrailer | void {
