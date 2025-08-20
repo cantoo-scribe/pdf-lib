@@ -76,9 +76,10 @@ class PDFXRefStreamParser {
     if (
       this.context.trailerInfo.Size &&
       this.context.pdfFileDetails.originalBytes
-    )
+    ) {
       this.context.largestObjectNumber =
         this.context.trailerInfo.Size.asNumber() - 1;
+    }
 
     const entries = this.parseEntries();
 

@@ -63,8 +63,9 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
     if (
       this.deleted.findIndex((dref) => dref.objectNumber === ref.objectNumber) <
       0
-    )
+    ) {
       this.deletedCount = this.deleted.push(ref);
+    }
   }
 
   markDeletedObj(obj: PDFObject): void {
