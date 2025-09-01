@@ -123,7 +123,7 @@ class PDFXRefStreamParser {
 
         const objectNumber = firstObjectNumber + objIdx;
         const entry = {
-          ref: PDFRef.of(objectNumber, generationNumber),
+          ref: PDFRef.of(objectNumber, type === 2 ? 0 : generationNumber),
           offset,
           deleted: type === 0,
           inObjectStream: type === 2,
