@@ -37,7 +37,6 @@ export type EntryTuple = [number, number, number];
 /**
  * Entries should be added using the [[addDeletedEntry]],
  * [[addUncompressedEntry]], and [[addCompressedEntry]] methods
- * **in order of ascending object number**.
  */
 class PDFCrossRefStream extends PDFFlateStream {
   static create = (dict: PDFDict, encode = true) => {
@@ -65,9 +64,17 @@ class PDFCrossRefStream extends PDFFlateStream {
     dict.set(PDFName.of('Type'), PDFName.of('XRef'));
   }
 
+  private appendEntry(entry: Entry) {
+    const eind = this.entries.findIndex(
+      (e) => e.ref.objectNumber > entry.ref.objectNumber,
+    );
+    if (eind < 0 || eind > this.entries.length) this.entries.push(entry);
+    else this.entries.splice(eind, 0, entry);
+  }
+
   addDeletedEntry(ref: PDFRef, nextFreeObjectNumber: number) {
     const type = EntryType.Deleted;
-    this.entries.push({ type, ref, nextFreeObjectNumber });
+    this.appendEntry({ type, ref, nextFreeObjectNumber });
     this.entryTuplesCache.invalidate();
     this.maxByteWidthsCache.invalidate();
     this.indexCache.invalidate();
@@ -76,7 +83,7 @@ class PDFCrossRefStream extends PDFFlateStream {
 
   addUncompressedEntry(ref: PDFRef, offset: number) {
     const type = EntryType.Uncompressed;
-    this.entries.push({ type, ref, offset });
+    this.appendEntry({ type, ref, offset });
     this.entryTuplesCache.invalidate();
     this.maxByteWidthsCache.invalidate();
     this.indexCache.invalidate();
@@ -85,7 +92,7 @@ class PDFCrossRefStream extends PDFFlateStream {
 
   addCompressedEntry(ref: PDFRef, objectStreamRef: PDFRef, index: number) {
     const type = EntryType.Compressed;
-    this.entries.push({ type, ref, objectStreamRef, index });
+    this.appendEntry({ type, ref, objectStreamRef, index });
     this.entryTuplesCache.invalidate();
     this.maxByteWidthsCache.invalidate();
     this.indexCache.invalidate();

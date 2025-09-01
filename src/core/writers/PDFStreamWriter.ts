@@ -65,8 +65,6 @@ class PDFStreamWriter extends PDFWriter {
   }
 
   protected async computeBufferSize(incremental: boolean) {
-    let objectNumber = this.context.largestObjectNumber + 1;
-
     const header = PDFHeader.forVersion(1, 7);
 
     let size = this.snapshot.pdfSize;
@@ -117,7 +115,7 @@ class PDFStreamWriter extends PDFWriter {
         if (!chunk || chunk.length % this.objectsPerStream === 0) {
           chunk = [];
           compressedObjects.push(chunk);
-          objectStreamRef = PDFRef.of(objectNumber++);
+          objectStreamRef = this.context.nextRef();
           objectStreamRefs.push(objectStreamRef);
         }
         xrefStream.addCompressedEntry(ref, objectStreamRef, chunk.length);
@@ -134,6 +132,7 @@ class PDFStreamWriter extends PDFWriter {
         chunk,
         this.encodeStreams,
       );
+      this.context.assign(ref, objectStream);
 
       if (security) this.encrypt(ref, objectStream, security);
 
@@ -145,8 +144,11 @@ class PDFStreamWriter extends PDFWriter {
       if (this.shouldWaitForTick(chunk.length)) await waitForTick();
     }
 
-    const xrefStreamRef = PDFRef.of(objectNumber++);
-    xrefStream.dict.set(PDFName.of('Size'), PDFNumber.of(objectNumber));
+    const xrefStreamRef = this.context.nextRef();
+    xrefStream.dict.set(
+      PDFName.of('Size'),
+      PDFNumber.of(this.context.largestObjectNumber + 1),
+    );
     if (this.snapshot.prevStartXRef) {
       xrefStream.dict.set(
         PDFName.of('Prev'),
