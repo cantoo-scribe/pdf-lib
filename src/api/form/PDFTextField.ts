@@ -297,7 +297,7 @@ export default class PDFTextField extends PDFField {
     const fieldAlignment = this.getAlignment();
 
     // prettier-ignore
-    const alignment = 
+    const alignment =
         fieldAlignment === TextAlignment.Center ? ImageAlignment.Center
       : fieldAlignment === TextAlignment.Right ? ImageAlignment.Right
       : ImageAlignment.Left;
@@ -606,7 +606,7 @@ export default class PDFTextField extends PDFField {
    */
   enableCombing() {
     if (this.getMaxLength() === undefined) {
-      const msg = `PDFTextFields must have a max length in order to be combed`;
+      const msg = 'PDFTextFields must have a max length in order to be combed';
       console.warn(msg);
     }
 

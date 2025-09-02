@@ -19,8 +19,8 @@ const contentStreamText = `
   ET
 `;
 
-describe(`PDFStreamWriter`, () => {
-  it(`serializes PDFContext objects using Indirect Objects, Object Streams, and XRef Streams`, async () => {
+describe('PDFStreamWriter', () => {
+  it('serializes PDFContext objects using Indirect Objects, Object Streams, and XRef Streams', async () => {
     const context = PDFContext.create();
 
     const contentStream = context.flateStream(contentStreamText);

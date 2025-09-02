@@ -40,15 +40,17 @@ export interface PageBoundingBox {
 const fullPageBoundingBox = (page: PDFPageLeaf) => {
   const mediaBox = page.MediaBox();
 
-  const width =
-    mediaBox.lookup(2, PDFNumber).asNumber() -
-    mediaBox.lookup(0, PDFNumber).asNumber();
+  const x0 = mediaBox.lookup(0, PDFNumber).asNumber();
+  const y0 = mediaBox.lookup(1, PDFNumber).asNumber();
+  const x1 = mediaBox.lookup(2, PDFNumber).asNumber();
+  const y1 = mediaBox.lookup(3, PDFNumber).asNumber();
 
-  const height =
-    mediaBox.lookup(3, PDFNumber).asNumber() -
-    mediaBox.lookup(1, PDFNumber).asNumber();
-
-  return { left: 0, bottom: 0, right: width, top: height };
+  return {
+    left: Math.min(x0, x1),
+    bottom: Math.min(y0, y1),
+    right: Math.max(x0, x1),
+    top: Math.max(y0, y1),
+  };
 };
 
 // Returns the identity matrix, modified to position the content of the given

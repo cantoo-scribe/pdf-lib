@@ -90,7 +90,7 @@ export type AppearanceMapping<T> = { normal: T; rollover?: T; down?: T };
 type AppearanceOrMapping<T> = T | AppearanceMapping<T>;
 
 // prettier-ignore
-export type AppearanceProviderFor<T extends PDFField> = 
+export type AppearanceProviderFor<T extends PDFField> =
   T extends PDFCheckBox   ? CheckBoxAppearanceProvider
 : T extends PDFRadioGroup ? RadioGroupAppearanceProvider
 : T extends PDFButton     ? ButtonAppearanceProvider
@@ -113,7 +113,7 @@ export const normalizeAppearance = <T extends object>(
 //   `/Helv 12 Tf` -> ['/Helv 12 Tf', 'Helv', '12']
 //   `/HeBo 8.00 Tf` -> ['/HeBo 8 Tf', 'HeBo', '8.00']
 const tfRegex =
-  /\/([^\0\t\n\f\r\ ]+)[\0\t\n\f\r\ ]+(\d*\.\d+|\d+)[\0\t\n\f\r\ ]+Tf/;
+  /\/([^\0\t\n\f\r ]+)[\0\t\n\f\r ]+(\d*\.\d+|\d+)[\0\t\n\f\r ]+Tf/;
 
 const getDefaultFontSize = (field: {
   getDefaultAppearance(): string | undefined;
@@ -129,7 +129,7 @@ const getDefaultFontSize = (field: {
 //   `0.3 1 .3 rg` -> ['0.3', '1', '.3', 'rg']
 //   `0.3 1 .3 0 k` -> ['0.3', '1', '.3', '0', 'k']
 const colorRegex =
-  /(\d*\.\d+|\d+)[\0\t\n\f\r\ ]*(\d*\.\d+|\d+)?[\0\t\n\f\r\ ]*(\d*\.\d+|\d+)?[\0\t\n\f\r\ ]*(\d*\.\d+|\d+)?[\0\t\n\f\r\ ]+(g|rg|k)/;
+  /(\d*\.\d+|\d+)[\0\t\n\f\r ]*(\d*\.\d+|\d+)?[\0\t\n\f\r ]*(\d*\.\d+|\d+)?[\0\t\n\f\r ]*(\d*\.\d+|\d+)?[\0\t\n\f\r ]+(g|rg|k)/;
 
 const getDefaultColor = (field: {
   getDefaultAppearance(): string | undefined;

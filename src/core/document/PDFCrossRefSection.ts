@@ -41,7 +41,7 @@ class PDFCrossRefSection {
   }
 
   toString(): string {
-    let section = `xref\n`;
+    let section = 'xref\n';
 
     for (
       let rangeIdx = 0, rangeLen = this.subsections.length;

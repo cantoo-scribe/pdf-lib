@@ -70,7 +70,7 @@ export const decodePDFRawStream = ({
         DecodeParms && (DecodeParms as PDFArray).lookupMaybe(idx, PDFDict),
       );
     }
-  } else if (!!Filter) {
+  } else if (Filter) {
     throw new UnexpectedObjectTypeError([PDFName, PDFArray], Filter);
   }
 

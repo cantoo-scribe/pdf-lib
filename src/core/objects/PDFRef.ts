@@ -47,7 +47,7 @@ class PDFRef extends PDFObject {
   }
 
   copyBytesInto(buffer: Uint8Array, offset: number): number {
-    offset += copyStringIntoBuffer(this.tag, buffer, offset);
+    copyStringIntoBuffer(this.tag, buffer, offset);
     return this.tag.length;
   }
 }

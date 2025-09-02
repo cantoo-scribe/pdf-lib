@@ -6,13 +6,13 @@ const catRidingUnicornJpg = fs.readFileSync(
 );
 const usConstitutionPdf = fs.readFileSync('assets/pdfs/us_constitution.pdf');
 
-describe(`FileEmbedder`, () => {
-  it(`can be constructed with FileEmbedder.for(...)`, () => {
+describe('FileEmbedder', () => {
+  it('can be constructed with FileEmbedder.for(...)', () => {
     const embedder = FileEmbedder.for(catRidingUnicornJpg, 'cat.jpg');
     expect(embedder).toBeInstanceOf(FileEmbedder);
   });
 
-  it(`can embed files into PDFContexts without a predefined ref`, async () => {
+  it('can embed files into PDFContexts without a predefined ref', async () => {
     const context = PDFContext.create();
     const embedder = FileEmbedder.for(
       catRidingUnicornJpg,
@@ -31,7 +31,7 @@ describe(`FileEmbedder`, () => {
     expect(context.lookup(ref)).toBeInstanceOf(PDFDict);
   });
 
-  it(`can embed files into PDFContexts with a predefined ref`, async () => {
+  it('can embed files into PDFContexts with a predefined ref', async () => {
     const context = PDFContext.create();
     const predefinedRef = PDFRef.of(9999);
     const embedder = FileEmbedder.for(

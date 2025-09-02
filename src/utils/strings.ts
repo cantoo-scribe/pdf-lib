@@ -50,11 +50,14 @@ export const escapedNewlineChars = ['\\n', '\\f', '\\r', '\\u000B'];
 
 export const newlineChars = ['\n', '\f', '\r', '\u000B'];
 
+// eslint-disable-next-line no-control-regex
 export const isNewlineChar = (text: string) => /^[\n\f\r\u000B]$/.test(text);
 
+// eslint-disable-next-line no-control-regex
 export const lineSplit = (text: string) => text.split(/[\n\f\r\u000B]/);
 
 export const mergeLines = (text: string) =>
+  // eslint-disable-next-line no-control-regex
   text.replace(/[\n\f\r\u000B]/g, ' ');
 
 // JavaScript's String.charAt() method doesn work on strings containing UTF-16

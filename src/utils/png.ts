@@ -51,7 +51,7 @@ export class PNG {
     const upng = UPNG.decode(pngData);
     const frames = UPNG.toRGBA8(upng);
 
-    if (frames.length > 1) throw new Error(`Animated PNGs are not supported`);
+    if (frames.length > 1) throw new Error('Animated PNGs are not supported');
 
     const frame = new Uint8Array(frames[0]);
     const { rgbChannel, alphaChannel } = splitAlphaChannel(frame);

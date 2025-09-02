@@ -1,7 +1,7 @@
 import fontkit from '@pdf-lib/fontkit';
 import { PDFDocument, rgb } from 'pdf-lib';
 
-import { fetchAsset, writePdf } from './assets';
+import { fetchAsset } from './assets';
 
 // This test loads an existing PDF document with many pages.
 // It inserts data for every page (images, rectangles, texts, embedded PDFs).

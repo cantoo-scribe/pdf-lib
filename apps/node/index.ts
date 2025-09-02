@@ -28,7 +28,7 @@ const cli = readline.createInterface({
   output: process.stdout,
 });
 
-const prompt = `Press <enter> to run the next test...`;
+const prompt = 'Press <enter> to run the next test...';
 const promptToContinue = () =>
   new Promise<void>((resolve) => cli.question(prompt, (_answer) => resolve()));
 

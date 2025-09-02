@@ -151,7 +151,7 @@ class PDFName extends PDFObject {
   }
 
   copyBytesInto(buffer: Uint8Array, offset: number): number {
-    offset += copyStringIntoBuffer(this.encodedName, buffer, offset);
+    copyStringIntoBuffer(this.encodedName, buffer, offset);
     return this.encodedName.length;
   }
 }
