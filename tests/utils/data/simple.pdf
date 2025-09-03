@@ -83,6 +83,7 @@ endobj
   /Resources <<
     /Font << /F1 7 0 R >>
   >>
+  /Annots [10 0 R]
 >>
 endobj
 
@@ -176,26 +177,43 @@ endobj
 >>
 endobj
 
+10 0 obj
+<<
+  /Type /Annot
+  /Subtype /Highlight
+  /Rect [100 100 200 124]
+  /Contents (Highlight: Hello)
+  /QuadPoints [100 100 155 100 100 120 124 120]
+  /C [1 1 0]
+  /T (Sample)
+  /P 4 0 R
+  /F 4
+>>
+endobj
+
 % The object cross-reference table. The first entry
 % denotes the start of PDF data in this file.
 xref
-0 10
-0000000000 65535 f
-0000000012 00000 n
-0000000092 00000 n
-0000002543 00000 n
-0000002615 00000 n
-0000002778 00000 n
-0000003583 00000 n
-0000003807 00000 n
-0000003968 00000 n
-0000004520 00000 n
+0 11
+0000000000 65535 f 
+0000000010 00000 n 
+0000000082 00000 n 
+0000002475 00000 n 
+0000002539 00000 n 
+0000002709 00000 n 
+0000003475 00000 n 
+0000003686 00000 n 
+0000003835 00000 n 
+0000004376 00000 n 
+0000004588 00000 n 
+
 trailer
 <<
-  /Size 10
+  /Size 11
   /Root 1 0 R
   /ID [ <31c7a8a269e4c59bc3cd7df0dabbf388><31c7a8a269e4c59bc3cd7df0dabbf388> ]
 >>
+
 startxref
-4847
+4896
 %%EOF
