@@ -130,8 +130,9 @@ class PDFAnnotation {
    */
   getSubtype(): AnnotationTypes | undefined {
     const subtypePdfName = this.Subtype();
-    if (subtypePdfName instanceof PDFName)
+    if (subtypePdfName instanceof PDFName) {
       return subtypePdfName.toString() as AnnotationTypes;
+    }
     return undefined;
   }
 
