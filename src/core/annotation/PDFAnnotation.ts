@@ -6,6 +6,7 @@ import PDFRef from '../objects/PDFRef';
 import PDFNumber from '../objects/PDFNumber';
 import { AnnotationTypes } from './AnnotationTypes';
 import PDFString from '../objects/PDFString';
+import PDFPageLeaf from '../structures/PDFPageLeaf';
 
 class PDFAnnotation {
   readonly dict: PDFDict;
@@ -47,7 +48,8 @@ class PDFAnnotation {
    * @returns The page object as a PDFRef or undefined if none.
    */
   P(): PDFRef | undefined {
-    return this.dict.lookup(PDFName.of('P'), PDFRef);
+    const ref = this.dict.get(PDFName.of('P'));
+    return ref instanceof PDFRef ? ref : undefined;
   }
 
   /**
@@ -250,6 +252,17 @@ class PDFAnnotation {
   setFlagTo(flag: number, enable: boolean) {
     if (enable) this.setFlag(flag);
     else this.clearFlag(flag);
+  }
+
+  getParentPage(): PDFPageLeaf | undefined {
+    const pageRef = this.P();
+    if (!pageRef) return undefined;
+
+    const page = this.dict.context.lookup(pageRef);
+    if (page instanceof PDFPageLeaf) {
+      return page;
+    }
+    return undefined;
   }
 }
 
