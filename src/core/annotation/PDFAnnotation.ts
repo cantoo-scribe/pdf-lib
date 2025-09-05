@@ -8,15 +8,18 @@ import { AnnotationTypes } from './AnnotationTypes';
 import PDFString from '../objects/PDFString';
 import PDFPageLeaf from '../structures/PDFPageLeaf';
 import { AnnotationOptions } from './PDFAnnotationOption';
+import PDFContext from '../PDFContext';
 
 class PDFAnnotation {
   readonly dict: PDFDict;
 
   static fromDict = (dict: PDFDict): PDFAnnotation => new PDFAnnotation(dict);
 
-  static Create = (options: AnnotationOptions): PDFAnnotation => {
-    const page = options.page;
-    const context = page.doc.context;
+  static Create = (
+    context: PDFContext,
+    page: PDFPageLeaf,
+    options: AnnotationOptions,
+  ): PDFAnnotation => {
     const dict = context.obj({
       Type: 'Annot',
       Subtype: options.subtype,
@@ -36,8 +39,14 @@ class PDFAnnotation {
       dict.set(PDFName.of('NM'), PDFString.of(options.name));
     }
 
-    // Set the page reference directly from the provided PDFPage
-    dict.set(PDFName.of('P'), page.ref);
+    // Set the page reference by getting the PDFRef for the PDFPageLeaf
+    const pageRef = context.getObjectRef(page);
+    if (!pageRef) {
+      throw new Error(
+        'Could not find PDFRef for the provided PDFPageLeaf. The page must be registered in the PDF context.',
+      );
+    }
+    dict.set(PDFName.of('P'), pageRef);
 
     if (options.flags !== undefined) {
       dict.set(PDFName.of('F'), PDFNumber.of(options.flags));
@@ -57,7 +66,9 @@ class PDFAnnotation {
       dict.set(PDFName.of('M'), PDFString.of(options.modificationDate));
     }
 
-    return new PDFAnnotation(dict);
+    const annotation = new PDFAnnotation(dict);
+
+    return annotation;
   };
 
   protected constructor(dict: PDFDict) {

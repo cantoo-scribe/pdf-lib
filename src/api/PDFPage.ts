@@ -60,6 +60,7 @@ import {
   assertIsOneOfOrUndefined,
 } from '../utils';
 import { drawSvg } from './svg';
+import { AnnotationOptions } from 'src/core/annotation/PDFAnnotationOption';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -660,6 +661,23 @@ export default class PDFPage {
       const annot = annots.lookup(idx);
       if (annot instanceof PDFDict) this.scaleAnnot(annot, x, y);
     }
+  }
+
+  /**
+   * Add an annotation to this page from an existing PDFAnnotation instance.
+   */
+  addAnnotation(AnnotationOptions: AnnotationOptions): void {
+    const annotation = PDFAnnotation.Create(
+      this.doc.context,
+      this.node,
+      AnnotationOptions,
+    );
+
+    // Register the annotation dictionary in the context to get a PDFRef
+    const annotationRef = this.doc.context.register(annotation.dict);
+
+    // Add the PDFRef to the page's annotations array
+    this.node.addAnnot(annotationRef);
   }
 
   /**
