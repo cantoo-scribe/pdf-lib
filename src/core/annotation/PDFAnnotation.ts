@@ -7,11 +7,58 @@ import PDFNumber from '../objects/PDFNumber';
 import { AnnotationTypes } from './AnnotationTypes';
 import PDFString from '../objects/PDFString';
 import PDFPageLeaf from '../structures/PDFPageLeaf';
+import { AnnotationOptions } from './PDFAnnotationOption';
 
 class PDFAnnotation {
   readonly dict: PDFDict;
 
   static fromDict = (dict: PDFDict): PDFAnnotation => new PDFAnnotation(dict);
+
+  static Create = (options: AnnotationOptions): PDFAnnotation => {
+    const page = options.page;
+    const context = page.doc.context;
+    const dict = context.obj({
+      Type: 'Annot',
+      Subtype: options.subtype,
+      Rect: [
+        options.rect.x,
+        options.rect.y,
+        options.rect.x + options.rect.width,
+        options.rect.y + options.rect.height,
+      ],
+    });
+
+    if (options.contents !== undefined) {
+      dict.set(PDFName.of('Contents'), PDFString.of(options.contents));
+    }
+
+    if (options.name !== undefined) {
+      dict.set(PDFName.of('NM'), PDFString.of(options.name));
+    }
+
+    // Set the page reference directly from the provided PDFPage
+    dict.set(PDFName.of('P'), page.ref);
+
+    if (options.flags !== undefined) {
+      dict.set(PDFName.of('F'), PDFNumber.of(options.flags));
+    }
+
+    if (options.color !== undefined) {
+      const colorArray = context.obj(options.color);
+      dict.set(PDFName.of('C'), colorArray);
+    }
+
+    if (options.border !== undefined) {
+      const borderArray = context.obj(options.border);
+      dict.set(PDFName.of('Border'), borderArray);
+    }
+
+    if (options.modificationDate !== undefined) {
+      dict.set(PDFName.of('M'), PDFString.of(options.modificationDate));
+    }
+
+    return new PDFAnnotation(dict);
+  };
 
   protected constructor(dict: PDFDict) {
     this.dict = dict;
