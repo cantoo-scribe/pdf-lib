@@ -7,7 +7,7 @@ import {
   PDFName,
 } from '../../../src/index';
 
-const simplePdf = fs.readFileSync('tests/utils/data/simple.pdf');
+const simplePdf = fs.readFileSync('tests/core/data/simple.pdf');
 
 describe('PDFAnnotation', () => {
   describe('readAnnotations() method', () => {
