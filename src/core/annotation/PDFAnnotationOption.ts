@@ -6,10 +6,7 @@ export interface AnnotationOptions {
   contents?: string;
   name?: string;
   flags?: number;
-  color?:
-    | [number]
-    | [number, number, number]
-    | [number, number, number, number];
-  border?: [number, number, number];
+  color?: number[];
+  border?: number[];
   modificationDate?: string;
 }
