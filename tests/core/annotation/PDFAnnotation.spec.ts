@@ -5,6 +5,7 @@ import {
   AnnotationTypes,
   PDFNumber,
   PDFName,
+  PDFTextMarkupAnnotation,
 } from '../../../src/index';
 
 const simplePdf = fs.readFileSync('tests/core/data/simple.pdf');
@@ -17,12 +18,14 @@ describe('PDFAnnotation', () => {
       const page = pdfDoc.getPage(0);
 
       // Check that annotations were read correctly
-      expect(page.annotations).toBeDefined();
-      expect(page.annotations.length).toBe(1);
+      const annotations = page.annotations();
+      expect(annotations).toBeDefined();
+      expect(annotations.length).toBe(1);
 
       // Verify the annotation properties
-      const annotation = page.annotations[0];
+      const annotation = annotations[0] as PDFTextMarkupAnnotation;
       expect(annotation).toBeInstanceOf(PDFAnnotation);
+      expect(annotation).toBeInstanceOf(PDFTextMarkupAnnotation);
 
       // Check annotation type
       const subtype = annotation.getSubtype();
@@ -58,6 +61,12 @@ describe('PDFAnnotation', () => {
       // Check flags
       const flags = annotation.dict.lookup(PDFName.of('F'));
       expect(flags).toBeDefined();
+
+      // Check quadpoints
+      const quadPoints = annotation.QuadPoints();
+      expect(quadPoints).toBeDefined();
+      expect(quadPoints?.length).toBe(8);
+      expect((quadPoints?.at(0) as PDFNumber)?.asNumber()).toBeDefined();
     });
 
     it('returns empty array when page has no annotations', async () => {

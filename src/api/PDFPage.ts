@@ -108,9 +108,6 @@ export default class PDFPage {
   /** The document to which this page belongs. */
   readonly doc: PDFDocument;
 
-  /** The annotations associated with this page. */
-  readonly annotations: PDFAnnotation[] = [];
-
   private fontKey?: PDFName;
   private font?: PDFFont;
   private fontSize = 24;
@@ -129,8 +126,6 @@ export default class PDFPage {
     this.node = leafNode;
     this.ref = ref;
     this.doc = doc;
-
-    this.annotations = this.readAnnotations(leafNode);
   }
 
   /**
@@ -1706,8 +1701,8 @@ export default class PDFPage {
    * @param pageLeaf The page leaf node
    * @returns {PDFAnnotation[]} The annotations on this page
    */
-  private readAnnotations(pageLeaf: PDFPageLeaf): PDFAnnotation[] {
-    const annotsArray = pageLeaf.Annots();
+  annotations(): PDFAnnotation[] {
+    const annotsArray = this.node.Annots();
 
     // if there are no annotations...
     if (!annotsArray || !(annotsArray instanceof PDFArray)) {

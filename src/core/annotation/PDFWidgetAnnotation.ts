@@ -12,7 +12,7 @@ class PDFWidgetAnnotation extends PDFAnnotation {
   static fromDict = (dict: PDFDict): PDFWidgetAnnotation =>
     new PDFWidgetAnnotation(dict);
 
-  static createEmpty = (context: PDFContext, parent: PDFRef) => {
+  static create = (context: PDFContext, parent: PDFRef) => {
     const dict = context.obj({
       Type: 'Annot',
       Subtype: 'Widget',

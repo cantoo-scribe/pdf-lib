@@ -18,7 +18,7 @@ export default class AnnotationFactory {
   };
 
   private static getSubtype(dict: PDFDict): AnnotationTypes | undefined {
-    const subtypePdfName = dict.get(PDFName.of('Subtype'));
+    const subtypePdfName = dict.lookup(PDFName.of('Subtype'), PDFName);
     if (subtypePdfName instanceof PDFName) {
       return subtypePdfName.toString() as AnnotationTypes;
     } else {
