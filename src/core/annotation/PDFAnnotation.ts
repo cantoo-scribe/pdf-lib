@@ -7,7 +7,7 @@ import PDFNumber from '../objects/PDFNumber';
 import { AnnotationTypes } from './AnnotationTypes';
 import PDFString from '../objects/PDFString';
 import PDFPageLeaf from '../structures/PDFPageLeaf';
-import { AnnotationOptions } from './PDFAnnotationOption';
+import { PDFPageAddAnnotationOptions } from '../../api/PDFPageOptions';
 import PDFContext from '../PDFContext';
 
 class PDFAnnotation {
@@ -18,7 +18,7 @@ class PDFAnnotation {
   protected static createBase = (
     context: PDFContext,
     page: PDFPageLeaf,
-    options: AnnotationOptions,
+    options: PDFPageAddAnnotationOptions,
   ): PDFAnnotation => {
     const dict = context.obj({
       Type: 'Annot',

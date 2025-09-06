@@ -33,6 +33,7 @@ import {
   PDFPageDrawTextOptions,
   BlendMode,
   PDFPageDrawSVGElementOptions,
+  PDFPageAddTextMarkupAnnotationOptions,
 } from './PDFPageOptions';
 import { degrees, Rotation, toDegrees } from './rotations';
 import { StandardFonts } from './StandardFonts';
@@ -60,8 +61,8 @@ import {
   assertIsOneOfOrUndefined,
 } from '../utils';
 import { drawSvg } from './svg';
-import { AnnotationOptions } from 'src/core/annotation/PDFAnnotationOption';
 import AnnotationFactory from 'src/core/annotation/AnnotationFactory';
+import PDFTextMarkupAnnotation from 'src/core/annotation/PDFTextMarkupAnnotation';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -662,23 +663,6 @@ export default class PDFPage {
       const annot = annots.lookup(idx);
       if (annot instanceof PDFDict) this.scaleAnnot(annot, x, y);
     }
-  }
-
-  /**
-   * Add an annotation to this page from an existing PDFAnnotation instance.
-   */
-  addAnnotation(AnnotationOptions: AnnotationOptions): void {
-    const annotation = PDFAnnotation.create(
-      this.doc.context,
-      this.node,
-      AnnotationOptions,
-    );
-
-    // Register the annotation dictionary in the context to get a PDFRef
-    const annotationRef = this.doc.context.register(annotation.dict);
-
-    // Add the PDFRef to the page's annotations array
-    this.node.addAnnot(annotationRef);
   }
 
   /**
@@ -1741,5 +1725,28 @@ export default class PDFPage {
       }
     }
     return annotations;
+  }
+
+  /**
+   * Add an annotation to this page from an existing PDFAnnotation instance.
+   */
+  addTextMarkupAnnotation(
+    options: PDFPageAddTextMarkupAnnotationOptions,
+  ): void {
+    const context = this.doc.context;
+    const page = this.node;
+
+    // convert to PDFDict
+    const annotationDict = PDFTextMarkupAnnotation.create(
+      context,
+      page,
+      options,
+    ).dict;
+
+    // register PDF object into the PDF
+    const ref = context.register(annotationDict);
+
+    // add the annotation to the page's Annots array
+    page.addAnnot(ref);
   }
 }

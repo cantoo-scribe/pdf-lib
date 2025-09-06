@@ -1,7 +1,7 @@
 import PDFDict from '../objects/PDFDict';
 import PDFName from '../objects/PDFName';
 import PDFAnnotation from './PDFAnnotation';
-import PDFMarkupAnnotation from './PDFMarkupAnnotation';
+import PDFTextMarkupAnnotation from './PDFTextMarkupAnnotation';
 import { AnnotationTypes } from './AnnotationTypes';
 
 export default class AnnotationFactory {
@@ -11,7 +11,7 @@ export default class AnnotationFactory {
       case AnnotationTypes.Underline:
       case AnnotationTypes.Squiggly:
       case AnnotationTypes.StrikeOut:
-        return PDFMarkupAnnotation.fromDict(dict);
+        return PDFTextMarkupAnnotation.fromDict(dict);
       default:
         return PDFAnnotation.fromDict(dict);
     }
