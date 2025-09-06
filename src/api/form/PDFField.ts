@@ -306,7 +306,7 @@ export default class PDFField {
     assertMultiple(degreesAngle, 'degreesAngle', 90);
 
     // Create a widget for this field
-    const widget = PDFWidgetAnnotation.create(this.doc.context, this.ref);
+    const widget = PDFWidgetAnnotation.createEmpty(this.doc.context, this.ref);
 
     // Set widget properties
     const rect = rotateRectangle(
