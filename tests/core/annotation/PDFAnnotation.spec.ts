@@ -78,5 +78,36 @@ describe('PDFAnnotation', () => {
       expect(page.annotations).toBeDefined();
       expect(page.annotations.length).toBe(0);
     });
+
+    it('can add a highlight annotation to a page', async () => {
+      // Create a new document and add a page
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([600, 400]);
+
+      // Add a highlight annotation
+      const highlight = page.addTextMarkupAnnotation({
+        subtype: AnnotationTypes.Highlight,
+        color: [1, 1, 0], // Yellow
+        rect: {
+          x: 50,
+          y: 300,
+          width: 150,
+          height: 20,
+        },
+        contents: 'This is a highlight annotation',
+        quadPoints: {
+          leftbottomX: 50,
+          leftbottomY: 300,
+          lefttopX: 50,
+          lefttopY: 320,
+          righttopX: 200,
+          righttopY: 320,
+          rightbottomX: 200,
+          rightbottomY: 300,
+        },
+      });
+      expect(highlight).toBeInstanceOf(PDFAnnotation);
+      expect(highlight).toBeInstanceOf(PDFTextMarkupAnnotation);
+    });
   });
 });
