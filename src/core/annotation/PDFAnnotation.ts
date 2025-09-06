@@ -15,7 +15,7 @@ class PDFAnnotation {
 
   static fromDict = (dict: PDFDict): PDFAnnotation => new PDFAnnotation(dict);
 
-  static Create = (
+  static create = (
     context: PDFContext,
     page: PDFPageLeaf,
     options: AnnotationOptions,
