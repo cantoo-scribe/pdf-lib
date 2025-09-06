@@ -10,3 +10,7 @@ export interface AnnotationOptions {
   border?: number[];
   modificationDate?: string;
 }
+
+export interface MarkupAnnotationOptions extends AnnotationOptions {
+  quadPoints: [number, number, number, number, number, number, number, number];
+}
