@@ -1727,21 +1727,20 @@ export default class PDFPage {
    */
   addTextMarkupAnnotation(
     options: PDFPageAddTextMarkupAnnotationOptions,
-  ): void {
+  ): PDFTextMarkupAnnotation {
     const context = this.doc.context;
     const page = this.node;
 
     // convert to PDFDict
-    const annotationDict = PDFTextMarkupAnnotation.create(
-      context,
-      page,
-      options,
-    ).dict;
+    const annotation = PDFTextMarkupAnnotation.create(context, page, options);
+    const dict = annotation.dict;
 
     // register PDF object into the PDF
-    const ref = context.register(annotationDict);
+    const ref = context.register(dict);
 
     // add the annotation to the page's Annots array
     page.addAnnot(ref);
+
+    return annotation;
   }
 }
