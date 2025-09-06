@@ -61,6 +61,7 @@ import {
 } from '../utils';
 import { drawSvg } from './svg';
 import { AnnotationOptions } from 'src/core/annotation/PDFAnnotationOption';
+import AnnotationFactory from 'src/core/annotation/AnnotationFactory';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -667,7 +668,7 @@ export default class PDFPage {
    * Add an annotation to this page from an existing PDFAnnotation instance.
    */
   addAnnotation(AnnotationOptions: AnnotationOptions): void {
-    const annotation = PDFAnnotation.Create(
+    const annotation = PDFAnnotation.create(
       this.doc.context,
       this.node,
       AnnotationOptions,
@@ -1735,7 +1736,7 @@ export default class PDFPage {
     for (let i = 0; i < annotsArray.size(); i++) {
       const annotDict = annotsArray.lookup(i);
       if (annotDict instanceof PDFDict) {
-        const pdfAnnotation = PDFAnnotation.fromDict(annotDict);
+        const pdfAnnotation = AnnotationFactory.fromDict(annotDict);
         annotations.push(pdfAnnotation);
       }
     }
