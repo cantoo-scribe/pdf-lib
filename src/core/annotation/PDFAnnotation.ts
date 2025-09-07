@@ -22,7 +22,8 @@ class PDFAnnotation {
   ): PDFAnnotation => {
     const dict = context.obj({
       Type: 'Annot',
-      Subtype: options.subtype,
+      // Remove leading '/' from the subtype string
+      Subtype: options.subtype.toString().replace(/\//g, ''),
       Rect: [
         options.rect.x,
         options.rect.y,
