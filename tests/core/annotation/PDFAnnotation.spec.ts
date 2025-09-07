@@ -85,7 +85,7 @@ describe('PDFAnnotation', () => {
       const page = pdfDoc.addPage([600, 400]);
 
       // Add a highlight annotation
-      const highlight = page.addTextMarkupAnnotation({
+      page.addTextMarkupAnnotation({
         subtype: AnnotationTypes.Highlight,
         color: [1, 1, 0], // Yellow
         rect: {
@@ -106,8 +106,13 @@ describe('PDFAnnotation', () => {
           rightbottomY: 300,
         },
       });
-      expect(highlight).toBeInstanceOf(PDFAnnotation);
-      expect(highlight).toBeInstanceOf(PDFTextMarkupAnnotation);
+
+      const annotationFetched =
+        page.annotations()[0] as PDFTextMarkupAnnotation;
+      expect(annotationFetched).toBeDefined();
+      expect(annotationFetched).toBeInstanceOf(PDFTextMarkupAnnotation);
+
+      expect(annotationFetched.getSubtype()).toBe(AnnotationTypes.Highlight);
     });
   });
 });
