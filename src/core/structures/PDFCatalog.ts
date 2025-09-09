@@ -5,6 +5,7 @@ import PDFContext from '../PDFContext';
 import PDFPageTree from './PDFPageTree';
 import { PDFAcroForm } from '../acroform';
 import ViewerPreferences from '../interactive/ViewerPreferences';
+import PDFArray from '../objects/PDFArray';
 
 class PDFCatalog extends PDFDict {
   static withContextAndPages = (
@@ -26,6 +27,14 @@ class PDFCatalog extends PDFDict {
 
   AcroForm(): PDFDict | undefined {
     return this.lookupMaybe(PDFName.of('AcroForm'), PDFDict);
+  }
+
+  Names(): PDFDict | undefined {
+    return this.lookupMaybe(PDFName.of('Names'), PDFDict);
+  }
+
+  AttachedFiles(): PDFArray | undefined {
+    return this.lookupMaybe(PDFName.of('AF'), PDFArray);
   }
 
   getAcroForm(): PDFAcroForm | undefined {
