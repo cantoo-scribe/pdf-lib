@@ -135,6 +135,7 @@ class PDFPageLeaf extends PDFDict {
   addAnnot(annotRef: PDFRef): void {
     const { Annots } = this.normalizedEntries();
     Annots.push(annotRef);
+    this.registerChange();
   }
 
   removeAnnot(annotRef: PDFRef) {
@@ -142,6 +143,7 @@ class PDFPageLeaf extends PDFDict {
     const index = Annots.indexOf(annotRef);
     if (index !== undefined) {
       Annots.remove(index);
+      this.registerChange();
     }
   }
 

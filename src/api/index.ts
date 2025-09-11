@@ -19,3 +19,4 @@ export { default as PDFEmbeddedPage } from './PDFEmbeddedPage';
 export { default as PDFJavaScript } from './PDFJavaScript';
 export { default as Embeddable } from './Embeddable';
 export { default as PDFSvg } from './PDFSvg';
+export * from './snapshot';

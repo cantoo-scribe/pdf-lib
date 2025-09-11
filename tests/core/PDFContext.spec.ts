@@ -10,6 +10,7 @@ import {
   PDFName,
   PDFNull,
   PDFNumber,
+  PDFObject,
   PDFRef,
   PDFString,
 } from '../../src/core';
@@ -45,6 +46,43 @@ describe('PDFContext', () => {
     expect(context.lookup(PDFRef.of(5))).toBe(pdfString);
     expect(context.lookup(PDFRef.of(6))).toBe(pdfDict);
     expect(context.lookup(PDFRef.of(7))).toBe(pdfArray);
+  });
+
+  it('returns references from objects and references', () => {
+    const context = PDFContext.create();
+
+    const pdfBool = PDFBool.True;
+    const pdfHexString = PDFHexString.of('ABC123');
+    const pdfName = PDFName.of('Foo#Bar!');
+    const pdfNull = PDFNull;
+    const pdfNumber = PDFNumber.of(-24.179);
+    const pdfString = PDFString.of('foobar');
+    const pdfDict = context.obj({ Foo: PDFName.of('Bar') });
+    const pdfArray = context.obj([PDFBool.True, pdfDict]);
+
+    context.assign(PDFRef.of(0), pdfBool);
+    context.assign(PDFRef.of(1), pdfHexString);
+    context.assign(PDFRef.of(2), pdfName);
+    context.assign(PDFRef.of(3), pdfNull);
+    context.assign(PDFRef.of(4), pdfNumber);
+    context.assign(PDFRef.of(5), pdfString);
+    context.assign(PDFRef.of(6), pdfDict);
+    context.assign(PDFRef.of(7), pdfArray);
+
+    const checkPDFObj = (pdfO: PDFObject, pdfR: number) => {
+      const pdfRef = PDFRef.of(pdfR);
+      expect(context.getObjectRef(pdfO)).toBe(pdfRef);
+      expect(context.getRef(pdfO)).toBe(pdfRef);
+      expect(context.getRef(pdfRef)).toBe(pdfRef);
+    };
+    checkPDFObj(pdfBool, 0);
+    checkPDFObj(pdfHexString, 1);
+    checkPDFObj(pdfName, 2);
+    checkPDFObj(pdfNull, 3);
+    checkPDFObj(pdfNumber, 4);
+    checkPDFObj(pdfString, 5);
+    checkPDFObj(pdfDict, 6);
+    checkPDFObj(pdfArray, 7);
   });
 
   it('does not use object number 0 during registration', () => {
