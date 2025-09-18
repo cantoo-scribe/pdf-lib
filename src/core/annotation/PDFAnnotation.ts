@@ -323,6 +323,10 @@ class PDFAnnotation {
     }
     return undefined;
   }
+
+  setContents(contents: string) {
+    this.dict.set(PDFName.of('Contents'), PDFString.of(contents));
+  }
 }
 
 export default PDFAnnotation;
