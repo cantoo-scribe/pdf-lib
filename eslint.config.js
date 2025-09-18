@@ -5,6 +5,22 @@ const prettier = require('eslint-plugin-prettier');
 const globals = require('globals');
 
 module.exports = [
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'cjs/**',
+      'es/**',
+      'ts3.4/**',
+      'coverage/**',
+      'build/**',
+      'apps/node-build/**',
+      '**/*.min.js',
+      '**/*.js.map',
+      '**/*.d.ts.map',
+      'tsBuildInfo.json',
+    ],
+  },
   eslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx,js,jsx,mjs}'],
