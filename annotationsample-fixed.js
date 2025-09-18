@@ -1,3 +1,4 @@
+//yarn node annotationsample-fixed.js
 const fs = require('fs');
 
 async function createAnnotatedPDF() {
@@ -30,7 +31,7 @@ async function createAnnotatedPDF() {
 
     // Try to add a highlight annotation
     try {
-      const highlight = page.addTextMarkupAnnotation({
+      page.addTextMarkupAnnotation({
         subtype: AnnotationTypes.Highlight,
         color: [1, 1, 0], // Yellow
         rect: {
