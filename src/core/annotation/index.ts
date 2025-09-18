@@ -1,4 +1,5 @@
 export { default as PDFAnnotation } from './PDFAnnotation';
+export { default as AnnotationFactory } from './AnnotationFactory';
 export { default as PDFTextMarkupAnnotation } from './PDFTextMarkupAnnotation';
 export { default as PDFWidgetAnnotation } from './PDFWidgetAnnotation';
 export { default as AppearanceCharacteristics } from './AppearanceCharacteristics';

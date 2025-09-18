@@ -61,8 +61,7 @@ import {
   assertIsOneOfOrUndefined,
 } from '../utils';
 import { drawSvg } from './svg';
-import AnnotationFactory from 'src/core/annotation/AnnotationFactory';
-import PDFTextMarkupAnnotation from 'src/core/annotation/PDFTextMarkupAnnotation';
+import { AnnotationFactory, PDFTextMarkupAnnotation } from '../core';
 
 /**
  * Represents a single page of a [[PDFDocument]].
