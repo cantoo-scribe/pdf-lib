@@ -202,24 +202,10 @@ class PDFAnnotation {
     return Rect?.asRectangle() ?? { x: 0, y: 0, width: 0, height: 0 };
   }
 
-  setRectangle(rect: { x: number; y: number; width: number; height: number }) {
-    const { x, y, width, height } = rect;
-    const Rect = this.dict.context.obj([x, y, x + width, y + height]);
-    this.dict.set(PDFName.of('Rect'), Rect);
-  }
-
   getAppearanceState(): PDFName | undefined {
     const AS = this.dict.lookup(PDFName.of('AS'));
     if (AS instanceof PDFName) return AS;
     return undefined;
-  }
-
-  setAppearanceState(state: PDFName) {
-    this.dict.set(PDFName.of('AS'), state);
-  }
-
-  setAppearances(appearances: PDFDict) {
-    this.dict.set(PDFName.of('AP'), appearances);
   }
 
   ensureAP(): PDFDict {
@@ -237,24 +223,6 @@ class PDFAnnotation {
     if (N instanceof PDFRef || N instanceof PDFDict) return N;
 
     throw new Error(`Unexpected N type: ${N?.constructor.name}`);
-  }
-
-  /** @param appearance A PDFDict or PDFStream (direct or ref) */
-  setNormalAppearance(appearance: PDFRef | PDFDict) {
-    const AP = this.ensureAP();
-    AP.set(PDFName.of('N'), appearance);
-  }
-
-  /** @param appearance A PDFDict or PDFStream (direct or ref) */
-  setRolloverAppearance(appearance: PDFRef | PDFDict) {
-    const AP = this.ensureAP();
-    AP.set(PDFName.of('R'), appearance);
-  }
-
-  /** @param appearance A PDFDict or PDFStream (direct or ref) */
-  setDownAppearance(appearance: PDFRef | PDFDict) {
-    const AP = this.ensureAP();
-    AP.set(PDFName.of('D'), appearance);
   }
 
   removeRolloverAppearance() {
@@ -289,13 +257,57 @@ class PDFAnnotation {
     return this.F()?.asNumber() ?? 0;
   }
 
-  setFlags(flags: number) {
-    this.dict.set(PDFName.of('F'), PDFNumber.of(flags));
-  }
-
   hasFlag(flag: number): boolean {
     const flags = this.getFlags();
     return (flags & flag) !== 0;
+  }
+
+  getParentPage(): PDFPageLeaf | undefined {
+    const pageRef = this.P();
+    if (!pageRef) return undefined;
+
+    const page = this.dict.context.lookup(pageRef);
+    if (page instanceof PDFPageLeaf) {
+      return page;
+    }
+    return undefined;
+  }
+
+  // Setter methods
+  setRectangle(rect: { x: number; y: number; width: number; height: number }) {
+    const { x, y, width, height } = rect;
+    const Rect = this.dict.context.obj([x, y, x + width, y + height]);
+    this.dict.set(PDFName.of('Rect'), Rect);
+  }
+
+  setAppearanceState(state: PDFName) {
+    this.dict.set(PDFName.of('AS'), state);
+  }
+
+  setAppearances(appearances: PDFDict) {
+    this.dict.set(PDFName.of('AP'), appearances);
+  }
+
+  /** @param appearance A PDFDict or PDFStream (direct or ref) */
+  setNormalAppearance(appearance: PDFRef | PDFDict) {
+    const AP = this.ensureAP();
+    AP.set(PDFName.of('N'), appearance);
+  }
+
+  /** @param appearance A PDFDict or PDFStream (direct or ref) */
+  setRolloverAppearance(appearance: PDFRef | PDFDict) {
+    const AP = this.ensureAP();
+    AP.set(PDFName.of('R'), appearance);
+  }
+
+  /** @param appearance A PDFDict or PDFStream (direct or ref) */
+  setDownAppearance(appearance: PDFRef | PDFDict) {
+    const AP = this.ensureAP();
+    AP.set(PDFName.of('D'), appearance);
+  }
+
+  setFlags(flags: number) {
+    this.dict.set(PDFName.of('F'), PDFNumber.of(flags));
   }
 
   setFlag(flag: number) {
@@ -311,17 +323,6 @@ class PDFAnnotation {
   setFlagTo(flag: number, enable: boolean) {
     if (enable) this.setFlag(flag);
     else this.clearFlag(flag);
-  }
-
-  getParentPage(): PDFPageLeaf | undefined {
-    const pageRef = this.P();
-    if (!pageRef) return undefined;
-
-    const page = this.dict.context.lookup(pageRef);
-    if (page instanceof PDFPageLeaf) {
-      return page;
-    }
-    return undefined;
   }
 
   setContents(contents: string) {
