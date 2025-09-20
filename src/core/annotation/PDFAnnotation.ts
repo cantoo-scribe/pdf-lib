@@ -328,6 +328,17 @@ class PDFAnnotation {
   setContents(contents: string) {
     this.dict.set(PDFName.of('Contents'), PDFString.of(contents));
   }
+
+  setPage(page: PDFPageLeaf, context: PDFContext) {
+    // Set the page reference by getting the PDFRef for the PDFPageLeaf
+    const pageRef = context.getObjectRef(page);
+    if (!pageRef) {
+      throw new Error(
+        'Could not find PDFRef for the provided PDFPageLeaf. The page must be registered in the PDF context.',
+      );
+    }
+    this.dict.set(PDFName.of('P'), pageRef);
+  }
 }
 
 export default PDFAnnotation;
