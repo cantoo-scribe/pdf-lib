@@ -339,6 +339,22 @@ class PDFAnnotation {
     }
     this.dict.set(PDFName.of('P'), pageRef);
   }
+
+  setIdentifier(name: string) {
+    this.dict.set(PDFName.of('NM'), PDFString.of(name));
+  }
+
+  setModificationDate(date: Date) {
+    this.dict.set(PDFName.of('M'), PDFString.fromDate(date));
+  }
+
+  setBorder(border: number[]) {
+    this.dict.set(PDFName.of('Border'), this.dict.context.obj(border));
+  }
+
+  setColor(color: number[]) {
+    this.dict.set(PDFName.of('C'), this.dict.context.obj(color));
+  }
 }
 
 export default PDFAnnotation;
