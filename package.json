@@ -53,7 +53,7 @@
     "testc": "jest --config jest.config.js --coverage && open coverage/index.html",
     "lint-staged": "lint-staged",
     "lint": "yarn lint:prettier && yarn lint:eslint",
-    "lint:eslint": "eslint .",
+    "lint:eslint": "eslint . --fix",
     "lint:prettier": "prettier --write \"./{src,tests,apps}/**/*.{ts,js,json,html,css}\" --log-level error",
     "build": "yarn build:cjs && yarn build:es && yarn build:esm && yarn build:esm:min && yarn build:umd && yarn build:umd:min && yarn build:downlevel-dts",
     "build:cjs": "tsc --module commonjs --outDir cjs",
