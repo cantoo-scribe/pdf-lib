@@ -191,7 +191,7 @@ export interface PDFPageAddAnnotationOptions {
   flags?: number;
   color?: number[];
   border?: number[];
-  modificationDate?: string;
+  modificationDate?: Date;
 }
 
 /**

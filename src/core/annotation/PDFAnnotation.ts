@@ -43,10 +43,8 @@ class PDFAnnotation {
     if (options.flags !== undefined) annotation.setFlags(options.flags);
     if (options.color !== undefined) annotation.setColor(options.color);
     if (options.border !== undefined) annotation.setBorder(options.border);
-
-    // modificationDate is a raw string in options; keep direct setting (setter expects Date)
     if (options.modificationDate !== undefined) {
-      dict.set(PDFName.of('M'), PDFString.of(options.modificationDate));
+      annotation.setModificationDate(options.modificationDate);
     }
 
     return annotation;
