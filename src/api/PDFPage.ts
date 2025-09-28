@@ -33,6 +33,7 @@ import {
   PDFPageDrawTextOptions,
   BlendMode,
   PDFPageDrawSVGElementOptions,
+  PDFPageAddTextMarkupAnnotationOptions,
 } from './PDFPageOptions';
 import { degrees, Rotation, toDegrees } from './rotations';
 import { StandardFonts } from './StandardFonts';
@@ -45,6 +46,7 @@ import {
   PDFRef,
   PDFDict,
   PDFArray,
+  PDFAnnotation,
 } from '../core';
 import {
   assertEachIs,
@@ -59,6 +61,7 @@ import {
   assertIsOneOfOrUndefined,
 } from '../utils';
 import { drawSvg } from './svg';
+import { AnnotationFactory, PDFTextMarkupAnnotation } from '../core';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -1690,5 +1693,53 @@ export default class PDFPage {
         if (arr instanceof PDFArray) arr.scalePDFNumbers(x, y);
       }
     }
+  }
+
+  /**
+   * Read the annotation dictionaries from this page and convert to PDFAnnotation class instances
+   * @param pageLeaf The page leaf node
+   * @returns {PDFAnnotation[]} The annotations on this page
+   */
+  annotations(): PDFAnnotation[] {
+    const annotsArray = this.node.Annots();
+
+    // if there are no annotations...
+    if (!annotsArray || !(annotsArray instanceof PDFArray)) {
+      // ...return an empty array
+      return [];
+    }
+
+    // convert the annotation dictionaries to PDFAnnotation instances
+    const annotations: PDFAnnotation[] = [];
+    for (let i = 0; i < annotsArray.size(); i++) {
+      const annotDict = annotsArray.lookup(i);
+      if (annotDict instanceof PDFDict) {
+        const pdfAnnotation = AnnotationFactory.fromDict(annotDict);
+        annotations.push(pdfAnnotation);
+      }
+    }
+    return annotations;
+  }
+
+  /**
+   * Add an annotation to this page from an existing PDFAnnotation instance.
+   */
+  addTextMarkupAnnotation(
+    options: PDFPageAddTextMarkupAnnotationOptions,
+  ): PDFTextMarkupAnnotation {
+    const context = this.doc.context;
+    const page = this.node;
+
+    // convert to PDFDict
+    const annotation = PDFTextMarkupAnnotation.create(context, page, options);
+    const dict = annotation.dict;
+
+    // register PDF object into the PDF
+    const ref = context.register(dict);
+
+    // add the annotation to the page's Annots array
+    page.addAnnot(ref);
+
+    return annotation;
   }
 }
