@@ -845,11 +845,11 @@ const getDrawingOperator = ({
   borderColor?: Color;
   fillRule?: FillRule;
 }) => {
-  if (color && borderColor && borderWidth) {
+  if (color && borderColor && borderWidth !== 0) {
     return fillAndStroke;
   } else if (color) {
     return fillRule === FillRule.EvenOdd ? fillEvenOdd : fill;
-  } else if (borderColor && borderWidth) {
+  } else if (borderColor && borderWidth !== 0) {
     return stroke;
   }
   return undefined;

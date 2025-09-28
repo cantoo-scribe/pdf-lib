@@ -825,4 +825,45 @@ describe('PDFDocument', () => {
       });
     });
   });
+
+  describe('detach() method', () => {
+    it('removes the specified attachment', async () => {
+      const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
+      let attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(2);
+
+      pdfDoc.detach('cat_riding_unicorn.jpg');
+      attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(1);
+      expect(attachments[0].name).toEqual('us_constitution.pdf');
+
+      pdfDoc.detach('us_constitution.pdf');
+      attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(0);
+    });
+
+    it('removes the attachment after saving', async () => {
+      const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
+      pdfDoc.attach(examplePngImage, 'example.png', {
+        mimeType: 'image/png',
+        description: 'An example image',
+      });
+      await pdfDoc.saveAsBase64();
+      let attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(3);
+      pdfDoc.detach('example.png');
+      attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(2);
+    });
+
+    it('does nothing if the specified attachment is not found', async () => {
+      const pdfDoc = await PDFDocument.load(hasAttachmentPdfBytes);
+      let attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(2);
+
+      pdfDoc.detach('not_existing.txt');
+      attachments = pdfDoc.getAttachments();
+      expect(attachments.length).toEqual(2);
+    });
+  });
 });

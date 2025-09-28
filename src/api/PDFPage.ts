@@ -1278,7 +1278,7 @@ export default class PDFPage {
         rotate: options.rotate ?? degrees(0),
         color: options.color ?? undefined,
         borderColor: options.borderColor ?? undefined,
-        borderWidth: options.borderWidth ?? 0,
+        borderWidth: options.borderWidth ?? 1,
         borderDashArray: options.borderDashArray ?? undefined,
         borderDashPhase: options.borderDashPhase ?? undefined,
         borderLineCap: options.borderLineCap ?? undefined,

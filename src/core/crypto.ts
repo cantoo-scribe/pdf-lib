@@ -1512,7 +1512,6 @@ class CipherTransform {
   }
 }
 
-// eslint-disable-next-line no-shadow
 class CipherTransformFactory {
   encryptMetadata: boolean;
   encryptionKey: Uint8Array;

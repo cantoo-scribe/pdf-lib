@@ -95,4 +95,16 @@ export default class PDFEmbeddedFile implements Embeddable {
   getEmbedder() {
     return this.embedder;
   }
+
+  /**
+   * Returns whether or not this file has already been embedded.
+   * @returns true if the file has already been embedded, false otherwise.
+   */
+  getAlreadyEmbedded() {
+    return this.alreadyEmbedded;
+  }
+
+  getRef() {
+    return this.ref;
+  }
 }
