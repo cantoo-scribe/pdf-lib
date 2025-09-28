@@ -20,9 +20,10 @@ class PDFAnnotation {
     page: PDFPageLeaf,
     options: PDFPageAddAnnotationOptions,
   ): PDFAnnotation => {
+    // Create the minimal base annotation dictionary first
     const dict = context.obj({
       Type: 'Annot',
-      // Remove leading '/' from the subtype string
+      // Remove leading '/' from the subtype string (if present)
       Subtype: options.subtype.toString().replace(/\//g, ''),
       Rect: [
         options.rect.x,
@@ -32,42 +33,21 @@ class PDFAnnotation {
       ],
     });
 
+    const annotation = new PDFAnnotation(dict);
+
     if (options.contents !== undefined) {
-      dict.set(PDFName.of('Contents'), PDFString.of(options.contents));
+      annotation.setContents(options.contents);
     }
+    if (options.name !== undefined) annotation.setIdentifier(options.name);
+    annotation.setPage(page, context);
+    if (options.flags !== undefined) annotation.setFlags(options.flags);
+    if (options.color !== undefined) annotation.setColor(options.color);
+    if (options.border !== undefined) annotation.setBorder(options.border);
 
-    if (options.name !== undefined) {
-      dict.set(PDFName.of('NM'), PDFString.of(options.name));
-    }
-
-    // Set the page reference by getting the PDFRef for the PDFPageLeaf
-    const pageRef = context.getObjectRef(page);
-    if (!pageRef) {
-      throw new Error(
-        'Could not find PDFRef for the provided PDFPageLeaf. The page must be registered in the PDF context.',
-      );
-    }
-    dict.set(PDFName.of('P'), pageRef);
-
-    if (options.flags !== undefined) {
-      dict.set(PDFName.of('F'), PDFNumber.of(options.flags));
-    }
-
-    if (options.color !== undefined) {
-      const colorArray = context.obj(options.color);
-      dict.set(PDFName.of('C'), colorArray);
-    }
-
-    if (options.border !== undefined) {
-      const borderArray = context.obj(options.border);
-      dict.set(PDFName.of('Border'), borderArray);
-    }
-
+    // modificationDate is a raw string in options; keep direct setting (setter expects Date)
     if (options.modificationDate !== undefined) {
       dict.set(PDFName.of('M'), PDFString.of(options.modificationDate));
     }
-
-    const annotation = new PDFAnnotation(dict);
 
     return annotation;
   };
