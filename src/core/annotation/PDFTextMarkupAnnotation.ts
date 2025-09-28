@@ -57,4 +57,68 @@ export default class PDFTextMarkupAnnotation extends PDFAnnotation {
     }
     return undefined;
   }
+
+  // Overloads: accept a tuple of 8 numbers OR 8 individual number args
+  setQuadPoints(
+    quadPoints: [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ],
+  ): void;
+  setQuadPoints(
+    leftBottomX: number,
+    leftBottomY: number,
+    rightBottomX: number,
+    rightBottomY: number,
+    leftTopX: number,
+    leftTopY: number,
+    rightTopX: number,
+    rightTopY: number,
+  ): void;
+  setQuadPoints(
+    quadOrLeftBottomX:
+      | number
+      | [number, number, number, number, number, number, number, number],
+    leftBottomY?: number,
+    rightBottomX?: number,
+    rightBottomY?: number,
+    leftTopX?: number,
+    leftTopY?: number,
+    rightTopX?: number,
+    rightTopY?: number,
+  ): void {
+    let values: number[];
+
+    if (Array.isArray(quadOrLeftBottomX)) {
+      values = quadOrLeftBottomX.slice(0);
+    } else {
+      const coords = [
+        quadOrLeftBottomX,
+        leftBottomY,
+        rightBottomX,
+        rightBottomY,
+        leftTopX,
+        leftTopY,
+        rightTopX,
+        rightTopY,
+      ];
+      if (coords.length !== 8 || coords.some((n) => typeof n !== 'number')) {
+        throw new Error(
+          'setQuadPoints requires either a tuple of 8 numbers or 8 individual number arguments',
+        );
+      }
+      values = coords as number[];
+    }
+
+    const quadPointsArray = this.dict.context.obj(
+      values.map((v) => PDFNumber.of(v)),
+    );
+    this.dict.set(PDFName.of('QuadPoints'), quadPointsArray);
+  }
 }
