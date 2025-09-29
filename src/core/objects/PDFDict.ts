@@ -44,6 +44,7 @@ class PDFDict extends PDFObject {
   }
 
   set(key: PDFName, value: PDFObject): void {
+    this.registerChange();
     this.dict.set(key, value);
   }
 
@@ -154,6 +155,7 @@ class PDFDict extends PDFObject {
   }
 
   delete(key: PDFName): boolean {
+    this.registerChange();
     return this.dict.delete(key);
   }
 
@@ -222,6 +224,10 @@ class PDFDict extends PDFObject {
     buffer[offset++] = CharCodes.GreaterThan;
 
     return offset - initialOffset;
+  }
+
+  registerChange(): void {
+    this.context.registerObjectChange(this);
   }
 }
 

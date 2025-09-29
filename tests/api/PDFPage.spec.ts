@@ -2,6 +2,7 @@ import fs from 'fs';
 import { PDFArray, PDFDocument, PDFName, StandardFonts } from '../../src/index';
 
 const birdPng = fs.readFileSync('assets/images/greyscale_bird.png');
+const simplePDF = fs.readFileSync('assets/pdfs/simple.pdf');
 
 describe('PDFDocument', () => {
   describe('getSize() method', () => {
@@ -10,6 +11,43 @@ describe('PDFDocument', () => {
       const page = pdfDoc.addPage();
       page.node.set(PDFName.MediaBox, pdfDoc.context.obj([5, 5, 20, 50]));
       expect(page.getSize()).toEqual({ width: 15, height: 45 });
+    });
+  });
+
+  describe('page adding', () => {
+    it('adds page with sizes to existing doc', async () => {
+      const pdfDoc = await PDFDocument.load(simplePDF, {
+        forIncrementalUpdate: true,
+      });
+      const ipc = pdfDoc.getPageCount();
+      pdfDoc.addPage([500, 200]);
+      expect(pdfDoc.getPageCount()).toBe(ipc + 1);
+    });
+
+    it('adds pages to existing doc', async () => {
+      const pdfDoc = await PDFDocument.load(simplePDF, {
+        forIncrementalUpdate: true,
+      });
+      const ipc = pdfDoc.getPageCount();
+      pdfDoc.addPage();
+      pdfDoc.insertPage(0);
+      expect(pdfDoc.getPageCount()).toBe(ipc + 2);
+    });
+  });
+
+  describe('page deletion', () => {
+    it('deletes pages', async () => {
+      const pdfDoc = await PDFDocument.load(simplePDF, {
+        forIncrementalUpdate: true,
+      });
+      const p0Num = pdfDoc.getPage(0).ref.objectNumber;
+      pdfDoc.removePage(0);
+      expect(pdfDoc.getPageCount()).toBe(1);
+      const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+      const rex = new RegExp(
+        `xref[\r\n|\n]0 .*[\r\n|\n]${p0Num.toString().padStart(10, '0')} 65535 f`,
+      );
+      expect(Buffer.from(pdfBytes).toString()).toMatch(rex);
     });
   });
 
