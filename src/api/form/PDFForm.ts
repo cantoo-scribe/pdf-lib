@@ -589,12 +589,14 @@ export default class PDFForm {
     for (let i = 0, len = widgets.length; i < len; i++) {
       try {
         const widget = widgets[i];
-        const widgetRef = this.findWidgetAppearanceRef(field, widget);
+        const widgetRef = this.doc.context.getObjectRef(widget.dict);
 
         const page = this.findWidgetPage(widget);
         pages.add(page);
 
-        page.node.removeAnnot(widgetRef);
+        if (widgetRef !== undefined) {
+          page.node.removeAnnot(widgetRef);
+        }
       } catch (err) {
         console.error(err);
       }
