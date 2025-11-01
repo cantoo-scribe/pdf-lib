@@ -30,10 +30,10 @@ export default class PDFTextMarkupAnnotation extends PDFAnnotation {
         options.quadPoints.leftbottomY,
         options.quadPoints.rightbottomX,
         options.quadPoints.rightbottomY,
-        options.quadPoints.righttopX,
-        options.quadPoints.righttopY,
         options.quadPoints.lefttopX,
         options.quadPoints.lefttopY,
+        options.quadPoints.righttopX,
+        options.quadPoints.righttopY,
       ].map((point) => PDFNumber.of(point)),
     );
     textmarkupAnnotation.dict.set(PDFName.of('QuadPoints'), quadPointsArray);
