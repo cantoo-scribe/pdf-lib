@@ -30,6 +30,9 @@ export default class PDFTextMarkupAnnotation extends PDFAnnotation {
         options.quadPoints.leftbottomY,
         options.quadPoints.rightbottomX,
         options.quadPoints.rightbottomY,
+        
+        // NOTE: these order are horizontally inverted with the Spec because of Adobe implementation
+        // https://stackoverflow.com/questions/9855814/pdf-spec-vs-acrobat-creation-quadpoints
         options.quadPoints.lefttopX,
         options.quadPoints.lefttopY,
         options.quadPoints.righttopX,
