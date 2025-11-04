@@ -64,7 +64,10 @@ class PDFStreamWriter extends PDFWriter {
     this.objectsPerStream = objectsPerStream;
   }
 
+  // the process of saving uses references numbers, and creates a new indirect object, that has to be deleted after saving
+  private _refToDeleteAfterSave = 0;
   protected async computeBufferSize(incremental: boolean) {
+    this._refToDeleteAfterSave = 0;
     const header = PDFHeader.forVersion(1, 7);
 
     let size = this.snapshot.pdfSize;
@@ -116,6 +119,7 @@ class PDFStreamWriter extends PDFWriter {
           chunk = [];
           compressedObjects.push(chunk);
           objectStreamRef = this.context.nextRef();
+          this._refToDeleteAfterSave += 1;
           objectStreamRefs.push(objectStreamRef);
         }
         xrefStream.addCompressedEntry(ref, objectStreamRef, chunk.length);
@@ -145,6 +149,7 @@ class PDFStreamWriter extends PDFWriter {
     }
 
     const xrefStreamRef = this.context.nextRef();
+    this._refToDeleteAfterSave += 1;
     xrefStream.dict.set(
       PDFName.of('Size'),
       PDFNumber.of(this.context.largestObjectNumber + 1),
@@ -166,6 +171,15 @@ class PDFStreamWriter extends PDFWriter {
     size -= this.snapshot.pdfSize;
 
     return { size, header, indirectObjects: uncompressedObjects, trailer };
+  }
+
+  override async serializeToBuffer(): Promise<Uint8Array> {
+    const buffer = await super.serializeToBuffer();
+    // delete xref stream created for saving
+    this.context.delete(PDFRef.of(this.context.largestObjectNumber - 1));
+    // fix largestObjectNumbering
+    this.context.largestObjectNumber -= this._refToDeleteAfterSave;
+    return buffer;
   }
 }
 
