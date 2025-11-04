@@ -546,7 +546,7 @@ describe('PDFDocument', () => {
   });
 
   describe('save() method', () => {
-    it('can called multiple times on the same PDFDocument with different changes', async () => {
+    it('can be called multiple times on the same PDFDocument with different changes', async () => {
       const pdfDoc = await PDFDocument.create();
       const embeddedImage = await pdfDoc.embedPng(examplePngImage);
 
@@ -577,6 +577,55 @@ describe('PDFDocument', () => {
       };
 
       await expect(noErrorFunc()).resolves.not.toThrowError();
+    });
+
+    it('returns the full pdf, when pdf not open for incremental update', async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes);
+      const snapshot = pdfDoc.takeSnapshot();
+      const page = pdfDoc.getPage(0);
+      snapshot.markRefForSave(page.ref);
+      const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const fontSize = 30;
+      page.drawText('Incremental saving is also awesome!', {
+        x: 50,
+        y: 4 * fontSize,
+        size: fontSize,
+        font: timesRomanFont,
+      });
+      const firstFullPDF = await pdfDoc.save();
+      expect(firstFullPDF.byteLength).toBeGreaterThan(
+        simplePdfBytes.byteLength,
+      );
+      pdfDoc.takeSnapshot();
+      const secondFullPDF = await pdfDoc.save();
+      expect(secondFullPDF).toEqual(firstFullPDF);
+    });
+
+    it('returns the full pdf when open for incremental update', async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+        forIncrementalUpdate: true,
+      });
+      const snapshot = pdfDoc.takeSnapshot();
+      const page = pdfDoc.getPage(0);
+      snapshot.markRefForSave(page.ref);
+      const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const fontSize = 30;
+      page.drawText('Incremental saving is also awesome!', {
+        x: 50,
+        y: 4 * fontSize,
+        size: fontSize,
+        font: timesRomanFont,
+      });
+      const firstFullPDF = await pdfDoc.save();
+      expect(firstFullPDF.byteLength).toBeGreaterThan(
+        simplePdfBytes.byteLength,
+      );
+      for (let bi = 0; bi < simplePdfBytes.byteLength; bi++) {
+        expect(firstFullPDF[bi]).toBe(simplePdfBytes[bi]);
+      }
+      pdfDoc.takeSnapshot();
+      const secondFullPDF = await pdfDoc.save();
+      expect(secondFullPDF).toEqual(firstFullPDF);
     });
   });
 
