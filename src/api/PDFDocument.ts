@@ -1561,8 +1561,12 @@ export default class PDFDocument {
    * @returns Resolves with the bytes of the serialized document.
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
+    // check PDF version
+    const vparts = this.context.header.getVersionString().split('.');
+    const uOS =
+      options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
     const {
-      useObjectStreams = true,
+      useObjectStreams = uOS,
       addDefaultPage = true,
       objectsPerTick = 50,
       updateFieldAppearances = true,
@@ -1627,18 +1631,23 @@ export default class PDFDocument {
     snapshot: DocumentSnapshot,
     options: IncrementalSaveOptions = {},
   ): Promise<Uint8Array> {
+    // check PDF version
+    const vparts = this.context.header.getVersionString().split('.');
+    const uOS = Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
     const { objectsPerTick = 50 } = options;
 
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
 
     const saveOptions: SaveOptions = {
+      useObjectStreams: uOS,
       ...options,
       addDefaultPage: false,
       updateFieldAppearances: false,
     };
     await this.prepareForSave(saveOptions);
 
-    return PDFWriter.forContextWithSnapshot(
+    const Writer = saveOptions.useObjectStreams ? PDFStreamWriter : PDFWriter;
+    return Writer.forContextWithSnapshot(
       this.context,
       objectsPerTick,
       snapshot,
