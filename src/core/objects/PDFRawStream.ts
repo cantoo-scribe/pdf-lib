@@ -45,6 +45,7 @@ class PDFRawStream extends PDFStream {
   }
 
   updateContents(contents: Uint8Array): void {
+    this.dict.registerChange();
     this.contents = contents;
   }
 }

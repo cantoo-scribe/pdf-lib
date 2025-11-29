@@ -8,6 +8,7 @@ import {
   PDFDocument,
   PDFHexString,
   PDFName,
+  PDFNumber,
   PDFPage,
   Duplex,
   NonFullScreenPageMode,
@@ -1138,9 +1139,9 @@ describe('PDFDocument', () => {
       const committed = await pdfDoc.commit();
 
       expect(committed.byteLength).toBeGreaterThan(originalLength);
-      expect(
-        Array.from(committed.slice(0, originalLength)),
-      ).toEqual(Array.from(signaturePdfBytes));
+      expect(Array.from(committed.slice(0, originalLength))).toEqual(
+        Array.from(signaturePdfBytes),
+      );
 
       const reloadedDoc = await PDFDocument.load(committed);
       expect(reloadedDoc.getPageCount()).toBe(pdfDoc.getPageCount());
@@ -1166,6 +1167,148 @@ describe('PDFDocument', () => {
       }
 
       expect(commit2.byteLength).toBeGreaterThan(commit1.byteLength);
+    });
+
+    it('tracks PDFArray modifications for incremental saves', async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+        forIncrementalUpdate: true,
+      });
+
+      const page = pdfDoc.getPage(0);
+      const pageDict = page.node;
+      const context = pdfDoc.context;
+
+      const annotDict = context.obj({
+        Type: 'Annot',
+        Subtype: 'Text',
+        Rect: [100, 100, 200, 200],
+        Contents: 'Test annotation',
+      });
+      const annotRef = context.register(annotDict);
+
+      const annotsArray = context.obj([annotRef]);
+      const annotsRef = context.register(annotsArray);
+      pageDict.set(PDFName.of('Annots'), annotsRef);
+
+      const committed = await pdfDoc.commit();
+
+      const reloaded = await PDFDocument.load(committed);
+      const reloadedPage = reloaded.getPage(0);
+      const reloadedAnnots = reloadedPage.node.lookup(
+        PDFName.of('Annots'),
+        PDFArray,
+      );
+      expect(reloadedAnnots).toBeDefined();
+      expect(reloadedAnnots!.size()).toBe(1);
+    });
+
+    it('tracks PDFArray.push() for existing arrays', async () => {
+      const createDoc = await PDFDocument.create();
+      const createPage = createDoc.addPage();
+      const createContext = createDoc.context;
+
+      const initialAnnot = createContext.obj({
+        Type: 'Annot',
+        Subtype: 'Text',
+        Rect: [10, 10, 50, 50],
+        Contents: 'Initial',
+      });
+      const initialRef = createContext.register(initialAnnot);
+      const annotsArray = createContext.obj([initialRef]);
+      const annotsRef = createContext.register(annotsArray);
+      createPage.node.set(PDFName.of('Annots'), annotsRef);
+
+      const initialBytes = await createDoc.save();
+
+      const pdfDoc = await PDFDocument.load(initialBytes, {
+        forIncrementalUpdate: true,
+      });
+
+      const page = pdfDoc.getPage(0);
+      const pageDict = page.node;
+      const context = pdfDoc.context;
+
+      const existingAnnots = pageDict.lookup(PDFName.of('Annots'), PDFArray);
+      expect(existingAnnots).toBeDefined();
+      expect(existingAnnots!.size()).toBe(1);
+
+      const newAnnot = context.obj({
+        Type: 'Annot',
+        Subtype: 'Text',
+        Rect: [100, 100, 150, 150],
+        Contents: 'New annotation',
+      });
+      const newRef = context.register(newAnnot);
+      existingAnnots!.push(newRef);
+
+      const committed = await pdfDoc.commit();
+
+      const reloaded = await PDFDocument.load(committed);
+      const reloadedAnnots = reloaded
+        .getPage(0)
+        .node.lookup(PDFName.of('Annots'), PDFArray);
+      expect(reloadedAnnots).toBeDefined();
+      expect(reloadedAnnots!.size()).toBe(2);
+    });
+
+    it('tracks PDFStream content updates for incremental saves', async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+        forIncrementalUpdate: true,
+      });
+
+      const page = pdfDoc.getPage(0);
+      page.drawText('Modified stream content', { x: 50, y: 300 });
+
+      const committed = await pdfDoc.commit();
+
+      expect(committed.byteLength).toBeGreaterThan(simplePdfBytes.byteLength);
+
+      const reloaded = await PDFDocument.load(committed);
+      expect(reloaded.getPageCount()).toBe(pdfDoc.getPageCount());
+    });
+
+    it('throws error for encrypted PDFs with forIncrementalUpdate', async () => {
+      await expect(
+        PDFDocument.load(oldEncryptedPdfBytes1, {
+          forIncrementalUpdate: true,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('tracks inline array modifications for incremental saves', async () => {
+      // Create a simple PDF
+      const createDoc = await PDFDocument.create();
+      createDoc.addPage([200, 200]);
+      const initialBytes = await createDoc.save();
+
+      // Load for incremental update
+      const pdfDoc = await PDFDocument.load(initialBytes, {
+        forIncrementalUpdate: true,
+      });
+      const page = pdfDoc.getPage(0);
+
+      // Get the MediaBox (inline array, not registered as indirect object)
+      const mediaBox = page.node.lookup(PDFName.MediaBox, PDFArray);
+      expect(mediaBox).toBeDefined();
+
+      // Verify it's NOT registered (inline)
+      const ref = pdfDoc.context.getRef(mediaBox!);
+      expect(ref).toBeUndefined();
+
+      // Modify it directly
+      mediaBox!.set(2, PDFNumber.of(300)); // Change width
+      mediaBox!.set(3, PDFNumber.of(400)); // Change height
+
+      // Commit
+      const committed = await pdfDoc.commit();
+
+      // Reload and verify changes were saved
+      const reloaded = await PDFDocument.load(committed);
+      const reloadedMediaBox = reloaded
+        .getPage(0)
+        .node.lookup(PDFName.MediaBox, PDFArray);
+      expect(reloadedMediaBox!.lookup(2, PDFNumber).asNumber()).toBe(300);
+      expect(reloadedMediaBox!.lookup(3, PDFNumber).asNumber()).toBe(400);
     });
   });
 
