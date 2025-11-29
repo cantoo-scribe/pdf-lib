@@ -161,8 +161,8 @@
   ],
   "lint-staged": {
     "{src,tests,apps}/**/*.{ts,js,json,html,css}": [
-      "prettier --check || (echo '\n⚠️ Linting issues detected. Please run \"yarn lint\" to fix them and stage the changes.' && exit 1)",
-      "eslint --fix || (echo '\n⚠️ Linting issues detected. Please run \"yarn lint\" to fix them and stage the changes.' && exit 1)"
+      "prettier --check",
+      "eslint --fix"
     ]
   },
   "husky": {

@@ -393,7 +393,48 @@ class PDFContext {
   }
 
   registerObjectChange(obj: PDFObject) {
-    if (this.snapshot) this.snapshot.markObjForSave(obj);
+    if (!this.snapshot) return;
+
+    const ref = this.getObjectRef(obj);
+    if (ref) {
+      this.snapshot.markObjForSave(obj);
+      return;
+    }
+
+    const containingRef = this.findContainingIndirectObject(obj);
+    if (containingRef) {
+      this.snapshot.markRefForSave(containingRef);
+    }
+  }
+
+  private findContainingIndirectObject(target: PDFObject): PDFRef | undefined {
+    const entries = Array.from(this.indirectObjects.entries());
+    for (let idx = 0, len = entries.length; idx < len; idx++) {
+      const [ref, object] = entries[idx];
+      if (this.objectContains(object, target)) {
+        return ref;
+      }
+    }
+    return undefined;
+  }
+
+  private objectContains(container: PDFObject, target: PDFObject): boolean {
+    if (container === target) return true;
+
+    if (container instanceof PDFDict) {
+      const values = container.values();
+      for (let i = 0, len = values.length; i < len; i++) {
+        if (this.objectContains(values[i], target)) return true;
+      }
+    } else if (container instanceof PDFArray) {
+      for (let i = 0, len = container.size(); i < len; i++) {
+        if (this.objectContains(container.get(i), target)) return true;
+      }
+    } else if (container instanceof PDFStream) {
+      if (this.objectContains(container.dict, target)) return true;
+    }
+
+    return false;
   }
 }
 
