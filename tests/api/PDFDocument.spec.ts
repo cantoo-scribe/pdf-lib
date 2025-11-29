@@ -747,7 +747,7 @@ describe('PDFDocument', () => {
       expect(committed.byteLength).toBeGreaterThan(firstSave.byteLength);
     });
 
-    it('reuses existing context snapshot when available', async () => {
+    it('replaces existing context snapshot after commit', async () => {
       const pdfDoc = await PDFDocument.load(simplePdfBytes, {
         forIncrementalUpdate: true,
       });
@@ -1103,6 +1103,53 @@ describe('PDFDocument', () => {
 
       const finalDoc = await PDFDocument.load(commit3);
       expect(finalDoc.getPageCount()).toBe(3);
+    });
+
+    it('preserves signature field widgets after incremental updates', async () => {
+      const signaturePdfBytes = fs.readFileSync(
+        'assets/pdfs/with_signature.pdf',
+      );
+      const pdfDoc = await PDFDocument.load(signaturePdfBytes, {
+        forIncrementalUpdate: true,
+      });
+
+      const originalLength = signaturePdfBytes.byteLength;
+
+      pdfDoc.getPage(0).drawText('Incremental update preserving signature', {
+        x: 50,
+        y: 50,
+      });
+      const committed = await pdfDoc.commit();
+
+      expect(committed.byteLength).toBeGreaterThan(originalLength);
+      expect(
+        Array.from(committed.slice(0, originalLength)),
+      ).toEqual(Array.from(signaturePdfBytes));
+
+      const reloadedDoc = await PDFDocument.load(committed);
+      expect(reloadedDoc.getPageCount()).toBe(pdfDoc.getPageCount());
+    });
+
+    it('preserves bytes exactly for signature validity', async () => {
+      const pdfDoc = await PDFDocument.load(simplePdfBytes, {
+        forIncrementalUpdate: true,
+      });
+
+      pdfDoc.getPage(0).drawText('Update 1', { x: 50, y: 700 });
+      const commit1 = await pdfDoc.commit();
+
+      for (let i = 0; i < simplePdfBytes.byteLength; i++) {
+        expect(commit1[i]).toBe(simplePdfBytes[i]);
+      }
+
+      pdfDoc.getPage(0).drawText('Update 2', { x: 50, y: 650 });
+      const commit2 = await pdfDoc.commit();
+
+      for (let i = 0; i < commit1.byteLength; i++) {
+        expect(commit2[i]).toBe(commit1[i]);
+      }
+
+      expect(commit2.byteLength).toBeGreaterThan(commit1.byteLength);
     });
   });
 
