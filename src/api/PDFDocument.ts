@@ -1578,10 +1578,7 @@ export default class PDFDocument {
     };
     await this.prepareForSave(saveOptions);
 
-    const Writer = this.context.pdfFileDetails.useObjectStreams
-      ? PDFStreamWriter
-      : PDFWriter;
-    return Writer.forContextWithSnapshot(
+    return PDFWriter.forContextWithSnapshot(
       this.context,
       objectsPerTick,
       snapshot,
@@ -1640,6 +1637,62 @@ export default class PDFDocument {
       this.catalog.registerChange();
     }
     return snapshot;
+  }
+
+  /**
+   * Commit the current changes to the document as an incremental update.
+   * This allows you to save multiple incremental updates without reloading the PDF.
+   *
+   * For example:
+   * ```js
+   * const pdfDoc = await PDFDocument.load(pdfBytes, { forIncrementalUpdate: true })
+   *
+   * const page = pdfDoc.getPage(0)
+   * page.drawText('First update')
+   * const firstCommit = await pdfDoc.commit()
+   *
+   * page.drawText('Second update', { y: 100 })
+   * const secondCommit = await pdfDoc.commit()
+   * ```
+   *
+   * @param options The options to be used when committing changes.
+   * @returns Resolves with the complete PDF bytes including all updates.
+   */
+  async commit(options: IncrementalSaveOptions = {}): Promise<Uint8Array> {
+    const snapshot = this.context.snapshot || this.takeSnapshot();
+    const incrementalBytes = await this.saveIncremental(snapshot, options);
+
+    const originalBytes = this.context.pdfFileDetails.originalBytes;
+    if (!originalBytes) {
+      throw new Error(
+        'commit() requires the document to be loaded with forIncrementalUpdate: true',
+      );
+    }
+
+    const newPdfBytes = new Uint8Array(
+      originalBytes.byteLength + incrementalBytes.byteLength,
+    );
+    newPdfBytes.set(originalBytes);
+    newPdfBytes.set(incrementalBytes, originalBytes.byteLength);
+
+    this.context.pdfFileDetails.originalBytes = newPdfBytes;
+    this.context.pdfFileDetails.pdfSize = newPdfBytes.byteLength;
+
+    const incrementalStr = new TextDecoder('latin1').decode(incrementalBytes);
+    const startxrefMatch = incrementalStr.match(/startxref\s+(\d+)/);
+    if (startxrefMatch) {
+      this.context.pdfFileDetails.prevStartXRef = parseInt(
+        startxrefMatch[1],
+        10,
+      );
+    } else {
+      this.context.pdfFileDetails.prevStartXRef = originalBytes.byteLength;
+    }
+
+    const newSnapshot = this.takeSnapshot();
+    this.context.snapshot = newSnapshot;
+
+    return newPdfBytes;
   }
 
   private async prepareForSave(options: SaveOptions): Promise<void> {
