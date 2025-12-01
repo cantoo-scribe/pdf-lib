@@ -1728,15 +1728,16 @@ export default class PDFDocument {
    * @returns Resolves with the complete PDF bytes including all updates.
    */
   async commit(options: IncrementalSaveOptions = {}): Promise<Uint8Array> {
-    const snapshot = this.context.snapshot || this.takeSnapshot();
-    const incrementalBytes = await this.saveIncremental(snapshot, options);
-
-    const originalBytes = this.context.pdfFileDetails.originalBytes;
-    if (!originalBytes) {
+    if (!this.context.snapshot || !this.context.pdfFileDetails.originalBytes) {
       throw new Error(
         'commit() requires the document to be loaded with forIncrementalUpdate: true',
       );
     }
+    const incrementalBytes = await this.saveIncremental(
+      this.context.snapshot,
+      options,
+    );
+    const originalBytes = this.context.pdfFileDetails.originalBytes;
 
     const newPdfBytes = new Uint8Array(
       originalBytes.byteLength + incrementalBytes.byteLength,
@@ -1758,8 +1759,7 @@ export default class PDFDocument {
       this.context.pdfFileDetails.prevStartXRef = originalBytes.byteLength;
     }
 
-    const newSnapshot = this.takeSnapshot();
-    this.context.snapshot = newSnapshot;
+    this.context.snapshot = this.takeSnapshot();
 
     return newPdfBytes;
   }

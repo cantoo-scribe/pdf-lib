@@ -397,7 +397,7 @@ class PDFContext {
 
     const ref = this.getObjectRef(obj);
     if (ref) {
-      this.snapshot.markObjForSave(obj);
+      this.snapshot.markRefForSave(ref);
       return;
     }
 
