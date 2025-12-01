@@ -269,8 +269,18 @@ export default class PDFField {
    * @returns A map of JavaScript actions for this field, or undefined if none exist.
    */
   getJavaScriptActions(): JavaScriptActionMap | undefined {
-    const aaDict = this.acroField.dict.lookup(PDFName.of('AA'), PDFDict);
-    if (!aaDict) return undefined;
+    const aaEntry = this.acroField.dict.get(PDFName.of('AA'));
+    if (!aaEntry) return undefined;
+
+    let aaDict: PDFDict;
+    if (aaEntry instanceof PDFRef) {
+      aaDict = this.doc.context.lookup(aaEntry, PDFDict);
+    } else if (aaEntry instanceof PDFDict) {
+      aaDict = aaEntry;
+    } else {
+      return undefined;
+    }
+
     return extractAdditionalActions(aaDict, this.doc);
   }
 
