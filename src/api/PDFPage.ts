@@ -22,6 +22,10 @@ import PDFFont from './PDFFont';
 import PDFImage from './PDFImage';
 import PDFSvg from './PDFSvg';
 import {
+  JavaScriptActionMap,
+  extractAdditionalActions,
+} from './PDFJavaScriptAction';
+import {
   PDFPageDrawCircleOptions,
   PDFPageDrawEllipseOptions,
   PDFPageDrawImageOptions,
@@ -704,6 +708,38 @@ export default class PDFPage {
     assertIs(font, 'font', [[PDFFont, 'PDFFont']]);
     this.font = font;
     this.fontKey = this.node.newFontDictionary(this.font.name, this.font.ref);
+  }
+
+  /**
+   * Get the JavaScript actions associated with this page.
+   * Returns a map of action types to JavaScript actions.
+   * For example:
+   * ```js
+   * const page = pdfDoc.getPage(0)
+   * const actions = page.getJavaScriptActions()
+   * if (actions && actions.pageOpen) {
+   *   console.log('Page open script:', actions.pageOpen.getScript())
+   * }
+   * if (actions && actions.pageClose) {
+   *   console.log('Page close script:', actions.pageClose.getScript())
+   * }
+   * ```
+   * @returns A map of JavaScript actions for this page, or undefined if none exist.
+   */
+  getJavaScriptActions(): JavaScriptActionMap | undefined {
+    const aaDict = this.node.get(PDFName.of('AA'));
+    if (!aaDict) return undefined;
+
+    let actualDict: PDFDict;
+    if (aaDict instanceof PDFRef) {
+      actualDict = this.doc.context.lookup(aaDict, PDFDict);
+    } else if (aaDict instanceof PDFDict) {
+      actualDict = aaDict;
+    } else {
+      return undefined;
+    }
+
+    return extractAdditionalActions(actualDict, this.doc);
   }
 
   /**
