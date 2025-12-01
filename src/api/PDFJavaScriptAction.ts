@@ -33,8 +33,15 @@ export default class PDFJavaScriptAction {
     doc: PDFDocument,
     ref?: PDFRef,
   ): PDFJavaScriptAction | undefined {
-    const s = dict.lookup(PDFName.of('S'));
-    if (s instanceof PDFName && s.asString() === '/JavaScript') {
+    const s = dict.get(PDFName.of('S'));
+    let sName: PDFName | undefined;
+    if (s instanceof PDFRef) {
+      sName = dict.context.lookup(s) as PDFName;
+    } else if (s instanceof PDFName) {
+      sName = s;
+    }
+
+    if (sName && sName.asString() === '/JavaScript') {
       return new PDFJavaScriptAction(dict, doc, ref);
     }
     return undefined;
@@ -45,12 +52,40 @@ export default class PDFJavaScriptAction {
    * @returns The JavaScript code as a string
    */
   getScript(): string | undefined {
-    const js = this.dict.lookup(PDFName.of('JS'));
-    if (js instanceof PDFString) {
-      return js.asString();
+    const js = this.dict.get(PDFName.of('JS'));
+    let jsValue: PDFString | PDFHexString | PDFName | undefined;
+
+    if (js instanceof PDFRef) {
+      jsValue = this.dict.context.lookup(js) as
+        | PDFString
+        | PDFHexString
+        | PDFName;
+    } else if (
+      js instanceof PDFString ||
+      js instanceof PDFHexString ||
+      js instanceof PDFName
+    ) {
+      jsValue = js;
     }
-    if (js instanceof PDFHexString) {
-      return js.decodeText();
+
+    if (jsValue instanceof PDFString) {
+      return jsValue.asString();
+    }
+    if (jsValue instanceof PDFHexString) {
+      return jsValue.decodeText();
+    }
+    if (jsValue instanceof PDFName) {
+      // Handle case where the value was created with context.obj() using a string literal
+      // PDFName.asString() returns the encoded name with leading slash and hex-encoded special chars
+      // We need to remove the slash and decode the hex sequences
+      const nameStr = jsValue.asString();
+      const withoutSlash = nameStr.startsWith('/')
+        ? nameStr.substring(1)
+        : nameStr;
+      // Decode hex sequences like #28 -> (
+      return withoutSlash.replace(/#([\dA-Fa-f]{2})/g, (_, hex) =>
+        String.fromCharCode(parseInt(hex, 16)),
+      );
     }
     return undefined;
   }
@@ -113,6 +148,7 @@ export function extractAdditionalActions(
     { key: 'E', prop: 'mouseEnter' as const },
     { key: 'X', prop: 'mouseExit' as const },
     { key: 'O', prop: 'pageOpen' as const },
+    { key: 'C', prop: 'pageClose' as const }, // Note: C is used for both calculate (fields) and pageClose (pages)
     { key: 'Fo', prop: 'focus' as const },
     { key: 'Bl', prop: 'blur' as const },
   ];
