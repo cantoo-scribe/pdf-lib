@@ -3,7 +3,7 @@
   "version": "2.4.1",
   "description": "Create and modify PDF files with JavaScript",
   "author": "Andrew Dillon <andrew.dillon.j@gmail.com>",
-  "packageManager": "yarn@1.22.19",
+  "packageManager": "yarn@1.22.19+",
   "exports": {
     ".": {
       "types": "./cjs/index.d.ts",
@@ -161,8 +161,8 @@
   ],
   "lint-staged": {
     "{src,tests,apps}/**/*.{ts,js,json,html,css}": [
-      "prettier --check",
-      "eslint --fix"
+      "prettier --check || (echo '\n⚠️ Linting issues detected. Please run \"yarn lint\" to fix them and stage the changes.' && exit 1)",
+      "eslint --fix || (echo '\n⚠️ Linting issues detected. Please run \"yarn lint\" to fix them and stage the changes.' && exit 1)"
     ]
   },
   "husky": {
