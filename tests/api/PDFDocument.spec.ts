@@ -49,6 +49,9 @@ const hasAttachmentPdfBytes = fs.readFileSync(
 const simplePdfBytes = fs.readFileSync('assets/pdfs/simple.pdf');
 const simpleStreamsPdfBytes = fs.readFileSync('assets/pdfs/simple_streams.pdf');
 
+const v14PdfBytes = fs.readFileSync('assets/pdfs/bixby_guide.pdf');
+const v13PdfBytes = normalPdfBytes;
+
 describe('PDFDocument', () => {
   describe('load() method', () => {
     const origConsoleWarn = console.warn;
@@ -200,6 +203,15 @@ describe('PDFDocument', () => {
     });
   });
 
+  describe('embedStandardFont() method', () => {
+    it('Raises an exception if not a standard font', async () => {
+      const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
+      expect(() =>
+        pdfDoc1.embedStandardFont('MyCustomFont' as StandardFonts),
+      ).toThrow();
+    });
+  });
+
   describe('setLanguage() method', () => {
     it('sets the language of the document', async () => {
       const pdfDoc = await PDFDocument.create();
@@ -255,6 +267,13 @@ describe('PDFDocument', () => {
     it('Can insert pages in brand new documents', async () => {
       const pdfDoc = await PDFDocument.create();
       expect(pdfDoc.addPage()).toBeInstanceOf(PDFPage);
+    });
+  });
+
+  describe('removePage() method', () => {
+    it('Raises an exception on empty paged documentas', async () => {
+      const pdfDoc = await PDFDocument.create();
+      expect(() => pdfDoc.removePage(0)).toThrow();
     });
   });
 
@@ -612,6 +631,58 @@ describe('PDFDocument', () => {
       const secondFullPDF = await pdfDoc.save();
       expect(secondFullPDF).toEqual(firstFullPDF);
     });
+
+    it('respects PDF version when saving incrementally', async () => {
+      const getIncrementedLastChunk = async (pdfBytes: Buffer) => {
+        const pdfDoc = await PDFDocument.load(pdfBytes, {
+          forIncrementalUpdate: true,
+        });
+        const page = pdfDoc.getPage(0);
+        const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const fontSize = 30;
+        page.drawText('Incremental saving is also awesome!', {
+          x: 50,
+          y: 4 * fontSize,
+          size: fontSize,
+          font: timesRomanFont,
+        });
+        const incrementedPDFBytes = await pdfDoc.save();
+        const str = Buffer.from(incrementedPDFBytes).toString();
+        return str.substring(str.length - 512);
+      };
+      // should not use xrefStreams, introduced on v 1.5
+      expect(await getIncrementedLastChunk(v13PdfBytes)).toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+      // should not use xrefStreams, introduced on v 1.5
+      expect(await getIncrementedLastChunk(v14PdfBytes)).toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+      // 1.7 should use xrefStreams, introduced on v 1.5
+      expect(await getIncrementedLastChunk(simplePdfBytes)).not.toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+    }, 15000);
+
+    it('objectStreams usage can be forced', async () => {
+      const pdfDoc = await PDFDocument.load(v13PdfBytes, {
+        forIncrementalUpdate: true,
+      });
+      const page = pdfDoc.getPage(0);
+      const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const fontSize = 30;
+      page.drawText('Incremental saving is also awesome!', {
+        x: 50,
+        y: 4 * fontSize,
+        size: fontSize,
+        font: timesRomanFont,
+      });
+      const incrementedPDFBytes = await pdfDoc.save({ useObjectStreams: true });
+      const str = Buffer.from(incrementedPDFBytes).toString();
+      expect(str.substring(str.length - 512)).not.toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+    }, 15000);
   });
 
   describe('saveIncremental() method', () => {
@@ -666,7 +737,9 @@ describe('PDFDocument', () => {
         const snapshot = pdfDoc.takeSnapshot();
         const page = pdfDoc.getPage(pageIndex);
         snapshot.markDeletedRef(page.ref);
-        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot);
+        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot, {
+          useObjectStreams: false,
+        });
         expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(0);
         expect(Buffer.from(pdfIncrementalBytes).toString()).toMatch(
           `xref\n0 1\n${page.ref.objectNumber.toString().padStart(10, '0')} 65535 f \n${page.ref.objectNumber.toString()} 1\n0000000000 00001 f`,
@@ -676,6 +749,60 @@ describe('PDFDocument', () => {
       await expect(noErrorFunc(0)).resolves.not.toThrowError();
       await expect(noErrorFunc(1)).resolves.not.toThrowError();
     });
+
+    it('respects PDF version for XREF generation', async () => {
+      const getIncrementedLastChunk = async (pdfBytes: Buffer) => {
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const snapshot = pdfDoc.takeSnapshot();
+        const page = pdfDoc.getPage(0);
+        snapshot.markRefForSave(page.ref);
+        const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const fontSize = 30;
+        page.drawText('Incremental saving is also awesome!', {
+          x: 50,
+          y: 4 * fontSize,
+          size: fontSize,
+          font: timesRomanFont,
+        });
+        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot);
+        const str = Buffer.from(pdfIncrementalBytes).toString();
+        return str.substring(str.length - 512);
+      };
+      // should not use xrefStreams, introduced on v 1.5
+      expect(await getIncrementedLastChunk(v13PdfBytes)).toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+      // should not use xrefStreams, introduced on v 1.5
+      expect(await getIncrementedLastChunk(v14PdfBytes)).toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+      // 1.7 should use xrefStreams, introduced on v 1.5
+      expect(await getIncrementedLastChunk(simplePdfBytes)).not.toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+    }, 15000);
+
+    it('objectStreams usage can be forced', async () => {
+      const pdfDoc = await PDFDocument.load(v13PdfBytes);
+      const snapshot = pdfDoc.takeSnapshot();
+      const page = pdfDoc.getPage(0);
+      snapshot.markRefForSave(page.ref);
+      const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const fontSize = 30;
+      page.drawText('Incremental saving is also awesome!', {
+        x: 50,
+        y: 4 * fontSize,
+        size: fontSize,
+        font: timesRomanFont,
+      });
+      const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot, {
+        useObjectStreams: true,
+      });
+      const str = Buffer.from(pdfIncrementalBytes).toString();
+      expect(str.substring(str.length - 512)).not.toMatch(
+        `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
+      );
+    }, 15000);
   });
 
   describe('commit() method', () => {
@@ -1456,7 +1583,9 @@ describe('PDFDocument', () => {
           font: timesRomanFont,
         });
 
-        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot);
+        const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot, {
+          useObjectStreams: false,
+        });
         const finalPdfBytes = Buffer.concat([
           simplePdfBytes,
           pdfIncrementalBytes,
