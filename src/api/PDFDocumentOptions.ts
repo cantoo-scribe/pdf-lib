@@ -20,6 +20,7 @@ export interface SaveOptions {
 
 export interface IncrementalSaveOptions {
   objectsPerTick?: number;
+  useObjectStreams?: boolean;
 }
 
 export interface Base64SaveOptions extends SaveOptions {

@@ -30,10 +30,12 @@ class PDFArray extends PDFObject {
   }
 
   push(object: PDFObject): void {
+    this.registerChange();
     this.array.push(object);
   }
 
   insert(index: number, object: PDFObject): void {
+    this.registerChange();
     this.array.splice(index, 0, object);
   }
 
@@ -43,10 +45,12 @@ class PDFArray extends PDFObject {
   }
 
   remove(index: number): void {
+    this.registerChange();
     this.array.splice(index, 1);
   }
 
   set(idx: number, object: PDFObject): void {
+    this.registerChange();
     this.array[idx] = object;
   }
 
@@ -179,6 +183,10 @@ class PDFArray extends PDFObject {
         this.set(idx, PDFNumber.of(el.asNumber() * factor));
       }
     }
+  }
+
+  registerChange(): void {
+    this.context.registerObjectChange(this);
   }
 }
 

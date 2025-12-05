@@ -64,6 +64,7 @@ Install with: `npm install @cantoo/pdf-lib`
   - [Create Document](#create-document)
   - [Modify Document](#modify-document)
   - [Incremental Document Modification](#incremental-document-modification)
+  - [Consecutive Incremental Updates](#consecutive-incremental-updates)
   - [Create Form](#create-form)
   - [Fill Form](#fill-form)
   - [Flatten Form](#flatten-form)
@@ -429,6 +430,50 @@ const pdfBytes = await pdfDoc.save()
 // `pdfBytes` should be handled to the signing library to calculate the
 //  file hash and fill in the generated placeholder for the signature
 ```
+
+### Consecutive Incremental Updates
+
+You can load a PDF for incremental update, and then generate multiple increments, over the original document, with saveAndContinue() method.  
+This method simplifies replaces the sequence:
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+
+// This should be a Uint8Array or ArrayBuffer
+const existingPdfBytes = ...
+// Load a PDFDocument from the existing PDF bytes, for incremental update
+const pdfDoc = await PDFDocument.load(existingPdfBytes,{forIncrementalUpdate:true})
+// modify pdf
+...
+// Serialize the PDFDocument to bytes (a Uint8Array), using incremental updates
+const firstUpdatedDoc = await pdfDoc.save()
+const pdfDoc2 = await PDFDocument.load(firstUpdatedDoc,{forIncrementalUpdate:true})
+// modify pdf
+...
+// Serialize the PDFDocument to bytes (a Uint8Array), using incremental updates
+const secondUpdateDoc = await pdfDoc2.save()
+// etc, etc
+```
+Allowing this:  
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+
+// This should be a Uint8Array or ArrayBuffer
+const existingPdfBytes = ...
+// Load a PDFDocument from the existing PDF bytes, for incremental update
+const pdfDoc = await PDFDocument.load(existingPdfBytes,{forIncrementalUpdate:true})
+// modify pdf
+...
+// Serialize the PDFDocument to bytes (a Uint8Array), using incremental updates
+const firstUpdatedDoc = await pdfDoc.saveAndContinue();
+// modify pdf
+...
+const secondUpdateDoc = await pdfDoc2.saveAndContinue();
+// etc, etc
+```
+The *saveAndContinue* method has the same parameters than *save* method. If document is not loaded **forIncrementalUpdate**, an exception is raised. After calling *saveAndContinue* an update section is added to the original document, and this replaces the original document, and a new snapshot is taken.  
+
 
 ### Create Form
 

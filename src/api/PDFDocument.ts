@@ -1501,8 +1501,12 @@ export default class PDFDocument {
    * @returns Resolves with the bytes of the serialized document.
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
+    // check PDF version
+    const vparts = this.context.header.getVersionString().split('.');
+    const uOS =
+      options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
     const {
-      useObjectStreams = true,
+      useObjectStreams = uOS,
       addDefaultPage = true,
       objectsPerTick = 50,
       updateFieldAppearances = true,
@@ -1567,20 +1571,22 @@ export default class PDFDocument {
     snapshot: DocumentSnapshot,
     options: IncrementalSaveOptions = {},
   ): Promise<Uint8Array> {
+    // check PDF version
+    const vparts = this.context.header.getVersionString().split('.');
+    const uOS = Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
     const { objectsPerTick = 50 } = options;
 
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
 
     const saveOptions: SaveOptions = {
+      useObjectStreams: uOS,
       ...options,
       addDefaultPage: false,
       updateFieldAppearances: false,
     };
     await this.prepareForSave(saveOptions);
 
-    const Writer = this.context.pdfFileDetails.useObjectStreams
-      ? PDFStreamWriter
-      : PDFWriter;
+    const Writer = saveOptions.useObjectStreams ? PDFStreamWriter : PDFWriter;
     return Writer.forContextWithSnapshot(
       this.context,
       objectsPerTick,
@@ -1640,6 +1646,62 @@ export default class PDFDocument {
       this.catalog.registerChange();
     }
     return snapshot;
+  }
+
+  /**
+   * Commit the current changes to the document as an incremental update.
+   * This allows you to save multiple incremental updates without reloading the PDF.
+   *
+   * For example:
+   * ```js
+   * const pdfDoc = await PDFDocument.load(pdfBytes, { forIncrementalUpdate: true })
+   *
+   * const page = pdfDoc.getPage(0)
+   * page.drawText('First update')
+   * const firstCommit = await pdfDoc.commit()
+   *
+   * page.drawText('Second update', { y: 100 })
+   * const secondCommit = await pdfDoc.commit()
+   * ```
+   *
+   * @param options The options to be used when committing changes.
+   * @returns Resolves with the complete PDF bytes including all updates.
+   */
+  async commit(options: IncrementalSaveOptions = {}): Promise<Uint8Array> {
+    if (!this.context.snapshot || !this.context.pdfFileDetails.originalBytes) {
+      throw new Error(
+        'commit() requires the document to be loaded with forIncrementalUpdate: true',
+      );
+    }
+    const incrementalBytes = await this.saveIncremental(
+      this.context.snapshot,
+      options,
+    );
+    const originalBytes = this.context.pdfFileDetails.originalBytes;
+
+    const newPdfBytes = new Uint8Array(
+      originalBytes.byteLength + incrementalBytes.byteLength,
+    );
+    newPdfBytes.set(originalBytes);
+    newPdfBytes.set(incrementalBytes, originalBytes.byteLength);
+
+    this.context.pdfFileDetails.originalBytes = newPdfBytes;
+    this.context.pdfFileDetails.pdfSize = newPdfBytes.byteLength;
+
+    const incrementalStr = new TextDecoder('latin1').decode(incrementalBytes);
+    const startxrefMatch = incrementalStr.match(/startxref\s+(\d+)/);
+    if (startxrefMatch) {
+      this.context.pdfFileDetails.prevStartXRef = parseInt(
+        startxrefMatch[1],
+        10,
+      );
+    } else {
+      this.context.pdfFileDetails.prevStartXRef = originalBytes.byteLength;
+    }
+
+    this.context.snapshot = this.takeSnapshot();
+
+    return newPdfBytes;
   }
 
   private async prepareForSave(options: SaveOptions): Promise<void> {
