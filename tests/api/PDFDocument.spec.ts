@@ -32,6 +32,9 @@ const oldEncryptedPdfBytes1 = fs.readFileSync('assets/pdfs/encrypted_old.pdf');
 // const oldEncryptedPdfBytes2 = fs.readFileSync('pdf_specification.pdf');
 
 const newEncryptedPdfBytes = fs.readFileSync('assets/pdfs/encrypted_new.pdf');
+const encryptedLiteralStringsPdfBytes = fs.readFileSync(
+  'assets/pdfs/encrypted_literal_strings.pdf',
+);
 const invalidObjectsPdfBytes = fs.readFileSync(
   'assets/pdfs/with_invalid_objects.pdf',
 );
@@ -124,6 +127,19 @@ describe('PDFDocument', () => {
       });
       expect(pdfDoc).toBeInstanceOf(PDFDocument);
       expect(pdfDoc.isEncrypted).toBe(true);
+    });
+
+    it('decrypts literal strings', async () => {
+      const pdfDoc = await PDFDocument.load(encryptedLiteralStringsPdfBytes, {
+        password: '1234',
+        parseSpeed: ParseSpeeds.Fastest,
+      });
+      expect(pdfDoc).toBeInstanceOf(PDFDocument);
+      expect(pdfDoc.isEncrypted).toBe(false);
+      expect(pdfDoc.getCreator()).toBe('Acrobat Pro DC 19.10.20069');
+      expect(pdfDoc.getCreationDate()).toStrictEqual(
+        new Date('2025-12-07T01:14:12Z'),
+      );
     });
 
     it('does not throw an error for invalid PDFs when throwOnInvalidObject=false', async () => {

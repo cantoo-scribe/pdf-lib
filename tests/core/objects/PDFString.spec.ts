@@ -114,6 +114,15 @@ describe('PDFString', () => {
         toCharCode('d'), toCharCode(';'),
       ));
     });
+
+    it('can interpret escaped backslashes', () => {
+      const literal = '\\\\\\\\';
+
+      // prettier-ignore
+      expect(PDFString.of(literal).asBytes()).toEqual(Uint8Array.of(
+        toCharCode('\\'), toCharCode('\\'),
+      ));
+    });
   });
 
   describe('decoding to string', () => {
