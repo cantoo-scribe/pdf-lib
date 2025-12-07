@@ -62,7 +62,7 @@ class PDFString extends PDFObject {
         else if (byte === CharCodes.f) pushByte(CharCodes.FormFeed);
         else if (byte === CharCodes.LeftParen) pushByte(CharCodes.LeftParen);
         else if (byte === CharCodes.RightParen) pushByte(CharCodes.RightParen);
-        else if (byte === CharCodes.Backspace) pushByte(CharCodes.BackSlash);
+        else if (byte === CharCodes.BackSlash) pushByte(CharCodes.BackSlash);
         else if (byte >= CharCodes.Zero && byte <= CharCodes.Seven) {
           octal += char;
           if (octal.length === 3 || !(nextChar >= '0' && nextChar <= '7')) {

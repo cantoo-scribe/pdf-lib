@@ -27,7 +27,7 @@ import { IsDelimiter } from '../syntax/Delimiters';
 import { Keywords } from '../syntax/Keywords';
 import { IsDigit, IsNumeric } from '../syntax/Numeric';
 import { IsWhitespace } from '../syntax/Whitespace';
-import { charFromCode } from '../../utils';
+import { arrayAsString, charFromCode } from '../../utils';
 import { CipherTransformFactory } from '../crypto';
 
 // TODO: Throw error if eof is reached before finishing object parse...
@@ -157,7 +157,10 @@ class PDFObjectParser extends BaseParser {
             ref.objectNumber,
             ref.generationNumber,
           );
-          actualValue = transformer.decryptString(actualValue);
+          const decrypted = transformer.decryptBytes(
+            PDFString.of(actualValue).asBytes(),
+          );
+          actualValue = arrayAsString(decrypted);
         }
         // Remove the outer parens so they aren't part of the contents
         return PDFString.of(actualValue);
