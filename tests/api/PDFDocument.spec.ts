@@ -49,6 +49,7 @@ const hasAttachmentPdfBytes = fs.readFileSync(
 const simplePdfBytes = fs.readFileSync('assets/pdfs/simple.pdf');
 const simpleStreamsPdfBytes = fs.readFileSync('assets/pdfs/simple_streams.pdf');
 
+const v15PdfBytes = fs.readFileSync('assets/pdfs/v15xref.pdf');
 const v14PdfBytes = fs.readFileSync('assets/pdfs/bixby_guide.pdf');
 const v13PdfBytes = normalPdfBytes;
 
@@ -683,6 +684,18 @@ describe('PDFDocument', () => {
         `xref\n0 1\n${''.padEnd(10, '0')} 65535 f \n`,
       );
     }, 15000);
+
+    it('properly handles XRef Streams on full save', async () => {
+      const pdfDoc = await PDFDocument.load(v15PdfBytes);
+      const incrementBytes = await pdfDoc.save();
+      const str = Buffer.from(incrementBytes).toString();
+      const match = str.match(/XRef/g);
+      expect(match?.length).toBe(1);
+      const noStmIB = await pdfDoc.save({ useObjectStreams: false });
+      const noStrmStr = Buffer.from(noStmIB).toString();
+      const matchNoStm = noStrmStr.match(/XRef/g);
+      expect(matchNoStm).toBeNull();
+    });
   });
 
   describe('saveIncremental() method', () => {
