@@ -52,7 +52,7 @@ export class PNG {
       ? UPNG
       : (UPNG as unknown as { default: typeof UPNG }).default;
 
-    const upng = UPNGmod.decode(pngData);
+    const upng = UPNGmod.decode(pngData as unknown as ArrayBuffer);
     const frames = UPNGmod.toRGBA8(upng);
 
     if (frames.length > 1) throw new Error('Animated PNGs are not supported');
