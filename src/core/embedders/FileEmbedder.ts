@@ -1,7 +1,7 @@
-import PDFString from '../objects/PDFString';
-import PDFHexString from '../objects/PDFHexString';
 import PDFContext from '../PDFContext';
+import PDFHexString from '../objects/PDFHexString';
 import PDFRef from '../objects/PDFRef';
+import PDFString from '../objects/PDFString';
 
 /**
  * From the PDF-A3 specification, section **3.1. Requirements - General**.
@@ -29,19 +29,19 @@ export interface EmbeddedFileOptions {
 
 class FileEmbedder {
   static for(
-    bytes: Uint8Array,
+    bytes: Uint8Array<ArrayBuffer>,
     fileName: string,
     options: EmbeddedFileOptions = {},
   ) {
     return new FileEmbedder(bytes, fileName, options);
   }
 
-  private readonly fileData: Uint8Array;
+  private readonly fileData: Uint8Array<ArrayBuffer>;
   readonly fileName: string;
   readonly options: EmbeddedFileOptions;
 
   private constructor(
-    fileData: Uint8Array,
+    fileData: Uint8Array<ArrayBuffer>,
     fileName: string,
     options: EmbeddedFileOptions = {},
   ) {

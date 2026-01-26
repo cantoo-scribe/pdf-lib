@@ -1,5 +1,5 @@
-import PDFRef from '../objects/PDFRef';
 import PDFContext from '../PDFContext';
+import PDFRef from '../objects/PDFRef';
 
 // prettier-ignore
 const MARKERS = [
@@ -28,7 +28,7 @@ const ChannelToColorSpace: { [idx: number]: ColorSpace | undefined } = {
  *   https://github.com/foliojs/pdfkit/blob/a6af76467ce06bd6a2af4aa7271ccac9ff152a7d/lib/image/jpeg.js
  */
 class JpegEmbedder {
-  static async for(imageData: Uint8Array) {
+  static async for(imageData: Uint8Array<ArrayBuffer>) {
     const dataView = new DataView(
       imageData.buffer,
       imageData.byteOffset,
@@ -79,10 +79,10 @@ class JpegEmbedder {
   readonly width: number;
   readonly colorSpace: ColorSpace;
 
-  private readonly imageData: Uint8Array;
+  private readonly imageData: Uint8Array<ArrayBuffer>;
 
   private constructor(
-    imageData: Uint8Array,
+    imageData: Uint8Array<ArrayBuffer>,
     bitsPerComponent: number,
     width: number,
     height: number,

@@ -1,3 +1,4 @@
+import { Cache, mergeUint8Arrays, toHexStringOfMinLength } from '../../utils';
 import {
   Font,
   Fontkit,
@@ -8,7 +9,6 @@ import {
 
 import CustomFontEmbedder from './CustomFontEmbedder';
 import PDFHexString from '../objects/PDFHexString';
-import { Cache, mergeUint8Arrays, toHexStringOfMinLength } from '../../utils';
 
 /**
  * A note of thanks to the developers of https://github.com/foliojs/pdfkit, as
@@ -18,7 +18,7 @@ import { Cache, mergeUint8Arrays, toHexStringOfMinLength } from '../../utils';
 class CustomFontSubsetEmbedder extends CustomFontEmbedder {
   static async for(
     fontkit: Fontkit,
-    fontData: Uint8Array,
+    fontData: Uint8Array<ArrayBuffer>,
     customFontName?: string,
     fontFeatures?: TypeFeatures,
   ) {
@@ -37,7 +37,7 @@ class CustomFontSubsetEmbedder extends CustomFontEmbedder {
 
   private constructor(
     font: Font,
-    fontData: Uint8Array,
+    fontData: Uint8Array<ArrayBuffer>,
     customFontName?: string,
     fontFeatures?: TypeFeatures,
   ) {
@@ -75,14 +75,14 @@ class CustomFontSubsetEmbedder extends CustomFontEmbedder {
     return glyph ? this.glyphIdMap.get(glyph.id)! : -1;
   }
 
-  protected serializeFont(): Promise<Uint8Array> {
+  protected serializeFont(): Promise<Uint8Array<ArrayBuffer>> {
     return new Promise((resolve, reject) => {
-      const parts: Uint8Array[] = [];
+      const parts: Uint8Array<ArrayBuffer>[] = [];
       this.subset
         .encodeStream()
         .on('data', (bytes) => parts.push(bytes))
         .on('end', () => resolve(mergeUint8Arrays(parts)))
-        .on('error' as any, (err) => reject(err));
+        .on('error', (err) => reject(err));
     });
   }
 }

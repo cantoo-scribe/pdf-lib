@@ -1,5 +1,6 @@
+import { PDFDocument, ParseSpeeds, StandardFonts, degrees } from '../../..';
+
 import { Assets } from '..';
-import { degrees, ParseSpeeds, PDFDocument, StandardFonts } from '../../..';
 
 const createDonorPdf = async () => {
   const pdfDoc = await PDFDocument.create();
@@ -24,7 +25,7 @@ export default async (assets: Assets) => {
     { parseSpeed: ParseSpeeds.Fastest },
   );
 
-  const allDonorPdfBytes: Uint8Array[] = [
+  const allDonorPdfBytes: Uint8Array<ArrayBuffer>[] = [
     assets.pdfs.normal,
     assets.pdfs.with_update_sections,
     assets.pdfs.linearized_with_object_streams,

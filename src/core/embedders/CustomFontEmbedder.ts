@@ -1,17 +1,17 @@
-import { Font, Fontkit, Glyph, TypeFeatures } from '../../types/fontkit';
-
-import { createCmap } from './CMap';
-import { deriveFontFlags } from './FontFlags';
-import PDFHexString from '../objects/PDFHexString';
-import PDFRef from '../objects/PDFRef';
-import PDFString from '../objects/PDFString';
-import PDFContext from '../PDFContext';
 import {
-  byAscendingId,
   Cache,
+  byAscendingId,
   sortedUniq,
   toHexStringOfMinLength,
 } from '../../utils';
+import { Font, Fontkit, Glyph, TypeFeatures } from '../../types/fontkit';
+
+import PDFContext from '../PDFContext';
+import PDFHexString from '../objects/PDFHexString';
+import PDFRef from '../objects/PDFRef';
+import PDFString from '../objects/PDFString';
+import { createCmap } from './CMap';
+import { deriveFontFlags } from './FontFlags';
 
 /**
  * A note of thanks to the developers of https://github.com/foliojs/pdfkit, as
@@ -21,7 +21,7 @@ import {
 class CustomFontEmbedder {
   static async for(
     fontkit: Fontkit,
-    fontData: Uint8Array,
+    fontData: Uint8Array<ArrayBuffer>,
     customName?: string,
     fontFeatures?: TypeFeatures,
   ) {
@@ -31,7 +31,7 @@ class CustomFontEmbedder {
 
   readonly font: Font;
   readonly scale: number;
-  readonly fontData: Uint8Array;
+  readonly fontData: Uint8Array<ArrayBuffer>;
   readonly fontName: string;
   readonly customName: string | undefined;
   readonly fontFeatures: TypeFeatures | undefined;
@@ -41,7 +41,7 @@ class CustomFontEmbedder {
 
   protected constructor(
     font: Font,
-    fontData: Uint8Array,
+    fontData: Uint8Array<ArrayBuffer>,
     customName?: string,
     fontFeatures?: TypeFeatures,
   ) {
@@ -186,7 +186,7 @@ class CustomFontEmbedder {
     return context.register(fontDescriptor);
   }
 
-  protected async serializeFont(): Promise<Uint8Array> {
+  protected async serializeFont() {
     return this.fontData;
   }
 
