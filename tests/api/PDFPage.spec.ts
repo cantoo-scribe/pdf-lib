@@ -148,4 +148,104 @@ describe('PDFDocument', () => {
     expect(key1).not.toEqual(key2);
     expect(page2.node.normalizedEntries().Font.keys()).toEqual([key1, key2]);
   });
+
+  describe('getJavaScriptActions() method', () => {
+    it('returns undefined when page has no JavaScript actions', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+
+      const actions = page.getJavaScriptActions();
+      expect(actions).toBeUndefined();
+    });
+
+    it('can extract page open action', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const context = pdfDoc.context;
+
+      // Manually add AA dictionary with page open action
+      const aaDict = context.obj({
+        O: context.obj({
+          S: 'JavaScript',
+          JS: 'console.println("Page opened");',
+        }),
+      });
+      page.node.set(PDFName.of('AA'), aaDict);
+
+      const actions = page.getJavaScriptActions();
+
+      expect(actions).toBeDefined();
+      expect(actions?.pageOpen).toBeDefined();
+      expect(actions?.pageOpen?.getScript()).toBe(
+        'console.println("Page opened");',
+      );
+    });
+
+    it('can extract page close action', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const context = pdfDoc.context;
+
+      // Manually add AA dictionary with page close action
+      const aaDict = context.obj({
+        C: context.obj({
+          S: 'JavaScript',
+          JS: 'console.println("Page closed");',
+        }),
+      });
+      page.node.set(PDFName.of('AA'), aaDict);
+
+      const actions = page.getJavaScriptActions();
+
+      expect(actions).toBeDefined();
+      expect(actions?.pageClose).toBeDefined();
+      expect(actions?.pageClose?.getScript()).toBe(
+        'console.println("Page closed");',
+      );
+    });
+
+    it('can extract multiple page actions', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const context = pdfDoc.context;
+
+      const aaDict = context.obj({
+        O: context.obj({
+          S: 'JavaScript',
+          JS: 'console.println("Opened");',
+        }),
+        C: context.obj({
+          S: 'JavaScript',
+          JS: 'console.println("Closed");',
+        }),
+      });
+      page.node.set(PDFName.of('AA'), aaDict);
+
+      const actions = page.getJavaScriptActions();
+
+      expect(actions?.pageOpen?.getScript()).toBe('console.println("Opened");');
+      expect(actions?.pageClose?.getScript()).toBe(
+        'console.println("Closed");',
+      );
+    });
+
+    it('handles AA as indirect reference', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const context = pdfDoc.context;
+
+      const aaDict = context.obj({
+        O: context.obj({
+          S: 'JavaScript',
+          JS: 'console.println("Test");',
+        }),
+      });
+      const aaRef = context.register(aaDict);
+      page.node.set(PDFName.of('AA'), aaRef);
+
+      const actions = page.getJavaScriptActions();
+
+      expect(actions?.pageOpen?.getScript()).toBe('console.println("Test");');
+    });
+  });
 });

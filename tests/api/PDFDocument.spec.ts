@@ -882,4 +882,87 @@ describe('PDFDocument', () => {
       expect(attachments.length).toEqual(2);
     });
   });
+
+  describe('getDocumentJavaScripts() method', () => {
+    it('returns empty array when no JavaScript exists', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const scripts = pdfDoc.getDocumentJavaScripts();
+      expect(scripts).toEqual([]);
+    });
+
+    it('can extract document-level JavaScript', async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.addJavaScript('script1', 'console.println("Test 1");');
+      pdfDoc.addJavaScript('script2', 'console.println("Test 2");');
+
+      await pdfDoc.flush();
+
+      const scripts = pdfDoc.getDocumentJavaScripts();
+
+      expect(scripts).toHaveLength(2);
+      expect(scripts[0].name).toBe('script1');
+      expect(scripts[0].script).toBe('console.println("Test 1");');
+      expect(scripts[1].name).toBe('script2');
+      expect(scripts[1].script).toBe('console.println("Test 2");');
+    });
+
+    it('can extract JavaScript from loaded PDF', async () => {
+      const pdfDoc1 = await PDFDocument.create();
+      pdfDoc1.addJavaScript('test', 'console.show();');
+      const savedBytes = await pdfDoc1.save();
+
+      const pdfDoc2 = await PDFDocument.load(savedBytes);
+      const scripts = pdfDoc2.getDocumentJavaScripts();
+
+      expect(scripts).toHaveLength(1);
+      expect(scripts[0].name).toBe('test');
+      expect(scripts[0].script).toBe('console.show();');
+    });
+  });
+
+  describe('preserveXFA option', () => {
+    it('deletes XFA by default', async () => {
+      const pdfDoc1 = await PDFDocument.create();
+      const form = pdfDoc1.getForm();
+
+      // Manually add XFA data
+      form.acroForm.dict.set(
+        PDFName.of('XFA'),
+        PDFArray.withContext(pdfDoc1.context),
+      );
+
+      const savedBytes = await pdfDoc1.save();
+
+      // Load without preserveXFA
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const pdfDoc2 = await PDFDocument.load(savedBytes);
+      const form2 = pdfDoc2.getForm();
+
+      expect(form2.hasXFA()).toBe(false);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Removing XFA form data'),
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('preserves XFA when preserveXFA is true', async () => {
+      const pdfDoc1 = await PDFDocument.create();
+      const form = pdfDoc1.getForm();
+
+      // Manually add XFA data
+      form.acroForm.dict.set(
+        PDFName.of('XFA'),
+        PDFArray.withContext(pdfDoc1.context),
+      );
+
+      const savedBytes = await pdfDoc1.save();
+
+      // Load with preserveXFA
+      const pdfDoc2 = await PDFDocument.load(savedBytes, { preserveXFA: true });
+      const form2 = pdfDoc2.getForm();
+
+      expect(form2.hasXFA()).toBe(true);
+    });
+  });
 });

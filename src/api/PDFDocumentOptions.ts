@@ -29,6 +29,7 @@ export interface LoadOptions {
   updateMetadata?: boolean;
   capNumbers?: boolean;
   password?: string;
+  preserveXFA?: boolean;
 }
 
 export interface CreateOptions {

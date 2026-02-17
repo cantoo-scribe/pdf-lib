@@ -168,6 +168,7 @@ export default class PDFDocument {
       updateMetadata = true,
       capNumbers = false,
       password,
+      preserveXFA = false,
     } = options;
 
     assertIs(pdf, 'pdf', ['string', Uint8Array, ArrayBuffer]);
@@ -203,9 +204,19 @@ export default class PDFDocument {
           password,
         ),
       ).parseDocument();
-      return new PDFDocument(decryptedContext, true, updateMetadata);
+      return new PDFDocument(
+        decryptedContext,
+        true,
+        updateMetadata,
+        preserveXFA,
+      );
     } else {
-      return new PDFDocument(context, ignoreEncryption, updateMetadata);
+      return new PDFDocument(
+        context,
+        ignoreEncryption,
+        updateMetadata,
+        preserveXFA,
+      );
     }
   }
 
@@ -247,14 +258,17 @@ export default class PDFDocument {
   private readonly embeddedPages: PDFEmbeddedPage[];
   private readonly embeddedFiles: PDFEmbeddedFile[];
   private readonly javaScripts: PDFJavaScript[];
+  private readonly preserveXFA: boolean;
 
   private constructor(
     context: PDFContext,
     ignoreEncryption: boolean,
     updateMetadata: boolean,
+    preserveXFA = false,
   ) {
     assertIs(context, 'context', [[PDFContext, 'PDFContext']]);
     assertIs(ignoreEncryption, 'ignoreEncryption', ['boolean']);
+    assertIs(preserveXFA, 'preserveXFA', ['boolean']);
 
     this.context = context;
     this.catalog = context.lookup(context.trailerInfo.Root) as PDFCatalog;
@@ -273,6 +287,7 @@ export default class PDFDocument {
     this.embeddedPages = [];
     this.embeddedFiles = [];
     this.javaScripts = [];
+    this.preserveXFA = preserveXFA;
 
     if (!ignoreEncryption && this.isEncrypted) throw new EncryptedPDFError();
 
@@ -317,9 +332,9 @@ export default class PDFDocument {
    */
   getForm(): PDFForm {
     const form = this.formCache.access();
-    if (form.hasXFA()) {
+    if (form.hasXFA() && !this.preserveXFA) {
       console.warn(
-        'Removing XFA form data as pdf-lib does not support reading or writing XFA',
+        'Removing XFA form data as pdf-lib does not support reading or writing XFA. Set preserveXFA: true in load options to keep XFA data.',
       );
       form.deleteXFA();
     }
@@ -899,6 +914,301 @@ export default class PDFDocument {
     const ref = this.context.nextRef();
     const javaScript = PDFJavaScript.of(ref, this, embedder);
     this.javaScripts.push(javaScript);
+  }
+
+  /**
+   * Get all document-level JavaScript scripts from the document's Names dictionary.
+   * These scripts are executed when the document is opened.
+   * For example:
+   * ```js
+   * const scripts = pdfDoc.getDocumentJavaScripts()
+   * scripts.forEach(({ name, script }) => {
+   *   console.log(`Script "${name}":`, script)
+   * })
+   * ```
+   * @returns An array of objects containing script names and their JavaScript code.
+   */
+  getDocumentJavaScripts(): Array<{ name: string; script: string }> {
+    const scripts: Array<{ name: string; script: string }> = [];
+
+    const names = this.catalog.get(PDFName.of('Names'));
+    if (!names || !(names instanceof PDFDict || names instanceof PDFRef)) {
+      return scripts;
+    }
+
+    const namesDict =
+      names instanceof PDFRef ? this.context.lookup(names, PDFDict) : names;
+
+    const javascript = namesDict.get(PDFName.of('JavaScript'));
+    if (
+      !javascript ||
+      !(javascript instanceof PDFDict || javascript instanceof PDFRef)
+    ) {
+      return scripts;
+    }
+
+    const javascriptDict =
+      javascript instanceof PDFRef
+        ? this.context.lookup(javascript, PDFDict)
+        : javascript;
+
+    const jsNames = javascriptDict.get(PDFName.of('Names'));
+    if (!jsNames || !(jsNames instanceof PDFArray)) {
+      return scripts;
+    }
+
+    // Names array is a flat array of [name1, dict1, name2, dict2, ...]
+    for (let idx = 0; idx < jsNames.size(); idx += 2) {
+      const nameObj = jsNames.get(idx);
+      const actionObj = jsNames.get(idx + 1);
+
+      if (!nameObj || !actionObj) continue;
+
+      let name: string;
+      if (nameObj instanceof PDFString) {
+        name = nameObj.asString();
+      } else if (nameObj instanceof PDFHexString) {
+        name = nameObj.decodeText();
+      } else {
+        continue;
+      }
+
+      let actionDict: PDFDict;
+      if (actionObj instanceof PDFRef) {
+        actionDict = this.context.lookup(actionObj, PDFDict);
+      } else if (actionObj instanceof PDFDict) {
+        actionDict = actionObj;
+      } else {
+        continue;
+      }
+
+      const s = actionDict.lookup(PDFName.of('S'));
+      if (!(s instanceof PDFName) || s.asString() !== '/JavaScript') {
+        continue;
+      }
+
+      const js = actionDict.lookup(PDFName.of('JS'));
+      let script: string;
+      if (js instanceof PDFString) {
+        script = js.asString();
+      } else if (js instanceof PDFHexString) {
+        script = js.decodeText();
+      } else {
+        continue;
+      }
+
+      scripts.push({ name, script });
+    }
+
+    return scripts;
+  }
+
+  /**
+   * Get all JavaScript from XFA form template.
+   * XFA forms can contain JavaScript in <script> elements within the template XML.
+   * For example:
+   * ```js
+   * const xfaScripts = pdfDoc.getXFAJavaScripts()
+   * xfaScripts.forEach(({ field, event, script }) => {
+   *   console.log(`Field "${field}" on ${event}:`, script)
+   * })
+   * ```
+   * @returns An array of objects containing field names, events, and JavaScript code.
+   */
+  getXFAJavaScripts(): Array<{ field: string; event: string; script: string }> {
+    const scripts: Array<{ field: string; event: string; script: string }> = [];
+
+    const acroForm = this.catalog.get(PDFName.of('AcroForm'));
+    if (
+      !acroForm ||
+      !(acroForm instanceof PDFDict || acroForm instanceof PDFRef)
+    ) {
+      return scripts;
+    }
+
+    const formDict =
+      acroForm instanceof PDFRef
+        ? this.context.lookup(acroForm, PDFDict)
+        : acroForm;
+
+    const xfaObj = formDict.get(PDFName.of('XFA'));
+    if (!xfaObj) {
+      return scripts;
+    }
+
+    // XFA might be a reference to an array
+    const xfa = xfaObj instanceof PDFRef ? this.context.lookup(xfaObj) : xfaObj;
+
+    if (!(xfa instanceof PDFArray)) {
+      return scripts;
+    }
+
+    // XFA is an array of [name1, stream1, name2, stream2, ...]
+    for (let idx = 0; idx < xfa.size(); idx += 2) {
+      const nameObj = xfa.get(idx);
+      const streamObj = xfa.get(idx + 1);
+
+      if (!nameObj || !streamObj) continue;
+
+      let sectionName: string;
+      if (nameObj instanceof PDFString) {
+        sectionName = nameObj.asString();
+      } else if (nameObj instanceof PDFHexString) {
+        sectionName = nameObj.decodeText();
+      } else {
+        continue;
+      }
+
+      // We're interested in the 'template' section
+      if (sectionName !== 'template') continue;
+
+      const streamRef = streamObj instanceof PDFRef ? streamObj : null;
+      const stream = streamRef ? this.context.lookup(streamRef) : streamObj;
+
+      if (!stream || !(stream instanceof PDFRawStream)) continue;
+
+      const xmlBytes = decodePDFRawStream(stream).decode();
+      const xmlString = new TextDecoder().decode(xmlBytes);
+
+      // Extract JavaScript from <script> tags
+      // Note: XFA uses newlines in closing tags like </script\n>
+      const scriptMatches: Array<{
+        field: string;
+        event: string;
+        script: string;
+      }> = [];
+      const scriptPattern = /<script[^>]*>\s*([\s\S]*?)\s*<\/script\s*>/gi;
+      let scriptMatch;
+
+      while ((scriptMatch = scriptPattern.exec(xmlString)) !== null) {
+        const scriptCode = scriptMatch[1].trim();
+        if (!scriptCode) continue;
+
+        // Find the enclosing field and event by looking backwards
+        const beforeScript = xmlString.substring(
+          Math.max(0, scriptMatch.index - 2000),
+          scriptMatch.index,
+        );
+
+        // Find field name
+        const fieldNameMatch = beforeScript.match(
+          /<field[^>]*name="([^"]*)"[^>]*>/gi,
+        );
+        const fieldName = fieldNameMatch
+          ? fieldNameMatch[fieldNameMatch.length - 1].match(
+              /name="([^"]*)"/,
+            )?.[1] || 'unknown'
+          : 'unknown';
+
+        // Find event name
+        const eventNameMatch = beforeScript.match(
+          /<event[^>]*name="([^"]*)"[^>]*>/gi,
+        );
+        const eventName = eventNameMatch
+          ? eventNameMatch[eventNameMatch.length - 1].match(
+              /name="([^"]*)"/,
+            )?.[1] || 'unknown'
+          : 'unknown';
+
+        scriptMatches.push({
+          field: fieldName,
+          event: eventName,
+          script: scriptCode,
+        });
+      }
+
+      scripts.push(...scriptMatches);
+    }
+
+    return scripts;
+  }
+
+  /**
+   * Modify JavaScript in XFA form template for a specific field and event.
+   * For example:
+   * ```js
+   * pdfDoc.setXFAJavaScript('import', 'event__click', 'console.println("Modified!");')
+   * ```
+   * @param fieldName The name of the field containing the script
+   * @param eventName The name of the event (e.g., 'event__click', 'calculate')
+   * @param newScript The new JavaScript code to set
+   * @returns True if the script was found and updated, false otherwise
+   */
+  setXFAJavaScript(
+    fieldName: string,
+    eventName: string,
+    newScript: string,
+  ): boolean {
+    const acroForm = this.catalog.get(PDFName.of('AcroForm'));
+    if (
+      !acroForm ||
+      !(acroForm instanceof PDFDict || acroForm instanceof PDFRef)
+    ) {
+      return false;
+    }
+
+    const formDict =
+      acroForm instanceof PDFRef
+        ? this.context.lookup(acroForm, PDFDict)
+        : acroForm;
+
+    const xfa = formDict.get(PDFName.of('XFA'));
+    if (!xfa || !(xfa instanceof PDFArray)) {
+      return false;
+    }
+
+    // Find template section
+    for (let idx = 0; idx < xfa.size(); idx += 2) {
+      const nameObj = xfa.get(idx);
+      const streamObj = xfa.get(idx + 1);
+
+      if (!nameObj || !streamObj) continue;
+
+      let sectionName: string;
+      if (nameObj instanceof PDFString) {
+        sectionName = nameObj.asString();
+      } else if (nameObj instanceof PDFHexString) {
+        sectionName = nameObj.decodeText();
+      } else {
+        continue;
+      }
+
+      if (sectionName !== 'template') continue;
+
+      const streamRef = streamObj instanceof PDFRef ? streamObj : null;
+      const stream = streamRef ? this.context.lookup(streamRef) : streamObj;
+
+      if (!stream || !(stream instanceof PDFRawStream)) continue;
+
+      const xmlBytes = decodePDFRawStream(stream).decode();
+      let xmlString = new TextDecoder().decode(xmlBytes);
+
+      // Find and replace the script
+      // Note: XFA uses newlines in closing tags like </script\n>
+      const fieldPattern = new RegExp(
+        `(<field[^>]*name="${fieldName}"[^>]*>[\\s\\S]*?<event[^>]*name="${eventName}"[^>]*>[\\s\\S]*?<script[^>]*>)\\s*[\\s\\S]*?\\s*(<\\/script\\s*>)`,
+        'i',
+      );
+
+      const match = xmlString.match(fieldPattern);
+      if (!match) continue;
+
+      xmlString = xmlString.replace(fieldPattern, `$1\n${newScript}\n$2`);
+
+      // Create new stream with modified XML
+      const newXmlBytes = new TextEncoder().encode(xmlString);
+      const newStream = this.context.stream(newXmlBytes);
+
+      // Replace in XFA array
+      if (streamRef) {
+        this.context.delete(streamRef);
+      }
+      xfa.set(idx + 1, this.context.register(newStream));
+
+      return true;
+    }
+
+    return false;
   }
 
   /**
