@@ -20,65 +20,84 @@ export default async (assets: Assets) => {
   const pdfDoc = await PDFDocument.load(assets.pdfs.simple, {
     forIncrementalUpdate: true,
   });
+  // add a page (small one), with the visual representation of the digital signature, as a
+  // square box with text centered in it.
   const page = pdfDoc.addPage([500, 200]);
+  // remove a page from de PDF
   pdfDoc.removePage(0);
+  // embed fonts for the visual representation of the signature
   const font = pdfDoc.embedStandardFont(StandardFonts.Helvetica);
   const fontBold = pdfDoc.embedStandardFont(StandardFonts.HelveticaBoldOblique);
-  const advertencia =
-    '-- Esta nota es meramente informativa, no es la firma real del documento --';
-  const usarLibreOffice =
-    '-- Si su visor de PDF no incluye la función de validar firmas, puede utilizar "LibreOffice Draw" --';
-  const tamLetra = 14;
-  const tamAdvertencia = 10;
-  let tw = font.widthOfTextAtSize('Electronic Signature Test #20', tamLetra);
-  let lw = fontBold.widthOfTextAtSize(usarLibreOffice, tamAdvertencia);
-  if (lw > tw) tw = lw;
-  let th = font.heightAtSize(tamLetra);
-  if (fontBold.heightAtSize(tamAdvertencia) > th) {
-    th = fontBold.heightAtSize(tamAdvertencia);
-  }
-  th += 2;
-  const stx = Math.trunc((page.getWidth() - tw) / 2);
-  let curry = th * 4 + 20;
+  // couple of warning lines, about the signature and the visual representation
+  const signatureWarning =
+    '-- This is not the real signature of the document, just a a visual representation --';
+  const useLibreOffice =
+    '-- If your PDF viewer does not shows digital signatures, you can use "LibreOffice Draw" --';
+  const fontSize = 14;
+  const warningFontSize = 10;
+  // text in the visual representation maximun width
+  const textWidth = Math.max(
+    font.widthOfTextAtSize('Electronic Signature Test #20', fontSize),
+    fontBold.widthOfTextAtSize(useLibreOffice, warningFontSize),
+  );
+  // text line in the visual representation maximun height
+  const textHeight =
+    Math.max(
+      font.heightAtSize(fontSize),
+      fontBold.heightAtSize(warningFontSize),
+    ) + 2;
+  // X position where the visual representation square starts
+  const startXpos = Math.trunc((page.getWidth() - textWidth) / 2);
+  // total vertical size of the visual representation
+  const visualRepHeight = textHeight * 4 + 20;
+  // rectangle containing the text
   page.drawRectangle({
-    x: stx - 10,
-    y: page.getHeight() - curry - 50,
-    width: tw + 20,
-    height: curry,
+    x: startXpos - 10,
+    y: page.getHeight() - visualRepHeight - 50,
+    width: textWidth + 20,
+    height: visualRepHeight,
     borderWidth: 2,
     borderColor: rgb(0.45, 0.45, 0.45),
   });
-  lw = font.widthOfTextAtSize('Electronic Signature Test #20', tamLetra);
-  curry = page.getHeight() - th - 60;
+  let lineWidth = font.widthOfTextAtSize(
+    'Electronic Signature Test #20',
+    fontSize,
+  );
+  // vertial position where the text line will be outputted
+  let currentYPos = page.getHeight() - textHeight - 60;
+  // line #1
   page.drawText('Electronic Signature Test #20', {
-    x: stx + Math.round((tw - lw) / 2),
-    y: curry,
-    size: tamLetra,
+    x: startXpos + Math.round((textWidth - lineWidth) / 2),
+    y: currentYPos,
+    size: fontSize,
     font,
   });
-  const momento = new Date().toISOString();
-  lw = font.widthOfTextAtSize(momento, tamLetra);
-  curry -= th;
-  page.drawText(momento, {
-    x: stx + Math.round((tw - lw) / 2),
-    y: curry,
-    size: tamLetra,
+  // timestamp of the signature, line #2
+  const signatureTimestamp = new Date().toISOString();
+  lineWidth = font.widthOfTextAtSize(signatureTimestamp, fontSize);
+  currentYPos -= textHeight;
+  page.drawText(signatureTimestamp, {
+    x: startXpos + Math.round((textWidth - lineWidth) / 2),
+    y: currentYPos,
+    size: fontSize,
     font,
   });
-  lw = fontBold.widthOfTextAtSize(advertencia, tamAdvertencia);
-  curry -= th;
-  page.drawText(advertencia, {
-    x: stx + Math.round((tw - lw) / 2),
-    y: curry,
-    size: tamAdvertencia,
+  // first warning, line #3
+  lineWidth = fontBold.widthOfTextAtSize(signatureWarning, warningFontSize);
+  currentYPos -= textHeight;
+  page.drawText(signatureWarning, {
+    x: startXpos + Math.round((textWidth - lineWidth) / 2),
+    y: currentYPos,
+    size: warningFontSize,
     font: fontBold,
   });
-  lw = fontBold.widthOfTextAtSize(usarLibreOffice, tamAdvertencia);
-  curry -= th;
-  page.drawText(usarLibreOffice, {
-    x: stx + Math.round((tw - lw) / 2),
-    y: curry,
-    size: tamAdvertencia,
+  // second warning, line #4
+  lineWidth = fontBold.widthOfTextAtSize(useLibreOffice, warningFontSize);
+  currentYPos -= textHeight;
+  page.drawText(useLibreOffice, {
+    x: startXpos + Math.round((textWidth - lineWidth) / 2),
+    y: currentYPos,
+    size: warningFontSize,
     font: fontBold,
   });
 

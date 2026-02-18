@@ -1692,7 +1692,7 @@ export default class PDFDocument {
   }
 
   takeSnapshot(): DocumentSnapshot {
-    const indirectObjects: number[] = [];
+    const indirectObjects: Set<number> = new Set<number>();
 
     const snapshot = new IncrementalDocumentSnapshot(
       this.context.largestObjectNumber,

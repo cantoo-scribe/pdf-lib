@@ -1916,11 +1916,11 @@ describe('PDFDocument', () => {
       pdfDoc.detach('not_existing.txt');
       attachments = pdfDoc.getAttachments();
       expect(attachments.length).toEqual(2);
-    })
+    });
   });
-  
-  describe(`load({forIncrementalUpdate}) cycle`, () => {
-    it(`can be used with different pages`, async () => {
+
+  describe('load({forIncrementalUpdate}) cycle', () => {
+    it('can be used with different pages', async () => {
       const noErrorFunc = async (pageIndex: number) => {
         const pdfDoc = await PDFDocument.load(simplePdfBytes, {
           forIncrementalUpdate: true,
@@ -1950,7 +1950,7 @@ describe('PDFDocument', () => {
       await expect(noErrorFunc(1)).resolves.not.toThrowError();
     });
 
-    it(`can be used with object-stream PDFs`, async () => {
+    it('can be used with object-stream PDFs', async () => {
       const noErrorFunc = async () => {
         const pdfDoc = await PDFDocument.load(simpleStreamsPdfBytes, {
           forIncrementalUpdate: true,
@@ -1978,7 +1978,7 @@ describe('PDFDocument', () => {
       await expect(noErrorFunc()).resolves.not.toThrowError();
     });
 
-    it(`produces same output than manual incremental update`, async () => {
+    it('produces same output than manual incremental update', async () => {
       const noErrorFunc = async (pageIndex: number) => {
         const pdfDoc = await PDFDocument.load(simplePdfBytes, {
           forIncrementalUpdate: true,

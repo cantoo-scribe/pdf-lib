@@ -8,13 +8,13 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
 
   private deleted: PDFRef[] = [];
   private lastObjectNumber: number;
-  private changedObjects: number[];
+  private changedObjects: Set<number>;
 
   context: PDFContext;
 
   constructor(
     lastObjectNumber: number,
-    indirectObjects: number[],
+    indirectObjects: Set<number>,
     pdfSize: number,
     prevStartXRef: number,
     context: PDFContext,
@@ -27,14 +27,8 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
   }
 
   shouldSave(objectNumber: number): boolean {
-    if (objectNumber > this.lastObjectNumber) {
-      return true;
-    }
-    if (this.changedObjects.includes(objectNumber)) {
-      return true;
-    }
-
-    return false;
+    if (objectNumber > this.lastObjectNumber) return true;
+    return this.changedObjects.has(objectNumber);
   }
 
   markRefForSave(ref: PDFRef): void {
@@ -43,7 +37,7 @@ export class IncrementalDocumentSnapshot implements DocumentSnapshot {
 
   markRefsForSave(refs: PDFRef[]): void {
     refs.forEach((ref) => {
-      if (ref) this.changedObjects.push(ref.objectNumber);
+      if (ref) this.changedObjects.add(ref.objectNumber);
     });
   }
 

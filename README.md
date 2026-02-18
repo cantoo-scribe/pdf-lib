@@ -433,8 +433,8 @@ const pdfBytes = await pdfDoc.save()
 
 ### Consecutive Incremental Updates
 
-You can load a PDF for incremental update, and then generate multiple increments, over the original document, with saveAndContinue() method.  
-This method simplifies replaces the sequence:
+You can load a PDF for incremental update, and then generate multiple increments, over the original document, with commit() method.  
+This method simplifies the sequence:
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -466,13 +466,13 @@ const pdfDoc = await PDFDocument.load(existingPdfBytes,{forIncrementalUpdate:tru
 // modify pdf
 ...
 // Serialize the PDFDocument to bytes (a Uint8Array), using incremental updates
-const firstUpdatedDoc = await pdfDoc.saveAndContinue();
+const firstUpdatedDoc = await pdfDoc.commit();
 // modify pdf
 ...
-const secondUpdateDoc = await pdfDoc2.saveAndContinue();
+const secondUpdateDoc = await pdfDoc.commit();
 // etc, etc
 ```
-The *saveAndContinue* method has the same parameters than *save* method. If document is not loaded **forIncrementalUpdate**, an exception is raised. After calling *saveAndContinue* an update section is added to the original document, and this replaces the original document, and a new snapshot is taken.  
+The *commit* method has the same parameters than *save* method. If document is not loaded **forIncrementalUpdate**, an exception is raised. After calling *commit* an update section is added to the original document, and this replaces the original document, and a new snapshot is taken.  
 
 
 ### Create Form
