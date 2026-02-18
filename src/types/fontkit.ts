@@ -223,8 +223,8 @@ export interface GlyphRun {
 
 export interface SubsetStream {
   on: (
-    eventType: 'data' | 'end',
-    callback: (data: Uint8Array) => any,
+    eventType: 'data' | 'end' | 'error',
+    callback: (data: Uint8Array<ArrayBuffer>) => any,
   ) => SubsetStream;
 }
 

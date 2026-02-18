@@ -1,25 +1,24 @@
-import pako from 'pako';
-
-import PDFHeader from './document/PDFHeader';
-import { UnexpectedObjectTypeError } from './errors';
+import Ops from './operators/PDFOperatorNames';
 import PDFArray from './objects/PDFArray';
 import PDFBool from './objects/PDFBool';
+import PDFContentStream from './structures/PDFContentStream';
 import PDFDict from './objects/PDFDict';
+import PDFHeader from './document/PDFHeader';
 import PDFHexString from './objects/PDFHexString';
 import PDFName from './objects/PDFName';
 import PDFNull from './objects/PDFNull';
 import PDFNumber from './objects/PDFNumber';
 import PDFObject from './objects/PDFObject';
+import PDFOperator from './operators/PDFOperator';
 import PDFRawStream from './objects/PDFRawStream';
 import PDFRef from './objects/PDFRef';
+import PDFSecurity from './security/PDFSecurity';
 import PDFStream from './objects/PDFStream';
 import PDFString from './objects/PDFString';
-import PDFOperator from './operators/PDFOperator';
-import Ops from './operators/PDFOperatorNames';
-import PDFContentStream from './structures/PDFContentStream';
-import PDFSecurity from './security/PDFSecurity';
-import { typedArrayFor } from '../utils';
 import { SimpleRNG } from '../utils/rng';
+import { UnexpectedObjectTypeError } from './errors';
+import pako from 'pako';
+import { typedArrayFor } from '../utils';
 
 type LookupKey = PDFRef | PDFObject | undefined;
 
@@ -296,14 +295,14 @@ class PDFContext {
   }
 
   stream(
-    contents: string | Uint8Array,
+    contents: string | Uint8Array<ArrayBuffer>,
     dict: LiteralObject = {},
   ): PDFRawStream {
     return PDFRawStream.of(this.obj(dict), typedArrayFor(contents));
   }
 
   flateStream(
-    contents: string | Uint8Array,
+    contents: string | Uint8Array<ArrayBuffer>,
     dict: LiteralObject = {},
   ): PDFRawStream {
     return this.stream(pako.deflate(typedArrayFor(contents)), {

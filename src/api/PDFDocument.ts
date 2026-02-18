@@ -1,69 +1,19 @@
 import {
-  parse as parseHtml,
-  HTMLElement,
-  NodeType,
-} from 'node-html-better-parser';
-import Embeddable from './Embeddable';
-import {
-  EncryptedPDFError,
-  FontkitNotRegisteredError,
-  ForeignPageError,
-  RemovePageFromEmptyDocumentError,
-} from './errors';
-import PDFEmbeddedPage from './PDFEmbeddedPage';
-import PDFFont from './PDFFont';
-import PDFImage from './PDFImage';
-import PDFPage from './PDFPage';
-import PDFForm from './form/PDFForm';
-import { PageSizes } from './sizes';
-import { StandardFonts } from './StandardFonts';
-import {
-  CustomFontEmbedder,
-  CustomFontSubsetEmbedder,
-  JpegEmbedder,
-  PageBoundingBox,
-  PageEmbeddingMismatchedContextError,
-  PDFArray,
-  PDFCatalog,
-  PDFContext,
-  PDFDict,
-  decodePDFRawStream,
-  PDFStream,
-  PDFRawStream,
-  PDFHexString,
-  PDFName,
-  PDFObjectCopier,
-  PDFPageEmbedder,
-  PDFPageLeaf,
-  PDFPageTree,
-  PDFParser,
-  PDFStreamWriter,
-  PDFString,
-  PDFWriter,
-  PngEmbedder,
-  StandardFontEmbedder,
-  UnexpectedObjectTypeError,
-} from '../core';
-import {
-  ParseSpeeds,
   AttachmentOptions,
-  SaveOptions,
   Base64SaveOptions,
-  LoadOptions,
   CreateOptions,
   EmbedFontOptions,
+  LoadOptions,
+  ParseSpeeds,
+  SaveOptions,
   SetTitleOptions,
 } from './PDFDocumentOptions';
-import PDFObject from '../core/objects/PDFObject';
-import PDFRef from '../core/objects/PDFRef';
-import { Fontkit } from '../types/fontkit';
-import { TransformationMatrix } from '../types/matrix';
 import {
+  Cache,
   assertIs,
   assertIsOneOfOrUndefined,
   assertOrUndefined,
   assertRange,
-  Cache,
   canBeConvertedToUint8Array,
   encodeToBase64,
   isStandardFont,
@@ -71,13 +21,64 @@ import {
   range,
   toUint8Array,
 } from '../utils';
+import {
+  CustomFontEmbedder,
+  CustomFontSubsetEmbedder,
+  JpegEmbedder,
+  PDFArray,
+  PDFCatalog,
+  PDFContext,
+  PDFDict,
+  PDFHexString,
+  PDFName,
+  PDFObjectCopier,
+  PDFPageEmbedder,
+  PDFPageLeaf,
+  PDFPageTree,
+  PDFParser,
+  PDFRawStream,
+  PDFStream,
+  PDFStreamWriter,
+  PDFString,
+  PDFWriter,
+  PageBoundingBox,
+  PageEmbeddingMismatchedContextError,
+  PngEmbedder,
+  StandardFontEmbedder,
+  UnexpectedObjectTypeError,
+  decodePDFRawStream,
+} from '../core';
+import {
+  EncryptedPDFError,
+  FontkitNotRegisteredError,
+  ForeignPageError,
+  RemovePageFromEmptyDocumentError,
+} from './errors';
 import FileEmbedder, { AFRelationship } from '../core/embedders/FileEmbedder';
-import PDFEmbeddedFile from './PDFEmbeddedFile';
-import PDFJavaScript from './PDFJavaScript';
-import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
-import { CipherTransformFactory } from '../core/crypto';
-import PDFSvg from './PDFSvg';
+import {
+  HTMLElement,
+  NodeType,
+  parse as parseHtml,
+} from 'node-html-better-parser';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
+
+import { CipherTransformFactory } from '../core/crypto';
+import Embeddable from './Embeddable';
+import { Fontkit } from '../types/fontkit';
+import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
+import PDFEmbeddedFile from './PDFEmbeddedFile';
+import PDFEmbeddedPage from './PDFEmbeddedPage';
+import PDFFont from './PDFFont';
+import PDFForm from './form/PDFForm';
+import PDFImage from './PDFImage';
+import PDFJavaScript from './PDFJavaScript';
+import PDFObject from '../core/objects/PDFObject';
+import PDFPage from './PDFPage';
+import PDFRef from '../core/objects/PDFRef';
+import PDFSvg from './PDFSvg';
+import { PageSizes } from './sizes';
+import { StandardFonts } from './StandardFonts';
+import { TransformationMatrix } from '../types/matrix';
 
 export type BasePDFAttachment = {
   name: string;
@@ -157,7 +158,7 @@ export default class PDFDocument {
    * @returns Resolves with a document loaded from the input.
    */
   static async load(
-    pdf: string | Uint8Array | ArrayBuffer,
+    pdf: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
     options: LoadOptions = {},
   ) {
     const {
@@ -957,7 +958,7 @@ export default class PDFDocument {
    * @returns Resolves when the attachment is complete.
    */
   async attach(
-    attachment: string | Uint8Array | ArrayBuffer,
+    attachment: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
     name: string,
     options: AttachmentOptions = {},
   ): Promise<void> {
@@ -1183,7 +1184,7 @@ export default class PDFDocument {
    * @returns Resolves with the embedded font.
    */
   async embedFont(
-    font: StandardFonts | string | Uint8Array | ArrayBuffer,
+    font: StandardFonts | string | Uint8Array<ArrayBuffer> | ArrayBuffer,
     options: EmbedFontOptions = {},
   ): Promise<PDFFont> {
     const { subset = false, customName, features } = options;
@@ -1274,7 +1275,9 @@ export default class PDFDocument {
    * @param jpg The input data for a JPEG image.
    * @returns Resolves with the embedded image.
    */
-  async embedJpg(jpg: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
+  async embedJpg(
+    jpg: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
+  ): Promise<PDFImage> {
     assertIs(jpg, 'jpg', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(jpg);
     const embedder = await JpegEmbedder.for(bytes);
@@ -1314,7 +1317,9 @@ export default class PDFDocument {
    * @param png The input data for a PNG image.
    * @returns Resolves with the embedded image.
    */
-  async embedPng(png: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
+  async embedPng(
+    png: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
+  ): Promise<PDFImage> {
     assertIs(png, 'png', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(png);
     const embedder = await PngEmbedder.for(bytes);
@@ -1375,7 +1380,7 @@ export default class PDFDocument {
    * @returns Resolves with an array of the embedded pages.
    */
   async embedPdf(
-    pdf: string | Uint8Array | ArrayBuffer | PDFDocument,
+    pdf: string | Uint8Array<ArrayBuffer> | ArrayBuffer | PDFDocument,
     indices: number[] = [0],
   ): Promise<PDFEmbeddedPage[]> {
     assertIs(pdf, 'pdf', [

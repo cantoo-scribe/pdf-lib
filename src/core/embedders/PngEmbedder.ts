@@ -1,5 +1,5 @@
-import PDFRef from '../objects/PDFRef';
 import PDFContext from '../PDFContext';
+import PDFRef from '../objects/PDFRef';
 import { PNG } from '../../utils/png';
 
 /**
@@ -8,7 +8,7 @@ import { PNG } from '../../utils/png';
  *   https://github.com/devongovett/pdfkit/blob/e71edab0dd4657b5a767804ba86c94c58d01fbca/lib/image/png.coffee
  */
 class PngEmbedder {
-  static async for(imageData: Uint8Array) {
+  static async for(imageData: Uint8Array<ArrayBuffer>) {
     const png = PNG.load(imageData);
     return new PngEmbedder(png);
   }

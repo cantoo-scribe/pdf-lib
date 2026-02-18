@@ -38,7 +38,7 @@ export const encodeToBase64 = (bytes: Uint8Array): string => {
   return base64;
 };
 
-export const decodeFromBase64 = (base64: string): Uint8Array => {
+export const decodeFromBase64 = (base64: string): Uint8Array<ArrayBuffer> => {
   let bufferLength = base64.length * 0.75;
   const len = base64.length;
   let i;
@@ -83,7 +83,9 @@ const DATA_URI_PREFIX_REGEX =
  * @param dataUri a base64 data URI or plain base64 string
  * @returns a Uint8Array containing the decoded input
  */
-export const decodeFromBase64DataUri = (dataUri: string): Uint8Array => {
+export const decodeFromBase64DataUri = (
+  dataUri: string,
+): Uint8Array<ArrayBuffer> => {
   const trimmedUri = dataUri.trim();
 
   const prefix = trimmedUri.substring(0, 100);

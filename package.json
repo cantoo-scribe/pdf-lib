@@ -116,8 +116,8 @@
     "@types/color": "^3.0.1",
     "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.12",
-    "@types/node-fetch": "^2.5.7",
-    "@types/pako": "^1.0.1",
+    "@types/node": "^25.1.0",
+    "@types/pako": "^2.0.4",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "downlevel-dts": "^0.11.0",
@@ -136,7 +136,7 @@
     "rimraf": "^5.0.5",
     "rollup": "^4.9.6",
     "ts-jest": "^29.0",
-    "typescript": "^4.9.5"
+    "typescript": "^5.9.3"
   },
   "license": "MIT",
   "private": false,

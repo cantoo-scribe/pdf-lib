@@ -1,12 +1,12 @@
-import { decodeFromBase64DataUri } from './base64';
 import { charFromCode } from './strings';
+import { decodeFromBase64DataUri } from './base64';
 
 export const last = <T>(array: T[]): T => array[array.length - 1];
 
 // export const dropLast = <T>(array: T[]): T[] =>
 // array.slice(0, array.length - 1);
 
-export const typedArrayFor = (value: string | Uint8Array): Uint8Array => {
+export const typedArrayFor = (value: string | Uint8Array<ArrayBuffer>) => {
   if (value instanceof Uint8Array) return value;
   const length = value.length;
   const typedArray = new Uint8Array(length);
@@ -43,7 +43,7 @@ export const mergeIntoTypedArray = (...arrays: (string | Uint8Array)[]) => {
   return merged;
 };
 
-export const mergeUint8Arrays = (arrays: Uint8Array[]): Uint8Array => {
+export const mergeUint8Arrays = (arrays: Uint8Array<ArrayBuffer>[]) => {
   let totalSize = 0;
   for (let idx = 0, len = arrays.length; idx < len; idx++) {
     totalSize += arrays[idx].length;
@@ -143,7 +143,9 @@ export const canBeConvertedToUint8Array = (
   input instanceof ArrayBuffer ||
   typeof input === 'string';
 
-export const toUint8Array = (input: string | ArrayBuffer | Uint8Array) => {
+export const toUint8Array = (
+  input: string | ArrayBuffer | Uint8Array<ArrayBuffer>,
+) => {
   if (typeof input === 'string') {
     return decodeFromBase64DataUri(input);
   } else if (input instanceof ArrayBuffer) {
@@ -152,7 +154,7 @@ export const toUint8Array = (input: string | ArrayBuffer | Uint8Array) => {
     return input;
   } else {
     throw new TypeError(
-      '`input` must be one of `string | ArrayBuffer | Uint8Array`',
+      '`input` must be one of `string | ArrayBuffer | Uint8Array<ArrayBuffer>`',
     );
   }
 };
