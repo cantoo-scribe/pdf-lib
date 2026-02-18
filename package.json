@@ -141,9 +141,9 @@
   "license": "MIT",
   "private": false,
   "homepage": "https://pdf-lib.js.org",
-  "repository": "git+https://github.com/adnsistemas/pdf-lib.git",
+  "repository": "git+https://github.com/cantoo-scribe/pdf-lib.git",
   "bugs": {
-    "url": "https://github.com/adnsistemas/pdf-lib/issues"
+    "url": "https://github.com/cantoo-scribe/pdf-lib/issues"
   },
   "keywords": [
     "pdf-lib",
@@ -161,19 +161,13 @@
   ],
   "lint-staged": {
     "{src,tests,apps}/**/*.{ts,js,json,html,css}": [
-      "prettier --check || (echo '\n⚠️ Linting issues detected. Please run \"yarn lint\" to fix them and stage the changes.' && exit 1)",
-      "eslint --fix || (echo '\n⚠️ Linting issues detected. Please run \"yarn lint\" to fix them and stage the changes.' && exit 1)"
+      "prettier --check",
+      "eslint --fix"
     ]
   },
   "husky": {
     "hooks": {
       "pre-commit": "lint-staged"
     }
-  },
-  "npm": {
-    "publish": false
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org"
   }
 }

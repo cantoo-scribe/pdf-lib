@@ -1,8 +1,8 @@
-## Forked by [ADNSistemas](https://adnsistemas.com.ar)
+## Forked by [Cantoo](https://cantoo.fr)
 
-This fork was initially made to improve REMDRAs incremental update implementation, and was later merge with Cantoo-Scribe fork of pdf-lib, which has a number of improvements over original pdf-lib.
+This fork adds the support for svg to the pdf-lib project. Until pdf-lib project gets a better maintainance, we will maintain this project as long as we need it but cannot guarantee the support for issues too far from our own roadmap.
 
-Install with: `npm install @adnsistemas/pdf-lib`
+Install with: `npm install @cantoo/pdf-lib`
 
 <hr/>
 
@@ -41,6 +41,13 @@ Install with: `npm install @adnsistemas/pdf-lib`
     <img
       src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square"
       alt="Prettier Badge"
+    />
+  </a>
+  <!-- Discord Badge -->
+  <a href="https://discord.gg/Y7uuVMc">
+    <img
+      src="https://img.shields.io/static/v1?label=discord&message=pdf-lib&color=566fbb&style=flat-square"
+      alt="Discord Badge"
     />
   </a>
 </div>
