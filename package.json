@@ -40,7 +40,10 @@
     "Ching Chang (https://github.com/ChingChang9)",
     "François Billioud (https://github.com/Sharcoux)",
     "Phakorn Kiong (https://github.com/PhakornKiong)",
-    "Donald Ness (https://github.com/programmarchy)"
+    "Donald Ness (https://github.com/programmarchy)",
+    "Remus DRAICA (https://github.com/remdra)",
+    "David Abdala (https://github.com/adnsistemas)",
+    "Eran Ohayon (https://github.com/erano067)"
   ],
   "scripts": {
     "release": "yarn release:prep && release-it",
@@ -69,7 +72,7 @@
     "scratchpad:flame": "rimraf isolate*.log && node --prof scratchpad/build/scratchpad/index.js && node --prof-process --preprocess -j isolate*.log | flamebearer",
     "apps:node": "tsc --build apps/node/tsconfig.json && node apps/node-build/index.js",
     "apps:deno": "deno run --allow-read --allow-write --allow-run apps/deno/index.ts",
-    "apps:web": "http-server -c-1 .",
+    "apps:web": "http-server -c-1 -o apps/web/test1.html",
     "apps:web:mac": "bash -c 'sleep 1 && open http://localhost:8080/apps/web/test1.html' & yarn apps:web",
     "apps:rn:ios": "cd apps/rn && yarn add ./../.. --force && react-native run-ios",
     "apps:rn:android": "yarn apps:rn:emulator & cd apps/rn && yarn add ./../.. --force && react-native run-android",

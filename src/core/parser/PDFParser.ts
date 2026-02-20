@@ -24,6 +24,7 @@ import { Keywords } from '../syntax/Keywords';
 import { IsDigit } from '../syntax/Numeric';
 import { waitForTick } from '../../utils';
 import { CipherTransformFactory } from '../crypto';
+import PDFNumber from '../objects/PDFNumber';
 
 class PDFParser extends PDFObjectParser {
   static forBytesWithOptions = (
@@ -33,6 +34,7 @@ class PDFParser extends PDFObjectParser {
     warnOnInvalidObjects?: boolean,
     capNumbers?: boolean,
     cryptoFactory?: CipherTransformFactory,
+    forIncrementalUpdate?: boolean,
   ) =>
     new PDFParser(
       pdfBytes,
@@ -41,6 +43,7 @@ class PDFParser extends PDFObjectParser {
       warnOnInvalidObjects,
       capNumbers,
       cryptoFactory,
+      forIncrementalUpdate,
     );
 
   private readonly objectsPerTick: number;
@@ -56,6 +59,7 @@ class PDFParser extends PDFObjectParser {
     warnOnInvalidObjects = false,
     capNumbers = false,
     cryptoFactory?: CipherTransformFactory,
+    forIncrementalUpdate = false,
   ) {
     super(
       ByteStream.of(pdfBytes),
@@ -67,6 +71,10 @@ class PDFParser extends PDFObjectParser {
     this.throwOnInvalidObject = throwOnInvalidObject;
     this.warnOnInvalidObjects = warnOnInvalidObjects;
     this.context.isDecrypted = !!cryptoFactory?.encryptionKey;
+    this.context.pdfFileDetails.pdfSize = pdfBytes.length;
+    if (forIncrementalUpdate) {
+      this.context.pdfFileDetails.originalBytes = pdfBytes;
+    }
   }
 
   async parseDocument(): Promise<PDFContext> {
@@ -189,9 +197,9 @@ class PDFParser extends PDFObjectParser {
       object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')
     ) {
       PDFXRefStreamParser.forStream(object).parseIntoContext();
-    } else {
-      this.context.assign(ref, object);
     }
+    // always register the object and the ref, to properly handle object numeration
+    this.context.assign(ref, object);
 
     return ref;
   }
@@ -300,11 +308,18 @@ class PDFParser extends PDFObjectParser {
 
     const { context } = this;
     context.trailerInfo = {
+      Size:
+        dict.lookupMaybe(PDFName.of('Size'), PDFNumber) ||
+        context.trailerInfo.Size,
       Root: dict.get(PDFName.of('Root')) || context.trailerInfo.Root,
       Encrypt: dict.get(PDFName.of('Encrypt')) || context.trailerInfo.Encrypt,
       Info: dict.get(PDFName.of('Info')) || context.trailerInfo.Info,
       ID: dict.get(PDFName.of('ID')) || context.trailerInfo.ID,
     };
+    // if open for incremental update, then deleted objects need to be preserved, and largestObjectNumber has to be Size-1
+    if (context.trailerInfo.Size && context.pdfFileDetails.originalBytes) {
+      context.largestObjectNumber = context.trailerInfo.Size.asNumber() - 1;
+    }
   }
 
   private maybeParseTrailer(): PDFTrailer | void {
@@ -313,6 +328,7 @@ class PDFParser extends PDFObjectParser {
     this.skipWhitespaceAndComments();
 
     const offset = this.parseRawInt();
+    this.context.pdfFileDetails.prevStartXRef = offset;
 
     this.skipWhitespace();
     this.matchKeyword(Keywords.eof);

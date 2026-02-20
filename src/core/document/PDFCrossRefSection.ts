@@ -10,7 +10,7 @@ export interface Entry {
 
 /**
  * Entries should be added using the [[addEntry]] and [[addDeletedEntry]]
- * methods **in order of ascending object number**.
+ * methods.
  */
 class PDFCrossRefSection {
   static create = () =>
@@ -37,6 +37,22 @@ class PDFCrossRefSection {
   }
 
   addDeletedEntry(ref: PDFRef, nextFreeObjectNumber: number): void {
+    // fix the first entry if required
+    if (!this.subsections.length) {
+      this.subsections = [
+        [
+          {
+            ref: PDFRef.of(0, 65535),
+            offset: ref.objectNumber,
+            deleted: true,
+          },
+        ],
+      ];
+      this.chunkIdx = 0;
+      this.chunkLength = 1;
+    } else if (!this.subsections[0][0].offset) {
+      this.subsections[0][0].offset = ref.objectNumber;
+    }
     this.append({ ref, offset: nextFreeObjectNumber, deleted: true });
   }
 
@@ -159,7 +175,35 @@ class PDFCrossRefSection {
     const chunk = this.subsections[this.chunkIdx];
     const prevEntry = chunk[this.chunkLength - 1];
 
-    if (currEntry.ref.objectNumber - prevEntry.ref.objectNumber > 1) {
+    if (currEntry.ref.objectNumber - prevEntry.ref.objectNumber !== 1) {
+      // the current chunk is not the right chunk, find the right one, or create a new one
+      for (let c = 0; c < this.subsections.length; c++) {
+        const first = this.subsections[c][0];
+        const last = this.subsections[c][this.subsections[c].length - 1];
+        if (first.ref.objectNumber > currEntry.ref.objectNumber) {
+          // goes before this subsection, or at the start of it
+          if (first.ref.objectNumber - currEntry.ref.objectNumber === 1) {
+            // first element of subsection
+            this.subsections[c].unshift(currEntry);
+            if (c === this.chunkIdx) this.chunkLength += 1;
+            return;
+          } else {
+            // create subsection
+            this.subsections.splice(c, 0, [currEntry]);
+            this.chunkIdx++;
+            return;
+          }
+        } else if (last.ref.objectNumber > currEntry.ref.objectNumber) {
+          // goes in this subsection, find its place..
+          const cep = this.subsections[c].findIndex(
+            (ee) => ee.ref.objectNumber > currEntry.ref.objectNumber,
+          );
+          this.subsections[c].splice(cep, 0, currEntry);
+          if (c === this.chunkIdx) this.chunkLength += 1;
+        }
+        // bigger, keep looking
+      }
+      // if got to here, then a new subsection is required
       this.subsections.push([currEntry]);
       this.chunkIdx += 1;
       this.chunkLength = 1;

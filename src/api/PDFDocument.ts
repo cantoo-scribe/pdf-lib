@@ -53,6 +53,7 @@ import {
   CreateOptions,
   EmbedFontOptions,
   SetTitleOptions,
+  IncrementalSaveOptions,
 } from './PDFDocumentOptions';
 import PDFObject from '../core/objects/PDFObject';
 import PDFRef from '../core/objects/PDFRef';
@@ -78,6 +79,8 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
+import { IncrementalDocumentSnapshot } from './snapshot';
+import type { DocumentSnapshot } from './snapshot';
 
 export type BasePDFAttachment = {
   name: string;
@@ -168,6 +171,7 @@ export default class PDFDocument {
       updateMetadata = true,
       capNumbers = false,
       password,
+      forIncrementalUpdate = false,
     } = options;
 
     assertIs(pdf, 'pdf', ['string', Uint8Array, ArrayBuffer]);
@@ -176,13 +180,17 @@ export default class PDFDocument {
     assertIs(throwOnInvalidObject, 'throwOnInvalidObject', ['boolean']);
     assertIs(warnOnInvalidObjects, 'warnOnInvalidObjects', ['boolean']);
     assertIs(password, 'password', ['string', 'undefined']);
+    assertIs(forIncrementalUpdate, 'forIncrementalUpdate', ['boolean']);
 
     const bytes = toUint8Array(pdf);
     const context = await PDFParser.forBytesWithOptions(
       bytes,
       parseSpeed,
       throwOnInvalidObject,
+      undefined,
       capNumbers,
+      undefined,
+      forIncrementalUpdate,
     ).parseDocument();
     if (
       !!context.lookup(context.trailerInfo.Encrypt) &&
@@ -202,10 +210,15 @@ export default class PDFDocument {
           (fileIds.get(0) as PDFHexString).asBytes(),
           password,
         ),
+        forIncrementalUpdate,
       ).parseDocument();
-      return new PDFDocument(decryptedContext, true, updateMetadata);
+      const pdfDoc = new PDFDocument(decryptedContext, true, updateMetadata);
+      if (forIncrementalUpdate) pdfDoc.takeSnapshot();
+      return pdfDoc;
     } else {
-      return new PDFDocument(context, ignoreEncryption, updateMetadata);
+      const pdfDoc = new PDFDocument(context, ignoreEncryption, updateMetadata);
+      if (forIncrementalUpdate) pdfDoc.takeSnapshot();
+      return pdfDoc;
     }
   }
 
@@ -686,8 +699,10 @@ export default class PDFDocument {
     const pageCount = this.getPageCount();
     if (this.pageCount === 0) throw new RemovePageFromEmptyDocumentError();
     assertRange(index, 'index', 0, pageCount - 1);
+    const page = this.getPage(index);
     this.catalog.removeLeafNode(index);
     this.pageCount = pageCount - 1;
+    this.context.delete(page.ref);
   }
 
   /**
@@ -1546,29 +1561,97 @@ export default class PDFDocument {
    * @returns Resolves with the bytes of the serialized document.
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
+    // check PDF version
+    const vparts = this.context.header.getVersionString().split('.');
+    const uOS =
+      options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
     const {
-      useObjectStreams = true,
+      useObjectStreams = uOS,
       addDefaultPage = true,
       objectsPerTick = 50,
       updateFieldAppearances = true,
+      rewrite = false,
     } = options;
 
     assertIs(useObjectStreams, 'useObjectStreams', ['boolean']);
     assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
     assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
-
-    if (addDefaultPage && this.getPageCount() === 0) this.addPage();
-
-    if (updateFieldAppearances) {
-      const form = this.formCache.getValue();
-      if (form) form.updateFieldAppearances();
+    assertIs(rewrite, 'rewrite', ['boolean']);
+    const incrementalUpdate =
+      !rewrite &&
+      this.context.pdfFileDetails.originalBytes &&
+      this.context.snapshot;
+    if (incrementalUpdate) {
+      options.addDefaultPage = false;
+      options.updateFieldAppearances = false;
     }
 
-    await this.flush();
+    await this.prepareForSave(options);
 
     const Writer = useObjectStreams ? PDFStreamWriter : PDFWriter;
+    if (incrementalUpdate) {
+      const increment = await Writer.forContextWithSnapshot(
+        this.context,
+        objectsPerTick,
+        this.context.snapshot!,
+      ).serializeToBuffer();
+      const result = new Uint8Array(
+        this.context.pdfFileDetails.originalBytes!.byteLength +
+          increment.byteLength,
+      );
+      result.set(this.context.pdfFileDetails.originalBytes!);
+      result.set(
+        increment,
+        this.context.pdfFileDetails.originalBytes!.byteLength,
+      );
+      return result;
+    }
     return Writer.forContext(this.context, objectsPerTick).serializeToBuffer();
+  }
+
+  /**
+   * Serialize only the changes to this document to an array of bytes making up a PDF file.
+   * For example:
+   * ```js
+   * const snapshot = pdfDoc.takeSnapshot();
+   * ...
+   * const pdfBytes = await pdfDoc.saveIncremental(snapshot);
+   * ```
+   *
+   * Similar to [[save]] function.
+   * The changes are saved in an incremental way, the result buffer
+   * will contain only the differences
+   *
+   * @param snapshot The snapshot to be used when saving the document.
+   * @param options The options to be used when saving the document.
+   * @returns Resolves with the bytes of the serialized document.
+   */
+  async saveIncremental(
+    snapshot: DocumentSnapshot,
+    options: IncrementalSaveOptions = {},
+  ): Promise<Uint8Array> {
+    // check PDF version
+    const vparts = this.context.header.getVersionString().split('.');
+    const uOS = Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
+    const { objectsPerTick = 50 } = options;
+
+    assertIs(objectsPerTick, 'objectsPerTick', ['number']);
+
+    const saveOptions: SaveOptions = {
+      useObjectStreams: uOS,
+      ...options,
+      addDefaultPage: false,
+      updateFieldAppearances: false,
+    };
+    await this.prepareForSave(saveOptions);
+
+    const Writer = saveOptions.useObjectStreams ? PDFStreamWriter : PDFWriter;
+    return Writer.forContextWithSnapshot(
+      this.context,
+      objectsPerTick,
+      snapshot,
+    ).serializeToBuffer();
   }
 
   /**
@@ -1606,6 +1689,95 @@ export default class PDFDocument {
     }
 
     return undefined;
+  }
+
+  takeSnapshot(): DocumentSnapshot {
+    const indirectObjects: Set<number> = new Set<number>();
+
+    const snapshot = new IncrementalDocumentSnapshot(
+      this.context.largestObjectNumber,
+      indirectObjects,
+      this.context.pdfFileDetails.pdfSize,
+      this.context.pdfFileDetails.prevStartXRef,
+      this.context,
+    );
+    if (!this.context.snapshot && this.context.pdfFileDetails.originalBytes) {
+      this.context.snapshot = snapshot;
+      this.catalog.registerChange();
+    }
+    return snapshot;
+  }
+
+  /**
+   * Commit the current changes to the document as an incremental update.
+   * This allows you to save multiple incremental updates without reloading the PDF.
+   *
+   * For example:
+   * ```js
+   * const pdfDoc = await PDFDocument.load(pdfBytes, { forIncrementalUpdate: true })
+   *
+   * const page = pdfDoc.getPage(0)
+   * page.drawText('First update')
+   * const firstCommit = await pdfDoc.commit()
+   *
+   * page.drawText('Second update', { y: 100 })
+   * const secondCommit = await pdfDoc.commit()
+   * ```
+   *
+   * @param options The options to be used when committing changes.
+   * @returns Resolves with the complete PDF bytes including all updates.
+   */
+  async commit(options: IncrementalSaveOptions = {}): Promise<Uint8Array> {
+    if (!this.context.snapshot || !this.context.pdfFileDetails.originalBytes) {
+      throw new Error(
+        'commit() requires the document to be loaded with forIncrementalUpdate: true',
+      );
+    }
+    const incrementalBytes = await this.saveIncremental(
+      this.context.snapshot,
+      options,
+    );
+    const originalBytes = this.context.pdfFileDetails.originalBytes;
+
+    const newPdfBytes = new Uint8Array(
+      originalBytes.byteLength + incrementalBytes.byteLength,
+    );
+    newPdfBytes.set(originalBytes);
+    newPdfBytes.set(incrementalBytes, originalBytes.byteLength);
+
+    this.context.pdfFileDetails.originalBytes = newPdfBytes;
+    this.context.pdfFileDetails.pdfSize = newPdfBytes.byteLength;
+
+    const incrementalStr = new TextDecoder('latin1').decode(incrementalBytes);
+    const startxrefMatch = incrementalStr.match(/startxref\s+(\d+)/);
+    if (startxrefMatch) {
+      this.context.pdfFileDetails.prevStartXRef = parseInt(
+        startxrefMatch[1],
+        10,
+      );
+    } else {
+      this.context.pdfFileDetails.prevStartXRef = originalBytes.byteLength;
+    }
+
+    this.context.snapshot = this.takeSnapshot();
+
+    return newPdfBytes;
+  }
+
+  private async prepareForSave(options: SaveOptions): Promise<void> {
+    const { addDefaultPage = true, updateFieldAppearances = true } = options;
+
+    assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
+    assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
+
+    if (addDefaultPage && this.getPageCount() === 0) this.addPage();
+
+    if (updateFieldAppearances) {
+      const form = this.formCache.getValue();
+      if (form) form.updateFieldAppearances();
+    }
+
+    await this.flush();
   }
 
   private async embedAll(embeddables: Embeddable[]): Promise<void> {

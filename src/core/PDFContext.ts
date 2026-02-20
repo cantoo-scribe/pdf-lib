@@ -1,4 +1,5 @@
 import pako from 'pako';
+import type { DocumentSnapshot } from '../api';
 
 import PDFHeader from './document/PDFHeader';
 import { UnexpectedObjectTypeError } from './errors';
@@ -59,12 +60,20 @@ class PDFContext {
   largestObjectNumber: number;
   header: PDFHeader;
   trailerInfo: {
+    Size?: PDFNumber;
     Root?: PDFObject;
     Encrypt?: PDFObject;
     Info?: PDFObject;
     ID?: PDFObject;
   };
   rng: SimpleRNG;
+  pdfFileDetails: {
+    pdfSize: number;
+    prevStartXRef: number;
+    useObjectStreams: boolean;
+    originalBytes?: Uint8Array;
+  };
+  snapshot?: DocumentSnapshot;
 
   security?: PDFSecurity;
 
@@ -80,6 +89,11 @@ class PDFContext {
 
     this.indirectObjects = new Map();
     this.rng = SimpleRNG.withSeed(1);
+    this.pdfFileDetails = {
+      pdfSize: 0,
+      prevStartXRef: 0,
+      useObjectStreams: false,
+    };
   }
 
   assign(ref: PDFRef, object: PDFObject): void {
@@ -91,7 +105,9 @@ class PDFContext {
 
   nextRef(): PDFRef {
     this.largestObjectNumber += 1;
-    return PDFRef.of(this.largestObjectNumber);
+    const ref = PDFRef.of(this.largestObjectNumber);
+    if (this.snapshot) this.snapshot.markRefForSave(ref);
+    return ref;
   }
 
   register(object: PDFObject): PDFRef {
@@ -101,6 +117,7 @@ class PDFContext {
   }
 
   delete(ref: PDFRef): boolean {
+    if (this.snapshot) this.snapshot.markDeletedRef(ref);
     return this.indirectObjects.delete(ref);
   }
 
@@ -175,6 +192,11 @@ class PDFContext {
     }
 
     throw new UnexpectedObjectTypeError(types, result);
+  }
+
+  getRef(pdfObject: PDFObject | PDFRef): PDFRef | undefined {
+    if (pdfObject instanceof PDFRef) return pdfObject;
+    return this.getObjectRef(pdfObject);
   }
 
   getObjectRef(pdfObject: PDFObject): PDFRef | undefined {
@@ -368,6 +390,51 @@ class PDFContext {
 
   addRandomSuffix(prefix: string, suffixLength = 4): string {
     return `${prefix}-${Math.floor(this.rng.nextInt() * 10 ** suffixLength)}`;
+  }
+
+  registerObjectChange(obj: PDFObject) {
+    if (!this.snapshot) return;
+
+    const ref = this.getObjectRef(obj);
+    if (ref) {
+      this.snapshot.markRefForSave(ref);
+      return;
+    }
+
+    const containingRef = this.findContainingIndirectObject(obj);
+    if (containingRef) {
+      this.snapshot.markRefForSave(containingRef);
+    }
+  }
+
+  private findContainingIndirectObject(target: PDFObject): PDFRef | undefined {
+    const entries = Array.from(this.indirectObjects.entries());
+    for (let idx = 0, len = entries.length; idx < len; idx++) {
+      const [ref, object] = entries[idx];
+      if (this.objectContains(object, target)) {
+        return ref;
+      }
+    }
+    return undefined;
+  }
+
+  private objectContains(container: PDFObject, target: PDFObject): boolean {
+    if (container === target) return true;
+
+    if (container instanceof PDFDict) {
+      const values = container.values();
+      for (let i = 0, len = values.length; i < len; i++) {
+        if (this.objectContains(values[i], target)) return true;
+      }
+    } else if (container instanceof PDFArray) {
+      for (let i = 0, len = container.size(); i < len; i++) {
+        if (this.objectContains(container.get(i), target)) return true;
+      }
+    } else if (container instanceof PDFStream) {
+      if (this.objectContains(container.dict, target)) return true;
+    }
+
+    return false;
   }
 }
 

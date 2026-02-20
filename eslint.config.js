@@ -1,3 +1,4 @@
+/*eslint no-undef: "off"*/
 const eslint = require('@eslint/js');
 const tseslint = require('@typescript-eslint/eslint-plugin');
 const tsparser = require('@typescript-eslint/parser');

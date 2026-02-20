@@ -1,3 +1,4 @@
+/*eslint no-undef: "off"*/
 const fs = require('fs');
 const path = require('path');
 
