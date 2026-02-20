@@ -63,26 +63,47 @@ class PDFWriter {
   protected _largestSkippedObjectNum: number = 0;
 
   /**
+   * Used to check wheter an object should be saved or not, preserves the object number of the
+   * last XRef Stream object, if there is one.
+   */
+  protected _lastXRefObjectNumber: number = 0;
+  /**
    * For incremental saves, defers the decision to the snapshot.
-   * For full saves, checks that the object is not an XRef stream object.
+   * For full saves, checks that the object is not the last XRef stream object.
    * @param {boolean} incremental If making an incremental save, or a full save of the PDF
    * @param {number} objNum Object number
-   * @param {PDFObject} object PDFObject used to check if it is an XRef stream, when not 'incremental' saving
+   * @param {[PDFRef, PDFObject][]} objects List of objects that form the PDF
    * @returns {boolean} whether the object should be saved or not
    */
   protected shouldSave(
     incremental: boolean,
     objNum: number,
-    object: PDFObject,
+    objects: [PDFRef, PDFObject][],
   ): boolean {
     let should = true;
     if (incremental) {
       should = this.snapshot.shouldSave(objNum);
     } else {
-      should = !(
-        object instanceof PDFRawStream &&
-        object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')
-      );
+      // only the last XRef Stream will be regenerated on save
+      if (!this._lastXRefObjectNumber) {
+        // if no XRef Stream, then nothing should be skipped
+        this._lastXRefObjectNumber = this.context.largestObjectNumber + 1;
+        const checkWatermark = this._lastXRefObjectNumber - 10; // max number of objects in the final part of the PDF to check
+        // search the last XRef Stream, if there is one, objects are expected to be in object number order
+        for (let idx = objects.length - 1; idx > 0; idx--) {
+          // if not in last 'rangeToCheck' objects, there is none that should be skipped, most probably a linearized PDF, or without XRef Streams
+          if (objects[idx][0].objectNumber < checkWatermark) break;
+          const object = objects[idx][1];
+          if (
+            object instanceof PDFRawStream &&
+            object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')
+          ) {
+            this._lastXRefObjectNumber = objects[idx][0].objectNumber;
+            break;
+          }
+        }
+      }
+      should = objNum !== this._lastXRefObjectNumber;
     }
     if (!should && this._largestSkippedObjectNum < objNum) {
       this._largestSkippedObjectNum = objNum;
@@ -107,7 +128,7 @@ class PDFWriter {
     for (let idx = 0, len = indirectObjects.length; idx < len; idx++) {
       const [ref, object] = indirectObjects[idx];
 
-      if (!this.shouldSave(incremental, ref.objectNumber, object)) {
+      if (!this.shouldSave(incremental, ref.objectNumber, indirectObjects)) {
         continue;
       }
 
@@ -190,6 +211,7 @@ class PDFWriter {
     incremental: boolean,
   ): Promise<SerializationInfo> {
     this._largestSkippedObjectNum = 0;
+    this._lastXRefObjectNumber = 0;
     const header = PDFHeader.forVersion(1, 7);
 
     let size = this.snapshot.pdfSize;
@@ -207,7 +229,9 @@ class PDFWriter {
     for (let idx = 0, len = indirectObjects.length; idx < len; idx++) {
       const indirectObject = indirectObjects[idx];
       const [ref, object] = indirectObject;
-      if (!this.shouldSave(incremental, ref.objectNumber, object)) continue;
+      if (!this.shouldSave(incremental, ref.objectNumber, indirectObjects)) {
+        continue;
+      }
       if (security) this.encrypt(ref, object, security);
       xref.addEntry(ref, size);
       size += this.computeIndirectObjectSize(indirectObject);
