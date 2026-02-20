@@ -3,6 +3,7 @@ import PDFFont from './PDFFont';
 import { Rotation } from './rotations';
 import { FillRule, LineCapStyle, TextRenderingMode } from './operators';
 import type { Space, TransformationMatrix } from '../types';
+import { AnnotationTypes } from '../core/annotation/AnnotationTypes';
 
 interface SvgOptions {
   matrix?: TransformationMatrix;
@@ -177,4 +178,45 @@ export interface PDFPageDrawSVGElementOptions {
   fontSize?: number;
   fonts?: { [fontName: string]: PDFFont };
   blendMode?: BlendMode;
+}
+
+/**
+ * Options for adding an annotation to a PDF page.
+ */
+export interface PDFPageAddAnnotationOptions {
+  subtype: AnnotationTypes;
+  rect: { x: number; y: number; width: number; height: number };
+  contents?: string;
+  name?: string;
+  flags?: number;
+  color?: number[];
+  border?: number[];
+  modificationDate?: Date;
+}
+
+/**
+ * Options for adding a markup annotation to a PDF page.
+ *
+ * Markup annotations refers:
+ * - Highlight
+ * - Underline
+ * - Squiggly
+ * - StrikeOut
+ * annotations.
+ */
+export interface PDFPageAddTextMarkupAnnotationOptions
+  extends PDFPageAddAnnotationOptions {
+  /**
+   * The quad points that define the region(s) to be marked up.
+   */
+  quadPoints: {
+    lefttopX: number;
+    lefttopY: number;
+    righttopX: number;
+    righttopY: number;
+    rightbottomX: number;
+    rightbottomY: number;
+    leftbottomX: number;
+    leftbottomY: number;
+  };
 }
