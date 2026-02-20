@@ -15,8 +15,8 @@ import {
   PrintScaling,
   ReadingDirection,
   ViewerPreferences,
-  AFRelationship,
   StandardFonts,
+  AFRelationship,
 } from '../../src/index';
 import { PDFAttachment } from '../../src/api/PDFDocument';
 
