@@ -21,7 +21,7 @@ import {
 class CustomFontEmbedder {
   static async for(
     fontkit: Fontkit,
-    fontData: Uint8Array,
+    fontData: Uint8Array<ArrayBuffer>,
     customName?: string,
     fontFeatures?: TypeFeatures,
   ) {
@@ -31,7 +31,7 @@ class CustomFontEmbedder {
 
   readonly font: Font;
   readonly scale: number;
-  readonly fontData: Uint8Array;
+  readonly fontData: Uint8Array<ArrayBuffer>;
   readonly fontName: string;
   readonly customName: string | undefined;
   readonly fontFeatures: TypeFeatures | undefined;
@@ -41,7 +41,7 @@ class CustomFontEmbedder {
 
   protected constructor(
     font: Font,
-    fontData: Uint8Array,
+    fontData: Uint8Array<ArrayBuffer>,
     customName?: string,
     fontFeatures?: TypeFeatures,
   ) {
@@ -186,7 +186,7 @@ class CustomFontEmbedder {
     return context.register(fontDescriptor);
   }
 
-  protected async serializeFont(): Promise<Uint8Array> {
+  protected async serializeFont() {
     return this.fontData;
   }
 

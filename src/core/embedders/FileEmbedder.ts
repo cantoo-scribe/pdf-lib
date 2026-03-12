@@ -29,19 +29,19 @@ export interface EmbeddedFileOptions {
 
 class FileEmbedder {
   static for(
-    bytes: Uint8Array,
+    bytes: Uint8Array<ArrayBuffer>,
     fileName: string,
     options: EmbeddedFileOptions = {},
   ) {
     return new FileEmbedder(bytes, fileName, options);
   }
 
-  private readonly fileData: Uint8Array;
+  private readonly fileData: Uint8Array<ArrayBuffer>;
   readonly fileName: string;
   readonly options: EmbeddedFileOptions;
 
   private constructor(
-    fileData: Uint8Array,
+    fileData: Uint8Array<ArrayBuffer>,
     fileName: string,
     options: EmbeddedFileOptions = {},
   ) {

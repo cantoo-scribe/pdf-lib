@@ -4,6 +4,7 @@ import fs from 'fs';
 
 import { CustomFontEmbedder, StandardFontEmbedder } from '../../src/core';
 import { breakTextIntoLines } from '../../src/utils';
+import { Fontkit } from 'src/types/fontkit';
 
 const font = StandardFontEmbedder.for(FontNames.Helvetica);
 
@@ -75,7 +76,7 @@ describe('breakTextIntoLines', () => {
       'assets/fonts/source_hans_jp/SourceHanSerifJP-Regular.otf',
     );
     const sourceHansFont = await CustomFontEmbedder.for(
-      fontkit,
+      fontkit as Fontkit,
       sourceHansBytes,
     );
 

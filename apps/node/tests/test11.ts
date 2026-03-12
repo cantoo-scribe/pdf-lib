@@ -6,6 +6,7 @@ import {
   PDFFont,
   StandardFonts,
   charAtIndex,
+  Fontkit,
 } from '../../..';
 
 const breakTextIntoLines = (
@@ -58,7 +59,7 @@ export default async (assets: Assets) => {
 
   const pdfDoc = await PDFDocument.create();
 
-  pdfDoc.registerFontkit(fontkit);
+  pdfDoc.registerFontkit(fontkit as Fontkit);
 
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);

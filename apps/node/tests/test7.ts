@@ -24,7 +24,7 @@ export default async (assets: Assets) => {
     { parseSpeed: ParseSpeeds.Fastest },
   );
 
-  const allDonorPdfBytes: Uint8Array[] = [
+  const allDonorPdfBytes = [
     assets.pdfs.normal,
     assets.pdfs.with_update_sections,
     assets.pdfs.linearized_with_object_streams,

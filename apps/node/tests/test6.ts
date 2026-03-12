@@ -1,6 +1,6 @@
 import fontkit from '@pdf-lib/fontkit';
 import { Assets } from '..';
-import { degrees, ParseSpeeds, PDFDocument, rgb } from '../../..';
+import { degrees, Fontkit, ParseSpeeds, PDFDocument, rgb } from '../../..';
 
 export default async (assets: Assets) => {
   const { pdfs, images, fonts } = assets;
@@ -10,7 +10,7 @@ export default async (assets: Assets) => {
     { parseSpeed: ParseSpeeds.Fastest },
   );
 
-  pdfDoc.registerFontkit(fontkit);
+  pdfDoc.registerFontkit(fontkit as Fontkit);
 
   await pdfDoc.attach(pdfs.us_constitution, 'us_constitution.pdf', {
     mimeType: 'application/pdf',
