@@ -1560,7 +1560,7 @@ export default class PDFDocument {
    * @param options The options to be used when saving the document.
    * @returns Resolves with the bytes of the serialized document.
    */
-  async save(options: SaveOptions = {}): Promise<Uint8Array> {
+  async save(options: SaveOptions = {}) {
     const vparts = this.context.header.getVersionString().split('.');
     const uOS =
       options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
