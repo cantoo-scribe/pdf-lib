@@ -1024,6 +1024,138 @@ export default class PDFDocument {
   }
 
   /**
+   * Helper method to escape XML special characters in script content
+   */
+  private escapeXML(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  /**
+   * Normalizes XFA template XML so that node-html-better-parser can parse it
+   * correctly. XFA uses \n> to close opening tags, and the HTML parser treats
+   * <template> as a special inert element, so both need to be worked around.
+   */
+  private normalizeXfaXml(xml: string): string {
+    return xml
+      .replace(/\n>/g, '>')
+      .replace(/<template(\s)/g, '<xfa-template$1')
+      .replace(/<template>/g, '<xfa-template>')
+      .replace(/<\/template>/g, '</xfa-template>');
+  }
+
+  /**
+   * Recursively collects all <script> nodes from the XFA XML tree that have a
+   * valid enclosing field and event context.
+   */
+  private collectXFAScripts(
+    node: HTMLElement,
+    currentField?: string,
+    currentEvent?: string,
+  ): Array<{ scriptNode: HTMLElement; field: string; event: string }> {
+    const results: Array<{
+      scriptNode: HTMLElement;
+      field: string;
+      event: string;
+    }> = [];
+
+    const tag = node.tagName?.toLowerCase();
+    let fieldCtx = currentField;
+    let eventCtx = currentEvent;
+
+    if (tag === 'field') {
+      fieldCtx = node.getAttribute('name') ?? undefined;
+      eventCtx = undefined;
+    } else if (tag === 'event') {
+      eventCtx = node.getAttribute('name') ?? undefined;
+    } else if (tag === 'script') {
+      if (fieldCtx && eventCtx) {
+        results.push({ scriptNode: node, field: fieldCtx, event: eventCtx });
+      }
+    }
+
+    for (const child of node.childNodes) {
+      if (child.nodeType === NodeType.ELEMENT_NODE) {
+        results.push(
+          ...this.collectXFAScripts(child as HTMLElement, fieldCtx, eventCtx),
+        );
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Helper method to extract XFA template information
+   */
+  private getXFATemplateInfo(): {
+    xfa: PDFArray;
+    templateIndex: number;
+    streamRef: PDFRef | null;
+    stream: PDFRawStream;
+  } | null {
+    const acroForm = this.catalog.get(PDFName.of('AcroForm'));
+    if (
+      !acroForm ||
+      !(acroForm instanceof PDFDict || acroForm instanceof PDFRef)
+    ) {
+      return null;
+    }
+
+    const formDict =
+      acroForm instanceof PDFRef
+        ? this.context.lookup(acroForm, PDFDict)
+        : acroForm;
+
+    const xfaObj = formDict.get(PDFName.of('XFA'));
+    if (!xfaObj) {
+      return null;
+    }
+
+    const xfa = xfaObj instanceof PDFRef ? this.context.lookup(xfaObj) : xfaObj;
+
+    if (!(xfa instanceof PDFArray)) {
+      return null;
+    }
+
+    for (let idx = 0; idx < xfa.size(); idx += 2) {
+      const nameObj = xfa.get(idx);
+      const streamObj = xfa.get(idx + 1);
+
+      if (!nameObj || !streamObj) continue;
+
+      let sectionName: string;
+      if (nameObj instanceof PDFString) {
+        sectionName = nameObj.asString();
+      } else if (nameObj instanceof PDFHexString) {
+        sectionName = nameObj.decodeText();
+      } else {
+        continue;
+      }
+
+      if (sectionName !== 'template') continue;
+
+      const streamRef = streamObj instanceof PDFRef ? streamObj : null;
+      const stream = streamRef ? this.context.lookup(streamRef) : streamObj;
+
+      if (!stream || !(stream instanceof PDFRawStream)) continue;
+
+      return {
+        xfa,
+        templateIndex: idx + 1,
+        streamRef,
+        stream,
+      };
+    }
+
+    return null;
+  }
+
+  /**
    * Get all JavaScript from XFA form template.
    * XFA forms can contain JavaScript in <script> elements within the template XML.
    * For example:
@@ -1038,106 +1170,39 @@ export default class PDFDocument {
   getXFAJavaScripts(): Array<{ field: string; event: string; script: string }> {
     const scripts: Array<{ field: string; event: string; script: string }> = [];
 
-    const acroForm = this.catalog.get(PDFName.of('AcroForm'));
-    if (
-      !acroForm ||
-      !(acroForm instanceof PDFDict || acroForm instanceof PDFRef)
-    ) {
+    const templateInfo = this.getXFATemplateInfo();
+    if (!templateInfo) {
       return scripts;
     }
 
-    const formDict =
-      acroForm instanceof PDFRef
-        ? this.context.lookup(acroForm, PDFDict)
-        : acroForm;
+    try {
+      const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
+      const xmlString = new TextDecoder('utf-8', { fatal: true }).decode(
+        xmlBytes,
+      );
 
-    const xfaObj = formDict.get(PDFName.of('XFA'));
-    if (!xfaObj) {
-      return scripts;
-    }
+      const doc = parseHtml(this.normalizeXfaXml(xmlString), { script: true });
 
-    // XFA might be a reference to an array
-    const xfa = xfaObj instanceof PDFRef ? this.context.lookup(xfaObj) : xfaObj;
-
-    if (!(xfa instanceof PDFArray)) {
-      return scripts;
-    }
-
-    // XFA is an array of [name1, stream1, name2, stream2, ...]
-    for (let idx = 0; idx < xfa.size(); idx += 2) {
-      const nameObj = xfa.get(idx);
-      const streamObj = xfa.get(idx + 1);
-
-      if (!nameObj || !streamObj) continue;
-
-      let sectionName: string;
-      if (nameObj instanceof PDFString) {
-        sectionName = nameObj.asString();
-      } else if (nameObj instanceof PDFHexString) {
-        sectionName = nameObj.decodeText();
-      } else {
-        continue;
+      for (const script of this.collectXFAScripts(doc)) {
+        const scriptContent = script.scriptNode.text?.trim();
+        if (scriptContent) {
+          scripts.push({
+            field: script.field,
+            event: script.event,
+            script: scriptContent,
+          });
+        }
       }
-
-      // We're interested in the 'template' section
-      if (sectionName !== 'template') continue;
-
-      const streamRef = streamObj instanceof PDFRef ? streamObj : null;
-      const stream = streamRef ? this.context.lookup(streamRef) : streamObj;
-
-      if (!stream || !(stream instanceof PDFRawStream)) continue;
-
-      const xmlBytes = decodePDFRawStream(stream).decode();
-      const xmlString = new TextDecoder().decode(xmlBytes);
-
-      // Extract JavaScript from <script> tags
-      // Note: XFA uses newlines in closing tags like </script\n>
-      const scriptMatches: Array<{
-        field: string;
-        event: string;
-        script: string;
-      }> = [];
-      const scriptPattern = /<script[^>]*>\s*([\s\S]*?)\s*<\/script\s*>/gi;
-      let scriptMatch;
-
-      while ((scriptMatch = scriptPattern.exec(xmlString)) !== null) {
-        const scriptCode = scriptMatch[1].trim();
-        if (!scriptCode) continue;
-
-        // Find the enclosing field and event by looking backwards
-        const beforeScript = xmlString.substring(
-          Math.max(0, scriptMatch.index - 2000),
-          scriptMatch.index,
-        );
-
-        // Find field name
-        const fieldNameMatch = beforeScript.match(
-          /<field[^>]*name="([^"]*)"[^>]*>/gi,
-        );
-        const fieldName = fieldNameMatch
-          ? fieldNameMatch[fieldNameMatch.length - 1].match(
-            /name="([^"]*)"/,
-          )?.[1] || 'unknown'
-          : 'unknown';
-
-        // Find event name
-        const eventNameMatch = beforeScript.match(
-          /<event[^>]*name="([^"]*)"[^>]*>/gi,
-        );
-        const eventName = eventNameMatch
-          ? eventNameMatch[eventNameMatch.length - 1].match(
-            /name="([^"]*)"/,
-          )?.[1] || 'unknown'
-          : 'unknown';
-
-        scriptMatches.push({
-          field: fieldName,
-          event: eventName,
-          script: scriptCode,
-        });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('decode')) {
+          throw new Error(
+            `Failed to decode XFA template stream: Invalid UTF-8 encoding. ${error.message}`,
+          );
+        }
+        throw new Error(`Failed to parse XFA template: ${error.message}`);
       }
-
-      scripts.push(...scriptMatches);
+      throw error;
     }
 
     return scripts;
@@ -1152,83 +1217,65 @@ export default class PDFDocument {
    * @param fieldName The name of the field containing the script
    * @param eventName The name of the event (e.g., 'event__click', 'calculate')
    * @param newScript The new JavaScript code to set
-   * @returns True if the script was found and updated, false otherwise
+   * @throws Error if the XFA form is not found, the script location is not found, or decoding fails
    */
   setXFAJavaScript(
     fieldName: string,
     eventName: string,
     newScript: string,
-  ): boolean {
-    const acroForm = this.catalog.get(PDFName.of('AcroForm'));
-    if (
-      !acroForm ||
-      !(acroForm instanceof PDFDict || acroForm instanceof PDFRef)
-    ) {
-      return false;
-    }
-
-    const formDict =
-      acroForm instanceof PDFRef
-        ? this.context.lookup(acroForm, PDFDict)
-        : acroForm;
-
-    const xfa = formDict.get(PDFName.of('XFA'));
-    if (!xfa || !(xfa instanceof PDFArray)) {
-      return false;
-    }
-
-    // Find template section
-    for (let idx = 0; idx < xfa.size(); idx += 2) {
-      const nameObj = xfa.get(idx);
-      const streamObj = xfa.get(idx + 1);
-
-      if (!nameObj || !streamObj) continue;
-
-      let sectionName: string;
-      if (nameObj instanceof PDFString) {
-        sectionName = nameObj.asString();
-      } else if (nameObj instanceof PDFHexString) {
-        sectionName = nameObj.decodeText();
-      } else {
-        continue;
-      }
-
-      if (sectionName !== 'template') continue;
-
-      const streamRef = streamObj instanceof PDFRef ? streamObj : null;
-      const stream = streamRef ? this.context.lookup(streamRef) : streamObj;
-
-      if (!stream || !(stream instanceof PDFRawStream)) continue;
-
-      const xmlBytes = decodePDFRawStream(stream).decode();
-      let xmlString = new TextDecoder().decode(xmlBytes);
-
-      // Find and replace the script
-      // Note: XFA uses newlines in closing tags like </script\n>
-      const fieldPattern = new RegExp(
-        `(<field[^>]*name="${fieldName}"[^>]*>[\\s\\S]*?<event[^>]*name="${eventName}"[^>]*>[\\s\\S]*?<script[^>]*>)\\s*[\\s\\S]*?\\s*(<\\/script\\s*>)`,
-        'i',
+  ): void {
+    const templateInfo = this.getXFATemplateInfo();
+    if (!templateInfo) {
+      throw new Error(
+        'XFA form not found in document. Ensure the document has XFA forms and was loaded with preserveXFA: true.',
       );
-
-      const match = xmlString.match(fieldPattern);
-      if (!match) continue;
-
-      xmlString = xmlString.replace(fieldPattern, `$1\n${newScript}\n$2`);
-
-      // Create new stream with modified XML
-      const newXmlBytes = new TextEncoder().encode(xmlString);
-      const newStream = this.context.stream(newXmlBytes);
-
-      // Replace in XFA array
-      if (streamRef) {
-        this.context.delete(streamRef);
-      }
-      xfa.set(idx + 1, this.context.register(newStream));
-
-      return true;
     }
 
-    return false;
+    let xmlString: string;
+    try {
+      const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
+      xmlString = new TextDecoder('utf-8', { fatal: true }).decode(xmlBytes);
+    } catch (error) {
+      throw new Error(
+        `Failed to decode XFA template stream: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    const normalizedXml = this.normalizeXfaXml(xmlString);
+    const doc = parseHtml(normalizedXml, { script: true });
+
+    const entry = this.collectXFAScripts(doc).find(
+      (e) => e.field === fieldName && e.event === eventName,
+    );
+
+    if (!entry) {
+      throw new Error(
+        `Script not found for field "${fieldName}" and event "${eventName}". ` +
+        'Verify the field and event names exist in the XFA template.',
+      );
+    }
+
+    const oldOuter = entry.scriptNode.outerHTML;
+    const tagOpen = oldOuter.match(/^(<script[^>]*>)/i)?.[1] ?? '<script>';
+    const newOuter = `${tagOpen}${this.escapeXML(newScript)}</script>`;
+    const updatedXml = normalizedXml
+      .replace(oldOuter, newOuter)
+      .replace(/xfa-template/g, 'template');
+
+    const newXmlBytes = new TextEncoder().encode(updatedXml);
+    const filter = templateInfo.stream.dict.get(PDFName.of('Filter'));
+    const newStream =
+      filter !== undefined
+        ? this.context.flateStream(newXmlBytes)
+        : this.context.stream(newXmlBytes);
+
+    if (templateInfo.streamRef) {
+      this.context.delete(templateInfo.streamRef);
+    }
+    templateInfo.xfa.set(
+      templateInfo.templateIndex,
+      this.context.register(newStream),
+    );
   }
 
   /**

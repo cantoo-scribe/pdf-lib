@@ -75,17 +75,7 @@ export default class PDFJavaScriptAction {
       return jsValue.decodeText();
     }
     if (jsValue instanceof PDFName) {
-      // Handle case where the value was created with context.obj() using a string literal
-      // PDFName.asString() returns the encoded name with leading slash and hex-encoded special chars
-      // We need to remove the slash and decode the hex sequences
-      const nameStr = jsValue.asString();
-      const withoutSlash = nameStr.startsWith('/')
-        ? nameStr.substring(1)
-        : nameStr;
-      // Decode hex sequences like #28 -> (
-      return withoutSlash.replace(/#([\dA-Fa-f]{2})/g, (_, hex) =>
-        String.fromCharCode(parseInt(hex, 16)),
-      );
+      return jsValue.decodeText();
     }
     return undefined;
   }
