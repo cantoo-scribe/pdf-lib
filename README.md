@@ -71,6 +71,7 @@ Install with: `npm install @cantoo/pdf-lib`
   - [Work with XFA Forms](#work-with-xfa-forms)
   - [Extract XFA JavaScript](#extract-xfa-javascript)
   - [Modify XFA JavaScript](#modify-xfa-javascript)
+  - [Extract Document JavaScript](#extract-document-javascript)
   - [Copy Pages](#copy-pages)
   - [Embed PNG and JPEG Images](#embed-png-and-jpeg-images)
   - [Embed PDF Pages](#embed-pdf-pages)
@@ -110,6 +111,7 @@ Install with: `npm install @cantoo/pdf-lib`
 - Preserve XFA forms
 - Extract XFA JavaScript
 - Modify XFA JavaScript
+- Extract document-level JavaScript
 - Add Pages
 - Insert Pages
 - Remove Pages
@@ -757,13 +759,11 @@ const pdfDoc = await PDFDocument.load(xfaPdfBytes, {
 
 // Make modifications...
 
-// Save with XFA preservation
-const pdfBytes = await pdfDoc.save({ 
-  preserveXFA: true 
-})
+// Save the document
+const pdfBytes = await pdfDoc.save()
 ```
 
-**Note:** Without `preserveXFA: true`, XFA data will be removed when saving, which may cause the form to lose functionality.
+**Note:** The `preserveXFA` option must be set to `true` when loading to preserve XFA data. XFA preservation during save happens automatically if it was preserved during load.
 
 ### Extract XFA JavaScript
 
@@ -838,19 +838,20 @@ if (importButton) {
     }
   `
   
-  const success = pdfDoc.setXFAJavaScript(
-    'ImportButton',           // field name
-    importButton.event,       // event name (e.g., 'event__click')
-    newScript                 // new JavaScript code
-  )
-  
-  console.log(`Modification ${success ? 'succeeded' : 'failed'}`)
+  try {
+    pdfDoc.setXFAJavaScript(
+      'ImportButton',         // field name
+      importButton.event,     // event name (e.g., 'event__click')
+      newScript               // new JavaScript code
+    )
+    console.log('Successfully modified XFA JavaScript')
+  } catch (error) {
+    console.error('Failed to modify script:', error.message)
+  }
 }
 
-// Save with XFA preservation
-const pdfBytes = await pdfDoc.save({ 
-  preserveXFA: true 
-})
+// Save the document
+const pdfBytes = await pdfDoc.save()
 
 // The modified PDF will have the updated JavaScript
 ```
@@ -861,6 +862,40 @@ const pdfBytes = await pdfDoc.save({
 - Add logging for debugging
 - Customize import/export behavior
 - Fix compatibility issues
+
+### Extract Document JavaScript
+
+PDF documents can contain document-level JavaScript that executes when the document is opened. You can extract these scripts:
+
+<!-- prettier-ignore -->
+```js
+import { PDFDocument } from 'pdf-lib'
+
+const pdfBytes = ... // Load your PDF
+
+const pdfDoc = await PDFDocument.load(pdfBytes)
+
+// Extract all document-level JavaScript
+const scripts = pdfDoc.getDocumentJavaScripts()
+
+// Each script contains:
+// - name: The script name
+// - script: The JavaScript code
+
+console.log(`Found ${scripts.length} document scripts`)
+
+scripts.forEach((script) => {
+  console.log(`Script name: ${script.name}`)
+  console.log(`Code: ${script.script}`)
+})
+
+// Find specific scripts
+const initScripts = scripts.filter(s => 
+  s.name.toLowerCase().includes('init')
+)
+```
+
+**Note:** Document-level JavaScript is different from XFA JavaScript. Document-level scripts are stored in the document's Names dictionary and execute when the PDF is opened. XFA JavaScript is embedded in XFA form templates.
 
 ### Copy Pages
 

@@ -51,9 +51,7 @@ describe('PDFDocument - XFA JavaScript', () => {
     expect(checkbox).toBeDefined();
 
     const newScript = 'console.println("Modified checkbox script");';
-    const result = pdfDoc.setXFAJavaScript('c1_01', checkbox!.event, newScript);
-
-    expect(result).toBe(true);
+    pdfDoc.setXFAJavaScript('c1_01', checkbox!.event, newScript);
 
     // Verify the modification
     const modifiedScripts = pdfDoc.getXFAJavaScripts();
@@ -66,17 +64,13 @@ describe('PDFDocument - XFA JavaScript', () => {
     expect(modifiedCheckbox!.script).toContain(newScript);
   });
 
-  it('returns false when modifying non-existent field', async () => {
+  it('throws when modifying non-existent field', async () => {
     const pdfBytes = toUint8Array(fs.readFileSync(xfaPdfPath));
     const pdfDoc = await PDFDocument.load(pdfBytes, { preserveXFA: true });
 
-    const result = pdfDoc.setXFAJavaScript(
-      'nonexistent',
-      'event__click',
-      'test',
-    );
-
-    expect(result).toBe(false);
+    expect(() =>
+      pdfDoc.setXFAJavaScript('nonexistent', 'event__click', 'test'),
+    ).toThrow('Script not found for field "nonexistent"');
   });
 
   it('preserves XFA structure after modification', async () => {
