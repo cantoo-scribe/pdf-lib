@@ -703,14 +703,18 @@ describe('PDFDocument', () => {
 
     it('properly handles XRef Streams on full save', async () => {
       const pdfDoc = await PDFDocument.load(v15PdfBytes);
-      const incrementBytes = await pdfDoc.save();
-      const str = Buffer.from(incrementBytes).toString();
-      const match = str.match(/XRef/g);
-      expect(match?.length).toBe(1);
-      const noStmIB = await pdfDoc.save({ useObjectStreams: false });
-      const noStrmStr = Buffer.from(noStmIB).toString();
-      const matchNoStm = noStrmStr.match(/XRef/g);
-      expect(matchNoStm).toBeNull();
+      // Loaded documents default to not using object streams
+      const defaultBytes = await pdfDoc.save();
+      const defaultStr = Buffer.from(defaultBytes).toString();
+      expect(defaultStr.match(/XRef/g)).toBeNull();
+      // Explicitly forcing useObjectStreams produces an XRef stream
+      const withStmBytes = await pdfDoc.save({ useObjectStreams: true });
+      const withStmStr = Buffer.from(withStmBytes).toString();
+      expect(withStmStr.match(/XRef/g)?.length).toBe(1);
+      // Explicitly disabling also works
+      const noStmBytes = await pdfDoc.save({ useObjectStreams: false });
+      const noStmStr = Buffer.from(noStmBytes).toString();
+      expect(noStmStr.match(/XRef/g)).toBeNull();
     });
   });
 
