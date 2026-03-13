@@ -26,6 +26,10 @@ import { assertIs, assertMultiple, assertOrUndefined } from '../../utils';
 import { ImageAlignment } from '../image';
 import PDFImage from '../PDFImage';
 import { drawImage, rotateInPlace } from '../operations';
+import PDFJavaScriptAction, {
+  JavaScriptActionMap,
+  extractAdditionalActions,
+} from '../PDFJavaScriptAction';
 
 export interface FieldAppearanceOptions {
   x?: number;
@@ -246,6 +250,71 @@ export default class PDFField {
    */
   disableExporting() {
     this.acroField.setFlagTo(AcroFieldFlags.NoExport, true);
+  }
+
+  /**
+   * Get the JavaScript actions associated with this field.
+   * Returns a map of action types to JavaScript actions.
+   * For example:
+   * ```js
+   * const field = form.getField('some.field')
+   * const actions = field.getJavaScriptActions()
+   * if (actions.keystroke) {
+   *   console.log('Keystroke script:', actions.keystroke.getScript())
+   * }
+   * if (actions.calculate) {
+   *   console.log('Calculate script:', actions.calculate.getScript())
+   * }
+   * ```
+   * @returns A map of JavaScript actions for this field, or undefined if none exist.
+   */
+  getJavaScriptActions(): JavaScriptActionMap | undefined {
+    const aaEntry = this.acroField.dict.get(PDFName.of('AA'));
+    if (!aaEntry) return undefined;
+
+    let aaDict: PDFDict;
+    if (aaEntry instanceof PDFRef) {
+      aaDict = this.doc.context.lookup(aaEntry, PDFDict);
+    } else if (aaEntry instanceof PDFDict) {
+      aaDict = aaEntry;
+    } else {
+      return undefined;
+    }
+
+    return extractAdditionalActions(aaDict, this.doc);
+  }
+
+  /**
+   * Get the default action (A) for this field.
+   * This is typically a submit or reset action, or can be a JavaScript action.
+   * For example:
+   * ```js
+   * const field = form.getField('some.field')
+   * const action = field.getAction()
+   * if (action) {
+   *   console.log('Action script:', action.getScript())
+   * }
+   * ```
+   * @returns The JavaScript action, or undefined if not a JavaScript action.
+   */
+  getAction(): PDFJavaScriptAction | undefined {
+    const actionObj = this.acroField.dict.get(PDFName.of('A'));
+    if (!actionObj) return undefined;
+
+    let actionDict: PDFDict;
+    if (actionObj instanceof PDFRef) {
+      actionDict = this.acroField.dict.context.lookup(actionObj, PDFDict);
+    } else if (actionObj instanceof PDFDict) {
+      actionDict = actionObj;
+    } else {
+      return undefined;
+    }
+
+    return PDFJavaScriptAction.of(
+      actionDict,
+      this.doc,
+      actionObj instanceof PDFRef ? actionObj : undefined,
+    );
   }
 
   /** @ignore */
