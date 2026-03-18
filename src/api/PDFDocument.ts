@@ -212,21 +212,11 @@ export default class PDFDocument {
         ),
         forIncrementalUpdate,
       ).parseDocument();
-      const pdfDoc = new PDFDocument(
-        decryptedContext,
-        true,
-        updateMetadata,
-        false,
-      );
+      const pdfDoc = new PDFDocument(decryptedContext, true, updateMetadata);
       if (forIncrementalUpdate) pdfDoc.takeSnapshot();
       return pdfDoc;
     } else {
-      const pdfDoc = new PDFDocument(
-        context,
-        ignoreEncryption,
-        updateMetadata,
-        false,
-      );
+      const pdfDoc = new PDFDocument(context, ignoreEncryption, updateMetadata);
       if (forIncrementalUpdate) pdfDoc.takeSnapshot();
       return pdfDoc;
     }
@@ -245,7 +235,7 @@ export default class PDFDocument {
     const catalog = PDFCatalog.withContextAndPages(context, pageTreeRef);
     context.trailerInfo.Root = context.register(catalog);
 
-    return new PDFDocument(context, false, updateMetadata, true);
+    return new PDFDocument(context, false, updateMetadata);
   }
 
   /** The low-level context of this document. */
@@ -270,20 +260,17 @@ export default class PDFDocument {
   private readonly embeddedPages: PDFEmbeddedPage[];
   private readonly embeddedFiles: PDFEmbeddedFile[];
   private readonly javaScripts: PDFJavaScript[];
-  private readonly isNewDocument: boolean;
 
   private constructor(
     context: PDFContext,
     ignoreEncryption: boolean,
     updateMetadata: boolean,
-    isNewDocument = false,
   ) {
     assertIs(context, 'context', [[PDFContext, 'PDFContext']]);
     assertIs(ignoreEncryption, 'ignoreEncryption', ['boolean']);
 
     this.context = context;
     this.catalog = context.lookup(context.trailerInfo.Root) as PDFCatalog;
-    this.isNewDocument = isNewDocument;
 
     if (!!context.lookup(context.trailerInfo.Encrypt) && context.isDecrypted) {
       // context.delete(context.trailerInfo.Encrypt);
@@ -1575,39 +1562,25 @@ export default class PDFDocument {
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
     const vparts = this.context.header.getVersionString().split('.');
-    const pdfVersionSupportsObjectStreams =
-      Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
-
+    const uOS =
+      options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
     const {
+      useObjectStreams = uOS,
       addDefaultPage = true,
       objectsPerTick = 50,
       updateFieldAppearances = true,
       rewrite = false,
     } = options;
-    let { useObjectStreams } = options;
-
-    const incrementalUpdate =
-      !rewrite &&
-      this.context.pdfFileDetails.originalBytes &&
-      this.context.snapshot;
-
-    // For full rewrites of documents loaded from an existing PDF, default to
-    // not using object streams, as the current PDFStreamWriter-based path can
-    // produce invalid cross-reference streams in some cases. For incremental
-    // saves and new documents, keep the version-based default.
-    if (useObjectStreams === undefined) {
-      if (incrementalUpdate || this.isNewDocument) {
-        useObjectStreams = pdfVersionSupportsObjectStreams;
-      } else {
-        useObjectStreams = false;
-      }
-    }
 
     assertIs(useObjectStreams, 'useObjectStreams', ['boolean']);
     assertIs(addDefaultPage, 'addDefaultPage', ['boolean']);
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
     assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
     assertIs(rewrite, 'rewrite', ['boolean']);
+    const incrementalUpdate =
+      !rewrite &&
+      this.context.pdfFileDetails.originalBytes &&
+      this.context.snapshot;
     if (incrementalUpdate) {
       options.addDefaultPage = false;
       options.updateFieldAppearances = false;

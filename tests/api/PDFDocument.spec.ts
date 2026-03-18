@@ -703,18 +703,21 @@ describe('PDFDocument', () => {
 
     it('properly handles XRef Streams on full save', async () => {
       const pdfDoc = await PDFDocument.load(v15PdfBytes);
-      // Loaded documents default to not using object streams
-      const defaultBytes = await pdfDoc.save();
-      const defaultStr = Buffer.from(defaultBytes).toString();
-      expect(defaultStr.match(/XRef/g)).toBeNull();
-      // Explicitly forcing useObjectStreams produces an XRef stream
-      const withStmBytes = await pdfDoc.save({ useObjectStreams: true });
-      const withStmStr = Buffer.from(withStmBytes).toString();
-      expect(withStmStr.match(/XRef/g)?.length).toBe(1);
-      // Explicitly disabling also works
-      const noStmBytes = await pdfDoc.save({ useObjectStreams: false });
-      const noStmStr = Buffer.from(noStmBytes).toString();
-      expect(noStmStr.match(/XRef/g)).toBeNull();
+      const savedBytes = await pdfDoc.save();
+      const str = Buffer.from(savedBytes).toString();
+      expect(str.match(/XRef/g)?.length).toBe(1);
+
+      // Round-trip: the saved bytes must produce a loadable PDF
+      const reloaded = await PDFDocument.load(savedBytes);
+      expect(reloaded.getPageCount()).toBe(pdfDoc.getPageCount());
+
+      const noStmIB = await pdfDoc.save({ useObjectStreams: false });
+      const noStrmStr = Buffer.from(noStmIB).toString();
+      expect(noStrmStr.match(/XRef/g)).toBeNull();
+
+      // Round-trip without object streams
+      const reloaded2 = await PDFDocument.load(noStmIB);
+      expect(reloaded2.getPageCount()).toBe(pdfDoc.getPageCount());
     });
   });
 

@@ -4,6 +4,7 @@ import PDFInvalidObject from '../objects/PDFInvalidObject';
 import PDFName from '../objects/PDFName';
 import PDFNumber from '../objects/PDFNumber';
 import PDFObject from '../objects/PDFObject';
+import PDFRawStream from '../objects/PDFRawStream';
 import PDFRef from '../objects/PDFRef';
 import PDFStream from '../objects/PDFStream';
 import PDFCatalog from '../structures/PDFCatalog';
@@ -92,6 +93,17 @@ class PDFStreamWriter extends PDFWriter {
       const indirectObject = indirectObjects[idx];
       const [ref, object] = indirectObject;
       if (!this.snapshot.shouldSave(ref.objectNumber)) {
+        continue;
+      }
+
+      // Old XRef stream objects from the parsed PDF must be skipped: a new
+      // XRef stream will be generated below. If we kept them, the xref would
+      // reference an object that serializeToBuffer() (inherited from
+      // PDFWriter) also skips, producing an offset mismatch.
+      if (
+        object instanceof PDFRawStream &&
+        object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')
+      ) {
         continue;
       }
 
