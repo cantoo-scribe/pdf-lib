@@ -87,8 +87,9 @@ class PDFWriter {
       // only the last XRef Stream will be regenerated on save
       if (!this._lastXRefObjectNumber) {
         // if no XRef Stream, then nothing should be skipped
-        this._lastXRefObjectNumber = this.context.largestObjectNumber + 1;
-        const checkWatermark = this._lastXRefObjectNumber - 10; // max number of objects in the final part of the PDF to check
+        // if we are adding a XRef Stream, then its number if this.context.largestObjectNumber + 1, so adding 10 ensures we won't skip current generade XRref Stream
+        this._lastXRefObjectNumber = this.context.largestObjectNumber + 10;
+        const checkWatermark = this._lastXRefObjectNumber - 20; // max number of objects in the final part of the PDF to check
         // search the last XRef Stream, if there is one, objects are expected to be in object number order
         for (let idx = objects.length - 1; idx > 0; idx--) {
           // if not in last 'rangeToCheck' objects, there is none that should be skipped, most probably a linearized PDF, or without XRef Streams

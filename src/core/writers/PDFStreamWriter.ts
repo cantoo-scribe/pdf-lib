@@ -92,7 +92,7 @@ class PDFStreamWriter extends PDFWriter {
     for (let idx = 0, len = indirectObjects.length; idx < len; idx++) {
       const indirectObject = indirectObjects[idx];
       const [ref, object] = indirectObject;
-      if (!this.snapshot.shouldSave(ref.objectNumber)) {
+      if (!this.shouldSave(incremental, ref.objectNumber, indirectObjects)) {
         continue;
       }
 
