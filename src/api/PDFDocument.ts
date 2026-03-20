@@ -703,6 +703,7 @@ export default class PDFDocument {
     this.catalog.removeLeafNode(index);
     this.pageCount = pageCount - 1;
     this.context.delete(page.ref);
+    this.pageCache.invalidate();
   }
 
   /**
