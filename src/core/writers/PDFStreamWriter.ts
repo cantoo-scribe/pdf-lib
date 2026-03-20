@@ -187,9 +187,15 @@ class PDFStreamWriter extends PDFWriter {
 
   override async serializeToBuffer(): Promise<Uint8Array> {
     const buffer = await super.serializeToBuffer();
-    // delete xref stream created for saving
-    this.context.delete(PDFRef.of(this.context.largestObjectNumber - 1));
-    // fix largestObjectNumbering
+    const firstTempRef =
+      this.context.largestObjectNumber - this._refToDeleteAfterSave + 1;
+    for (
+      let i = firstTempRef;
+      i < firstTempRef + this._refToDeleteAfterSave - 1;
+      i++
+    ) {
+      this.context.delete(PDFRef.of(i));
+    }
     this.context.largestObjectNumber -= this._refToDeleteAfterSave;
     return buffer;
   }
