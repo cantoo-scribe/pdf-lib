@@ -318,14 +318,14 @@ class PDFContext {
   }
 
   stream(
-    contents: string | Uint8Array,
+    contents: string | Uint8Array<ArrayBuffer>,
     dict: LiteralObject = {},
   ): PDFRawStream {
     return PDFRawStream.of(this.obj(dict), typedArrayFor(contents));
   }
 
   flateStream(
-    contents: string | Uint8Array,
+    contents: string | Uint8Array<ArrayBuffer>,
     dict: LiteralObject = {},
   ): PDFRawStream {
     return this.stream(pako.deflate(typedArrayFor(contents)), {

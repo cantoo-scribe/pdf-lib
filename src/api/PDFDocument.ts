@@ -160,7 +160,7 @@ export default class PDFDocument {
    * @returns Resolves with a document loaded from the input.
    */
   static async load(
-    pdf: string | Uint8Array | ArrayBuffer,
+    pdf: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
     options: LoadOptions = {},
   ) {
     const {
@@ -973,7 +973,7 @@ export default class PDFDocument {
    * @returns Resolves when the attachment is complete.
    */
   async attach(
-    attachment: string | Uint8Array | ArrayBuffer,
+    attachment: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
     name: string,
     options: AttachmentOptions = {},
   ): Promise<void> {
@@ -1184,7 +1184,7 @@ export default class PDFDocument {
    * const font2 = await pdfDoc.embedFont('AAEAAAAVAQAABABQRFNJRx/upe...')
    * const font3 = await pdfDoc.embedFont('data:font/opentype;base64,AAEAAA...')
    *
-   * // font=Uint8Array
+   * // font=Uint8Array<ArrayBuffer>
    * import fs from 'fs'
    * const font4 = await pdfDoc.embedFont(fs.readFileSync('Ubuntu-R.ttf'))
    *
@@ -1199,7 +1199,7 @@ export default class PDFDocument {
    * @returns Resolves with the embedded font.
    */
   async embedFont(
-    font: StandardFonts | string | Uint8Array | ArrayBuffer,
+    font: StandardFonts | string | Uint8Array<ArrayBuffer> | ArrayBuffer,
     options: EmbedFontOptions = {},
   ): Promise<PDFFont> {
     const { subset = false, customName, features } = options;
@@ -1276,7 +1276,7 @@ export default class PDFDocument {
    * const image1 = await pdfDoc.embedJpg('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBD...')
    * const image2 = await pdfDoc.embedJpg('data:image/jpeg;base64,/9j/4AAQ...')
    *
-   * // jpg=Uint8Array
+   * // jpg=Uint8Array<ArrayBuffer>
    * import fs from 'fs'
    * const uint8Array = fs.readFileSync('cat_riding_unicorn.jpg')
    * const image3 = await pdfDoc.embedJpg(uint8Array)
@@ -1290,7 +1290,9 @@ export default class PDFDocument {
    * @param jpg The input data for a JPEG image.
    * @returns Resolves with the embedded image.
    */
-  async embedJpg(jpg: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
+  async embedJpg(
+    jpg: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
+  ): Promise<PDFImage> {
     assertIs(jpg, 'jpg', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(jpg);
     const embedder = await JpegEmbedder.for(bytes);
@@ -1330,7 +1332,9 @@ export default class PDFDocument {
    * @param png The input data for a PNG image.
    * @returns Resolves with the embedded image.
    */
-  async embedPng(png: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
+  async embedPng(
+    png: string | Uint8Array<ArrayBuffer> | ArrayBuffer,
+  ): Promise<PDFImage> {
     assertIs(png, 'png', ['string', Uint8Array, ArrayBuffer]);
     const bytes = toUint8Array(png);
     const embedder = await PngEmbedder.for(bytes);
@@ -1391,7 +1395,7 @@ export default class PDFDocument {
    * @returns Resolves with an array of the embedded pages.
    */
   async embedPdf(
-    pdf: string | Uint8Array | ArrayBuffer | PDFDocument,
+    pdf: string | Uint8Array<ArrayBuffer> | ArrayBuffer | PDFDocument,
     indices: number[] = [0],
   ): Promise<PDFEmbeddedPage[]> {
     assertIs(pdf, 'pdf', [
@@ -1561,7 +1565,7 @@ export default class PDFDocument {
    * @param options The options to be used when saving the document.
    * @returns Resolves with the bytes of the serialized document.
    */
-  async save(options: SaveOptions = {}): Promise<Uint8Array> {
+  async save(options: SaveOptions = {}) {
     const vparts = this.context.header.getVersionString().split('.');
     const uOS =
       options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
