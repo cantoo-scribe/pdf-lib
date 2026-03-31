@@ -46,6 +46,7 @@
     "Eran Ohayon (https://github.com/erano067)"
   ],
   "scripts": {
+    "preinstall": "npx only-allow yarn",
     "release": "yarn release:prep && release-it",
     "release:prep": "yarn clean && yarn lint && yarn typecheck && yarn test && yarn build",
     "get:version": "node --eval 'console.log(require(`./package.json`).version)'",
