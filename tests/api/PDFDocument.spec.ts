@@ -17,6 +17,7 @@ import {
   ViewerPreferences,
   StandardFonts,
   AFRelationship,
+  Fontkit,
 } from '../../src/index';
 import { PDFAttachment } from '../../src/api/PDFDocument';
 
@@ -207,8 +208,8 @@ describe('PDFDocument', () => {
       const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
       const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });
 
-      pdfDoc1.registerFontkit(fontkit);
-      pdfDoc2.registerFontkit(fontkit);
+      pdfDoc1.registerFontkit(fontkit as Fontkit);
+      pdfDoc2.registerFontkit(fontkit as Fontkit);
 
       await pdfDoc1.embedFont(customFont);
       await pdfDoc2.embedFont(customFont);

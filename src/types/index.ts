@@ -7,6 +7,7 @@ import Point from '../utils/elements/Point';
 import Rectangle from '../utils/elements/Rectangle';
 import Segment from '../utils/elements/Segment';
 export { TransformationMatrix } from './matrix';
+export type { Fontkit } from './fontkit';
 
 export type Size = {
   width: number;

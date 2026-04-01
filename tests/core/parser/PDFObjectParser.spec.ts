@@ -21,7 +21,10 @@ import {
 
 type ParseOptions = { capNumbers?: boolean };
 
-const parse = (value: string | Uint8Array, options: ParseOptions = {}) => {
+const parse = (
+  value: string | Uint8Array<ArrayBuffer>,
+  options: ParseOptions = {},
+) => {
   const context = PDFContext.create();
   const parser = PDFObjectParser.forBytes(
     typedArrayFor(value),
@@ -31,11 +34,15 @@ const parse = (value: string | Uint8Array, options: ParseOptions = {}) => {
   return parser.parseObject();
 };
 
-const expectParse = (value: string | Uint8Array, options?: ParseOptions) =>
-  expect(parse(value, options));
+const expectParse = (
+  value: string | Uint8Array<ArrayBuffer>,
+  options?: ParseOptions,
+) => expect(parse(value, options));
 
-const expectParseStr = (value: string | Uint8Array, options?: ParseOptions) =>
-  expect(String(parse(value, options)));
+const expectParseStr = (
+  value: string | Uint8Array<ArrayBuffer>,
+  options?: ParseOptions,
+) => expect(String(parse(value, options)));
 
 describe('PDFObjectParser', () => {
   const origConsoleWarn = console.warn;

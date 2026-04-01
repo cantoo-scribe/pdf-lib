@@ -38,21 +38,26 @@ export enum PngType {
 }
 
 export class PNG {
-  static load = (pngData: Uint8Array) => new PNG(pngData);
+  static load = (pngData: Uint8Array<ArrayBuffer>) => new PNG(pngData);
 
-  readonly rgbChannel: Uint8Array;
-  readonly alphaChannel?: Uint8Array;
+  readonly rgbChannel: Uint8Array<ArrayBuffer>;
+  readonly alphaChannel?: Uint8Array<ArrayBuffer>;
   readonly type: PngType;
   readonly width: number;
   readonly height: number;
   readonly bitsPerComponent: number;
 
-  private constructor(pngData: Uint8Array) {
+  private constructor(pngData: Uint8Array<ArrayBuffer>) {
     const UPNGmod = (UPNG as typeof UPNG).decode
       ? UPNG
       : (UPNG as unknown as { default: typeof UPNG }).default;
 
-    const upng = UPNGmod.decode(pngData);
+    const upng = UPNGmod.decode(
+      pngData.buffer.slice(
+        pngData.byteOffset,
+        pngData.byteOffset + pngData.byteLength,
+      ),
+    );
     const frames = UPNGmod.toRGBA8(upng);
 
     if (frames.length > 1) throw new Error('Animated PNGs are not supported');

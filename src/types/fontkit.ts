@@ -224,7 +224,7 @@ export interface GlyphRun {
 export interface SubsetStream {
   on: (
     eventType: 'data' | 'end',
-    callback: (data: Uint8Array) => any,
+    callback: (data: Uint8Array<ArrayBuffer>) => any,
   ) => SubsetStream;
 }
 
@@ -636,5 +636,5 @@ export interface Font {
 }
 
 export interface Fontkit {
-  create(buffer: Uint8Array, postscriptName?: string): Font;
+  create(buffer: Uint8Array<ArrayBuffer>, postscriptName?: string): Font;
 }
