@@ -40,6 +40,8 @@ import {
   createPDFAcroFields,
   PDFName,
   PDFWidgetAnnotation,
+  PDFArray,
+  PDFStream,
 } from '../../core';
 import { assertIs, Cache, assertOrUndefined } from '../../utils';
 
@@ -570,6 +572,9 @@ export default class PDFForm {
 
       this.removeField(field);
     }
+
+    // Also flatten merged widget annotations not in AcroForm.Fields
+    this.flattenMergedWidgets();
   }
 
   /**
@@ -753,6 +758,114 @@ export default class PDFForm {
     }
 
     return refOrDict;
+  }
+
+  /**
+   * Flatten widget annotations that exist directly in page Annots but aren't
+   * registered in AcroForm.Fields ("merged" widgets).
+   */
+  private flattenMergedWidgets(): void {
+    const pages = this.doc.getPages();
+
+    for (const page of pages) {
+      const annots = page.node.Annots();
+      if (!annots) continue;
+
+      const annotsToRemove: PDFRef[] = [];
+
+      for (let i = 0; i < annots.size(); i++) {
+        const annotRef = annots.get(i);
+        if (!(annotRef instanceof PDFRef)) continue;
+
+        const annot = this.doc.context.lookup(annotRef);
+        if (!(annot instanceof PDFDict)) continue;
+
+        // Check if it's a widget annotation
+        const subtype = annot.get(PDFName.of('Subtype'));
+        if (subtype?.toString() !== '/Widget') continue;
+
+        // Check if it has field properties (merged widget)
+        // Merged widgets have /FT directly on the annotation
+        const fieldType = annot.get(PDFName.of('FT'));
+        if (!fieldType) continue;
+
+        // Get appearance dict (may be PDFRef or PDFDict)
+        const apRaw = annot.get(PDFName.of('AP'));
+        let ap: PDFDict | undefined;
+        if (apRaw instanceof PDFRef) {
+          ap = this.doc.context.lookup(apRaw) as PDFDict;
+        } else if (apRaw instanceof PDFDict) {
+          ap = apRaw;
+        }
+        if (!ap) continue;
+
+        // Get normal appearance (may be stream or dict of states)
+        let normalAppearanceRaw = ap.get(PDFName.of('N'));
+        if (!normalAppearanceRaw) continue;
+
+        if (normalAppearanceRaw instanceof PDFRef) {
+          normalAppearanceRaw = this.doc.context.lookup(normalAppearanceRaw);
+        }
+
+        let appearanceRef: PDFRef | undefined;
+
+        if (normalAppearanceRaw instanceof PDFStream) {
+          // Simple case: single stream (text fields)
+          appearanceRef = this.doc.context.register(normalAppearanceRaw);
+        } else if (normalAppearanceRaw instanceof PDFDict) {
+          // Complex case: dict of appearance states (checkboxes, radio buttons)
+          const asRaw = annot.get(PDFName.of('AS'));
+          const appearanceState = asRaw
+            ? asRaw.toString().replace('/', '')
+            : 'Yes';
+
+          let stateStream = normalAppearanceRaw.get(
+            PDFName.of(appearanceState),
+          );
+          if (!stateStream) {
+            // Fallback to first non-Off entry
+            const entries = normalAppearanceRaw.entries();
+            for (const [key, value] of entries) {
+              if (key.toString() !== '/Off') {
+                stateStream = value;
+                break;
+              }
+            }
+          }
+
+          if (stateStream instanceof PDFRef) {
+            appearanceRef = stateStream;
+          } else if (stateStream instanceof PDFStream) {
+            appearanceRef = this.doc.context.register(stateStream);
+          }
+        }
+
+        if (!appearanceRef) continue;
+
+        // Get widget rectangle
+        const rect = annot.get(PDFName.of('Rect'));
+        if (!(rect instanceof PDFArray) || rect.size() < 4) continue;
+
+        const x1 = (rect.get(0) as any)?.asNumber?.() ?? 0;
+        const y1 = (rect.get(1) as any)?.asNumber?.() ?? 0;
+
+        // Draw appearance to page content
+        const xObjectKey = page.node.newXObject('FlatWidget', appearanceRef);
+        page.pushOperators(
+          pushGraphicsState(),
+          translate(x1, y1),
+          drawObject(xObjectKey),
+          popGraphicsState(),
+        );
+
+        annotsToRemove.push(annotRef);
+      }
+
+      // Remove flattened widget annotations
+      for (const ref of annotsToRemove) {
+        page.node.removeAnnot(ref);
+      }
+    }
   }
 
   private findOrCreateNonTerminals(partialNames: string[]) {
