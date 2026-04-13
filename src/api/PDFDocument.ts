@@ -1561,7 +1561,7 @@ export default class PDFDocument {
    * @param options The options to be used when saving the document.
    * @returns Resolves with the bytes of the serialized document.
    */
-  async save(options: SaveOptions = {}): Promise<Uint8Array> {
+  async save(options: SaveOptions = {}) {
     const vparts = this.context.header.getVersionString().split('.');
     const uOS =
       options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
@@ -1630,7 +1630,7 @@ export default class PDFDocument {
   async saveIncremental(
     snapshot: DocumentSnapshot,
     options: IncrementalSaveOptions = {},
-  ): Promise<Uint8Array> {
+  ) {
     // check PDF version
     const vparts = this.context.header.getVersionString().split('.');
     const uOS = Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
@@ -1727,7 +1727,7 @@ export default class PDFDocument {
    * @param options The options to be used when committing changes.
    * @returns Resolves with the complete PDF bytes including all updates.
    */
-  async commit(options: IncrementalSaveOptions = {}): Promise<Uint8Array> {
+  async commit(options: IncrementalSaveOptions = {}) {
     if (!this.context.snapshot || !this.context.pdfFileDetails.originalBytes) {
       throw new Error(
         'commit() requires the document to be loaded with forIncrementalUpdate: true',

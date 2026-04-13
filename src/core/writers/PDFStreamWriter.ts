@@ -185,7 +185,7 @@ class PDFStreamWriter extends PDFWriter {
     return { size, header, indirectObjects: uncompressedObjects, trailer };
   }
 
-  override async serializeToBuffer(): Promise<Uint8Array> {
+  override async serializeToBuffer() {
     const buffer = await super.serializeToBuffer();
     const firstTempRef =
       this.context.largestObjectNumber - this._refToDeleteAfterSave + 1;
