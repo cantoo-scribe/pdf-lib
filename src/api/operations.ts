@@ -14,6 +14,7 @@ import {
   rotateAndSkewTextRadiansAndTranslate,
   rotateRadians,
   scale,
+  setCharacterSpacing,
   setFontAndSize,
   setLineHeight,
   setLineWidth,
@@ -56,6 +57,7 @@ export interface DrawTextOptions {
   graphicsState?: string | PDFName;
   matrix?: TransformationMatrix;
   clipSpaces?: Space[];
+  characterSpacing?: number;
   strokeWidth?: number;
   strokeColor?: Color;
   renderMode?: TextRenderingMode;
@@ -82,6 +84,8 @@ export const drawText = (
     beginText(),
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
+    options.characterSpacing !== undefined &&
+      setCharacterSpacing(options.characterSpacing),
     options.strokeWidth && setLineWidth(options.strokeWidth),
     options.strokeColor && setStrokingColor(options.strokeColor),
     options.renderMode && setTextRenderingMode(options.renderMode),
@@ -114,6 +118,8 @@ export const drawLinesOfText = (
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
     setLineHeight(options.lineHeight),
+    options.characterSpacing !== undefined &&
+      setCharacterSpacing(options.characterSpacing),
     options.strokeWidth && setLineWidth(options.strokeWidth),
     options.strokeColor && setStrokingColor(options.strokeColor),
     options.renderMode && setTextRenderingMode(options.renderMode),

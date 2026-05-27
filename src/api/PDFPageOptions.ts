@@ -38,6 +38,7 @@ export interface PDFPageDrawTextOptions extends SvgOptions {
   lineHeight?: number;
   maxWidth?: number;
   wordBreaks?: string[];
+  characterSpacing?: number;
   strokeWidth?: number;
   strokeColor?: Color;
   renderMode?: TextRenderingMode;

@@ -69,6 +69,11 @@ class CustomFontEmbedder {
     return PDFHexString.of(hexCodes.join(''));
   }
 
+  glyphCountOfText(text: string): number {
+    const { glyphs } = this.font.layout(text, this.fontFeatures);
+    return glyphs.length;
+  }
+
   // The advanceWidth takes into account kerning automatically, so we don't
   // have to do that manually like we do for the standard fonts.
   widthOfTextAtSize(text: string, size: number): number {

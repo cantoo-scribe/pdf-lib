@@ -88,6 +88,11 @@ export default class PDFFont implements Embeddable {
     return this.embedder.widthOfTextAtSize(text, size);
   }
 
+  glyphCountOfText(text: string): number {
+    assertIs(text, 'text', ['string']);
+    return this.embedder.glyphCountOfText(text);
+  }
+
   /**
    * Measure the height of this font at a given size. For example:
    * ```js
