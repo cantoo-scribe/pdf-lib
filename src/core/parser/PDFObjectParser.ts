@@ -8,7 +8,7 @@ import PDFArray from '../objects/PDFArray';
 import PDFBool from '../objects/PDFBool';
 import PDFDict, { DictMap } from '../objects/PDFDict';
 import PDFHexString from '../objects/PDFHexString';
-import PDFName from '../objects/PDFName';
+import PDFName, { decodePdfNameEscapes } from '../objects/PDFName';
 import PDFNull from '../objects/PDFNull';
 import PDFNumber from '../objects/PDFNumber';
 import PDFObject from '../objects/PDFObject';
@@ -183,7 +183,7 @@ class PDFObjectParser extends BaseParser {
       this.bytes.next();
     }
 
-    return PDFName.of(name);
+    return PDFName.of(decodePdfNameEscapes(name));
   }
 
   protected parseArray(ref?: PDFRef): PDFArray {

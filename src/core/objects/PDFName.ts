@@ -9,8 +9,12 @@ import {
   toHexString,
 } from '../../utils';
 
+/** Decodes hex escapes in a name token read from PDF syntax (case-insensitive). */
+export const decodePdfNameEscapes = (name: string) =>
+  name.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) => charFromHexCode(hex));
+
 const decodeName = (name: string) =>
-  name.replace(/#([\dABCDEF]{2})/gi, (_, hex) => charFromHexCode(hex));
+  name.replace(/#([\dABCDEF]{2})/g, (_, hex) => charFromHexCode(hex));
 
 const isRegularChar = (charCode: number) =>
   charCode >= CharCodes.ExclamationPoint &&

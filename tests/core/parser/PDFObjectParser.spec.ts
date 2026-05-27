@@ -318,6 +318,8 @@ describe('PDFObjectParser', () => {
       ['/paired#28#29parentheses', 'paired()parentheses'],
       ['/The_Key_of_F#23_Minor', 'The_Key_of_F#_Minor'],
       ['/A#42', 'AB'],
+      ['/#4a', 'J'],
+      ['/Identity#2DH', 'Identity-H'],
     ].forEach(([input, output]) => {
       it(`handles ${input}`, () => {
         expectParse(input).toBe(PDFName.of(output));
