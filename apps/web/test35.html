@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self' 'unsafe-inline' blob: resource: https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.js;
+        object-src 'self' blob:;
+        frame-src 'self' blob:;
+      "
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" type="text/css" href="/apps/web/index.css" />
+    <title>Test 35 - Character spacing</title>
+    <script type="text/javascript" src="/dist/pdf-lib.js"></script>
+    <script type="text/javascript" src="/apps/web/utils.js"></script>
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.js"
+    ></script>
+  </head>
+
+  <body>
+    <div id="button-container">
+      <button onclick="window.location.href = '/apps/web/test34.html'">
+        Prev
+      </button>
+      <button onclick="test()">Run Test</button>
+      <button disabled>Next</button>
+    </div>
+    <div id="animation-target"></div>
+    <iframe id="iframe"></iframe>
+  </body>
+
+  <script type="text/javascript">
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+    startFpsTracker('animation-target');
+
+    const fetchBinaryAsset = (asset) =>
+      fetch(`/assets/${asset}`).then((res) => res.arrayBuffer());
+
+    const renderInIframe = (pdfBytes) => {
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      document.getElementById('iframe').src = blobUrl;
+    };
+
+    const drawLabel = (page, font, text, x, y, size = 11) => {
+      page.drawText(text, {
+        x,
+        y,
+        size,
+        font,
+        color: rgb(0.35, 0.35, 0.35),
+      });
+    };
+
+    async function test() {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([612, 792]);
+      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const sample = 'HELLO WORLD';
+      const fontSize = 28;
+      const leftX = 50;
+      let y = 720;
+
+      page.drawText('Character spacing (Tc)', {
+        x: leftX,
+        y,
+        size: 22,
+        font: helveticaBold,
+        color: rgb(0.1, 0.1, 0.5),
+      });
+      y -= 40;
+
+      const spacingSamples = [
+        { label: 'characterSpacing: 0 (default)', spacing: 0 },
+        { label: 'characterSpacing: 6', spacing: 6 },
+        { label: 'characterSpacing: -1.5', spacing: -1.5 },
+      ];
+
+      for (const { label, spacing } of spacingSamples) {
+        drawLabel(page, helvetica, label, leftX, y + fontSize + 6);
+        page.drawText(sample, {
+          x: leftX,
+          y,
+          size: fontSize,
+          font: helvetica,
+          characterSpacing: spacing,
+          color: rgb(0, 0, 0),
+        });
+
+        // Guide line showing where default spacing would end
+        const baseWidth = helvetica.widthOfTextAtSize(sample, fontSize);
+        page.drawLine({
+          start: { x: leftX + baseWidth, y: y - 4 },
+          end: { x: leftX + baseWidth, y: y + fontSize + 4 },
+          thickness: 0.5,
+          color: rgb(0.75, 0.75, 0.75),
+        });
+
+        y -= 70;
+      }
+
+      y -= 10;
+      page.drawText('maxWidth wrapping with characterSpacing', {
+        x: leftX,
+        y,
+        size: 18,
+        font: helveticaBold,
+        color: rgb(0.1, 0.1, 0.5),
+      });
+      y -= 36;
+
+      const wrapText =
+        'The quick brown fox jumps over the lazy dog. Compare line breaks.';
+      const maxWidth = 280;
+
+      drawLabel(
+        page,
+        helvetica,
+        'no characterSpacing',
+        leftX,
+        y + fontSize + 6,
+      );
+      page.drawText(wrapText, {
+        x: leftX,
+        y,
+        size: fontSize,
+        font: helvetica,
+        maxWidth,
+        lineHeight: fontSize + 6,
+        color: rgb(0, 0, 0),
+      });
+
+      const wrapBoxX = leftX + maxWidth + 40;
+      page.drawRectangle({
+        x: wrapBoxX - 4,
+        y: y - 8,
+        width: maxWidth + 8,
+        height: 120,
+        borderWidth: 0.5,
+        borderColor: rgb(0.8, 0.8, 0.8),
+      });
+
+      drawLabel(
+        page,
+        helvetica,
+        'characterSpacing: 4',
+        wrapBoxX,
+        y + fontSize + 6,
+      );
+      page.drawText(wrapText, {
+        x: wrapBoxX,
+        y,
+        size: fontSize,
+        font: helvetica,
+        maxWidth,
+        lineHeight: fontSize + 6,
+        characterSpacing: 4,
+        color: rgb(0.6, 0, 0),
+      });
+
+      y -= 150;
+
+      // Custom font + ligatures (fi) — glyph count vs string length
+      const nunitoBytes = await fetchBinaryAsset(
+        'fonts/nunito/Nunito-Regular.ttf',
+      );
+      pdfDoc.registerFontkit(fontkit);
+      const nunitoLiga = await pdfDoc.embedFont(nunitoBytes, {
+        subset: true,
+        features: { liga: true },
+      });
+
+      page.drawText('Custom font with ligatures (office + efficient)', {
+        x: leftX,
+        y,
+        size: 16,
+        font: helveticaBold,
+        color: rgb(0.1, 0.1, 0.5),
+      });
+      y -= 32;
+
+      const ligaSample = 'office efficient';
+      drawLabel(page, helvetica, 'spacing 0', leftX, y + 22);
+      page.drawText(ligaSample, {
+        x: leftX,
+        y,
+        size: 22,
+        font: nunitoLiga,
+        color: rgb(0, 0, 0),
+      });
+
+      drawLabel(page, helvetica, 'spacing 8', leftX + 220, y + 22);
+      page.drawText(ligaSample, {
+        x: leftX + 220,
+        y,
+        size: 22,
+        font: nunitoLiga,
+        characterSpacing: 8,
+        color: rgb(0.5, 0, 0.5),
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      renderInIframe(pdfBytes);
+    }
+
+    test();
+  </script>
+</html>

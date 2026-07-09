@@ -131,6 +131,9 @@ class PDFWriter {
       if (!this.shouldSave(incremental, ref.objectNumber, indirectObjects)) {
         continue;
       }
+      if (!incremental && this.shouldSkipCopiedObjectStream(object)) {
+        continue;
+      }
 
       const objectNumber = String(ref.objectNumber);
       offset += copyStringIntoBuffer(objectNumber, buffer, offset);
@@ -232,6 +235,12 @@ class PDFWriter {
       if (!this.shouldSave(incremental, ref.objectNumber, indirectObjects)) {
         continue;
       }
+      // Source ObjStm containers must not be re-serialised on full saves (see
+      // PDFStreamWriter for a detailed explanation). For incremental saves the
+      // snapshot already excludes them, so this guard is a no-op there.
+      if (!incremental && this.shouldSkipCopiedObjectStream(object)) {
+        continue;
+      }
       if (security) this.encrypt(ref, object, security);
       xref.addEntry(ref, size);
       size += this.computeIndirectObjectSize(indirectObject);
@@ -274,6 +283,13 @@ class PDFWriter {
       const encryptedContents = encryptFn(unencryptedContents);
       object.updateContents(encryptedContents);
     }
+  }
+
+  protected shouldSkipCopiedObjectStream(object: PDFObject): boolean {
+    return (
+      object instanceof PDFRawStream &&
+      object.dict.lookup(PDFName.of('Type')) === PDFName.of('ObjStm')
+    );
   }
 
   protected shouldWaitForTick = (n: number) => {

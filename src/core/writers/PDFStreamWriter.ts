@@ -107,6 +107,18 @@ class PDFStreamWriter extends PDFWriter {
         continue;
       }
 
+      // Source ObjStm containers must be skipped on full saves: their
+      // contents have already been extracted and registered individually by
+      // PDFObjectStreamParser. Re-serialising the raw container would produce
+      // stale duplicate copies; on the next load those copies overwrite the
+      // current versions (last-assignment wins in PDFObjectStreamParser),
+      // silently discarding any modifications made between the two saves.
+      // Newly-created ObjStm objects (PDFObjectStream, not PDFRawStream) are
+      // unaffected by this check and are still written normally below.
+      if (!incremental && this.shouldSkipCopiedObjectStream(object)) {
+        continue;
+      }
+
       const shouldNotCompress =
         ref === this.context.trailerInfo.Encrypt ||
         object instanceof PDFStream ||
