@@ -1717,23 +1717,29 @@ See also [MAINTAINERSHIP.md#communication](docs/MAINTAINERSHIP.md#communication)
 
 **`pdf-lib` does support encrypted documents.**
 
-To load a document, use this:
+If you do not have a password yet, you can load the document without decrypting it to check whether it is encrypted:
 
 ```js
-// Load a random document you know nothing about:
-const doc = PDFDocument.load(content, { ignoreEncryption: true })
-// Check if the document is encrypted:
+// Load without decrypting (encrypted content will not be readable):
+const doc = await PDFDocument.load(content, { ignoreEncryption: true })
 const isEncrypted = doc.isEncrypted
-// If isEncrypted is true, you know the you need to ask the user for the password.
+// If isEncrypted is true, ask the user for the password.
 ```
 
-If you know the password of the document, or if it was provided by the user, you can now open the document with it:
+To decrypt and load the document, pass the password. `ignoreEncryption` is not required:
 
 ```js
-// Load an encrypted document with its password:
-const password = "The password"
-const doc = PDFDocument.load(content, { ignoreEncryption: true, password })
+// Load and decrypt an encrypted document:
+const doc = await PDFDocument.load(content, { password: 'The password' })
 ```
+
+An empty password is valid for some PDFs. Pass it explicitly — do not omit the option or treat `''` as "no password":
+
+```js
+const doc = await PDFDocument.load(content, { password: '' })
+```
+
+If the password is wrong, `PDFDocument.load` throws an error.
 
 ## Contributing
 
