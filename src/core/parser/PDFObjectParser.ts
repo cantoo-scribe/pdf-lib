@@ -101,7 +101,6 @@ class PDFObjectParser extends BaseParser {
     return PDFNumber.of(firstNum);
   }
 
-  // TODO: Maybe update PDFHexString.of() logic to remove whitespace and validate input?
   protected parseHexString(ref?: PDFRef): PDFHexString {
     let value = '';
 

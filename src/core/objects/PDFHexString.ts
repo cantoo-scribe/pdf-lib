@@ -37,8 +37,10 @@ class PDFHexString extends PDFObject {
   }
 
   asBytes(): Uint8Array {
+    // Per PDF spec 7.3.4.3, white-space inside hex strings must be ignored.
+    const stripped = this.value.replace(/[\0\t\n\f\r ]/g, '');
     // Append a zero if the number of digits is odd. See PDF spec 7.3.4.3
-    const hex = this.value + (this.value.length % 2 === 1 ? '0' : '');
+    const hex = stripped + (stripped.length % 2 === 1 ? '0' : '');
     const hexLength = hex.length;
 
     const bytes = new Uint8Array(hex.length / 2);

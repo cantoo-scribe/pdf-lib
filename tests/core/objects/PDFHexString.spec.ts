@@ -45,6 +45,25 @@ describe('PDFHexString', () => {
         0x30,
       ));
     });
+
+    it('ignores whitespace embedded in hex strings per PDF spec 7.3.4.3', () => {
+      const hex = '01\n23\r45\f67\t89\0ab cdefABCDEF';
+      const expected = '0123456789abcdefABCDEF';
+
+      expect(PDFHexString.of(hex).asBytes()).toEqual(
+        PDFHexString.of(expected).asBytes(),
+      );
+    });
+
+    it('ignores line breaks in encryption dictionary-style hex strings', () => {
+      const clean =
+        '0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF';
+      const withLineBreak = `${clean.slice(0, 16)}\r${clean.slice(16)}`;
+
+      expect(PDFHexString.of(withLineBreak).asBytes()).toEqual(
+        PDFHexString.of(clean).asBytes(),
+      );
+    });
   });
 
   describe('decoding to string', () => {
