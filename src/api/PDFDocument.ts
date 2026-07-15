@@ -67,6 +67,7 @@ import {
   BinaryData,
   Cache,
   canBeConvertedToUint8Array,
+  decodeXfaXml,
   encodeToBase64,
   isStandardFont,
   pluckIndices,
@@ -344,6 +345,15 @@ export default class PDFDocument {
    *   console.log(`${type}: ${name}`)
    * })
    * ```
+   *
+   * **XFA caveat:** if the document contains XFA form data and it was **not**
+   * loaded with `preserveXFA: true`, calling this method strips the XFA data
+   * (pdf-lib cannot render or edit XFA and removes it to keep the AcroForm
+   * consistent). Because the XFA read/write helpers ([[getXFAJavaScripts]],
+   * [[setXFAJavaScript]]) operate on that same data, call them **before**
+   * `getForm()` — or load with `preserveXFA: true`
+   * otherwise the XFA will already be gone.
+   *
    * @returns The form for this document.
    */
   getForm(): PDFForm {
@@ -1164,6 +1174,10 @@ export default class PDFDocument {
    *   console.log(`Field "${field}" on ${event}:`, script)
    * })
    * ```
+   *
+   * **Note:** load the document with `preserveXFA: true` and call this before
+   * [[getForm]], which strips XFA data when `preserveXFA` is not set.
+   *
    * @returns An array of objects containing field names, events, and JavaScript code.
    */
   getXFAJavaScripts(): Array<{ field: string; event: string; script: string }> {
@@ -1176,9 +1190,7 @@ export default class PDFDocument {
 
     try {
       const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
-      const xmlString = new TextDecoder('utf-8', { fatal: true }).decode(
-        xmlBytes,
-      );
+      const xmlString = decodeXfaXml(xmlBytes);
 
       const doc = parseHtml(this.normalizeXfaXml(xmlString), { script: true });
 
@@ -1217,6 +1229,9 @@ export default class PDFDocument {
    * @param eventName The name of the event (e.g., 'event__click', 'calculate')
    * @param newScript The new JavaScript code to set
    * @throws Error if the XFA form is not found, the script location is not found, or decoding fails
+   *
+   * **Note:** load the document with `preserveXFA: true` and call this before
+   * [[getForm]], which strips XFA data when `preserveXFA` is not set.
    */
   setXFAJavaScript(
     fieldName: string,
@@ -1233,7 +1248,7 @@ export default class PDFDocument {
     let xmlString: string;
     try {
       const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
-      xmlString = new TextDecoder('utf-8', { fatal: true }).decode(xmlBytes);
+      xmlString = decodeXfaXml(xmlBytes);
     } catch (error) {
       throw new Error(
         `Failed to decode XFA template stream: ${error instanceof Error ? error.message : String(error)}`,
@@ -1243,23 +1258,51 @@ export default class PDFDocument {
     const normalizedXml = this.normalizeXfaXml(xmlString);
     const doc = parseHtml(normalizedXml, { script: true });
 
-    const entry = this.collectXFAScripts(doc).find(
+    const entries = this.collectXFAScripts(doc).filter(
       (e) => e.field === fieldName && e.event === eventName,
     );
 
-    if (!entry) {
+    if (entries.length === 0) {
       throw new Error(
         `Script not found for field "${fieldName}" and event "${eventName}". ` +
-        'Verify the field and event names exist in the XFA template.',
+          'Verify the field and event names exist in the XFA template.',
       );
     }
 
-    const oldOuter = entry.scriptNode.outerHTML;
-    const tagOpen = oldOuter.match(/^(<script[^>]*>)/i)?.[1] ?? '<script>';
-    const newOuter = `${tagOpen}${this.escapeXML(newScript)}</script>`;
-    const updatedXml = normalizedXml
-      .replace(oldOuter, newOuter)
-      .replace(/xfa-template/g, 'template');
+    // Replace every matching <script> node rather than only the first one.
+    // Work through the entries in document order and consume one occurrence of
+    // each node's serialized form per iteration, so duplicated script bodies
+    // for the same (field, event) are each updated exactly once instead of the
+    // first occurrence being overwritten repeatedly.
+    //
+    // Note: this still relies on the parser's `outerHTML` matching the source
+    // bytes. If two logically-distinct scripts serialize identically and appear
+    // out of document order the mapping is ambiguous; such XFA templates are not
+    // supported. When the serialized form cannot be located at all abort instead
+    // of silently returning an unchanged document.
+    let updatedXml = normalizedXml;
+    for (const entry of entries) {
+      const oldOuter = entry.scriptNode.outerHTML;
+      const tagOpen = oldOuter.match(/^(<script[^>]*>)/i)?.[1] ?? '<script>';
+      const newOuter = `${tagOpen}${this.escapeXML(newScript)}</script>`;
+
+      const index = updatedXml.indexOf(oldOuter);
+      if (index === -1) {
+        throw new Error(
+          `Unable to locate the serialized <script> for field "${fieldName}" ` +
+            `and event "${eventName}" in the XFA template. The parsed ` +
+            'representation does not match the source bytes, so the update was ' +
+            'aborted to avoid corrupting the document.',
+        );
+      }
+
+      updatedXml =
+        updatedXml.slice(0, index) +
+        newOuter +
+        updatedXml.slice(index + oldOuter.length);
+    }
+
+    updatedXml = updatedXml.replace(/xfa-template/g, 'template');
 
     const newXmlBytes = new TextEncoder().encode(updatedXml);
     const filter = templateInfo.stream.dict.get(PDFName.of('Filter'));
@@ -1269,12 +1312,22 @@ export default class PDFDocument {
         : this.context.stream(newXmlBytes);
 
     if (templateInfo.streamRef) {
-      this.context.delete(templateInfo.streamRef);
+      // Overwrite the existing template stream in place, preserving its object
+      // reference. Creating a new object and re-pointing the XFA array does not
+      // survive a save/reload for documents whose objects live in compressed
+      // object streams, because the re-emitted stale copy wins on the next load.
+      this.context.assign(templateInfo.streamRef, newStream);
+      if (this.context.snapshot) {
+        this.context.snapshot.markRefForSave(templateInfo.streamRef);
+      }
+    } else {
+      // The template was stored as a direct (inline) stream; replace the array
+      // slot with a freshly registered stream object.
+      templateInfo.xfa.set(
+        templateInfo.templateIndex,
+        this.context.register(newStream),
+      );
     }
-    templateInfo.xfa.set(
-      templateInfo.templateIndex,
-      this.context.register(newStream),
-    );
   }
 
   /**
@@ -1579,11 +1632,11 @@ export default class PDFDocument {
       const fontkit = this.assertFontkit();
       embedder = subset
         ? await CustomFontSubsetEmbedder.for(
-          fontkit,
-          bytes,
-          customName,
-          features,
-        )
+            fontkit,
+            bytes,
+            customName,
+            features,
+          )
         : await CustomFontEmbedder.for(fontkit, bytes, customName, features);
     } else {
       throw new TypeError(
@@ -1962,7 +2015,7 @@ export default class PDFDocument {
       ).serializeToBuffer();
       const result = new Uint8Array(
         this.context.pdfFileDetails.originalBytes!.byteLength +
-        increment.byteLength,
+          increment.byteLength,
       );
       result.set(this.context.pdfFileDetails.originalBytes!);
       result.set(

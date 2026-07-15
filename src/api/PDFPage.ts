@@ -739,7 +739,7 @@ export default class PDFPage {
       return undefined;
     }
 
-    return extractAdditionalActions(actualDict, this.doc);
+    return extractAdditionalActions(actualDict, this.doc, 'page');
   }
 
   /**

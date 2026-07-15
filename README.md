@@ -765,6 +765,15 @@ const pdfBytes = await pdfDoc.save()
 
 **Note:** The `preserveXFA` option must be set to `true` when loading to preserve XFA data. XFA preservation during save happens automatically if it was preserved during load.
 
+**Scope and limitations (v1):** XFA support in pdf-lib is intentionally narrow and targets the common government/tax "static" XFA layout:
+
+- Only the array form of `/XFA` (alternating name/stream pairs) is supported; the single-stream packaging is not read or written.
+- Only the `template` packet is inspected — dynamic packaging and other packets (e.g. `datasets`, `config`, `xdp` wrappers) are not (re)generated. Editing JavaScript does not re-render or repackage the form.
+- XFA signature detection reads `<signature>`/`<manifest>` entries from the template; it does not validate or create cryptographic signatures.
+- `getForm()` removes XFA data unless the document was loaded with `preserveXFA: true`, so call the XFA helpers before `getForm()` (or load with `preserveXFA: true`).
+- Template XML is decoded as UTF-8 with a latin1 fallback; exotic encodings may not round-trip cleanly.
+
+
 ### Extract XFA JavaScript
 
 XFA forms often contain JavaScript for validation, calculations, and data import/export. You can extract all JavaScript from an XFA form:

@@ -262,6 +262,53 @@ describe('extractAdditionalActions', () => {
     expect(actions.pageOpen?.getScript()).toBe('pageOpen');
   });
 
+  it('maps C to pageClose in page context', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const context = pdfDoc.context;
+
+    const aaDict = context.obj({
+      O: context.obj({ S: 'JavaScript', JS: PDFString.of('pageOpen') }),
+      C: context.obj({ S: 'JavaScript', JS: PDFString.of('pageClose') }),
+    });
+
+    const actions = extractAdditionalActions(aaDict, pdfDoc, 'page');
+
+    expect(actions.pageOpen?.getScript()).toBe('pageOpen');
+    expect(actions.pageClose?.getScript()).toBe('pageClose');
+    // In page context, C must not leak into the field-only `calculate` slot.
+    expect(actions.calculate).toBeUndefined();
+  });
+
+  it('maps C to calculate in field context', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const context = pdfDoc.context;
+
+    const aaDict = context.obj({
+      C: context.obj({ S: 'JavaScript', JS: PDFString.of('calculate') }),
+    });
+
+    const actions = extractAdditionalActions(aaDict, pdfDoc, 'field');
+
+    expect(actions.calculate?.getScript()).toBe('calculate');
+    // In field context, C must not leak into the page-only `pageClose` slot.
+    expect(actions.pageClose).toBeUndefined();
+  });
+
+  it('does not map a single C entry to both calculate and pageClose', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const context = pdfDoc.context;
+
+    const aaDict = context.obj({
+      C: context.obj({ S: 'JavaScript', JS: PDFString.of('script') }),
+    });
+
+    // Default (no context): C resolves to calculate only, never pageClose.
+    const actions = extractAdditionalActions(aaDict, pdfDoc);
+
+    expect(actions.calculate?.getScript()).toBe('script');
+    expect(actions.pageClose).toBeUndefined();
+  });
+
   it('returns empty object when no actions exist', async () => {
     const pdfDoc = await PDFDocument.create();
     const context = pdfDoc.context;

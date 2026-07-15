@@ -281,7 +281,7 @@ export default class PDFField {
       return undefined;
     }
 
-    return extractAdditionalActions(aaDict, this.doc);
+    return extractAdditionalActions(aaDict, this.doc, 'field');
   }
 
   /**

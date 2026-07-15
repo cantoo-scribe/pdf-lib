@@ -117,31 +117,72 @@ export interface JavaScriptActionMap {
 }
 
 /**
+ * The `AA` (additional-actions) key `C` is context-sensitive in the PDF spec:
+ * in a field dictionary it is the *calculate* action, while in a page
+ * dictionary it is the *page close* action. Because a single `C` entry can
+ * only mean one of these, the extractor must be told which context it is
+ * reading so the same entry is not surfaced as both `calculate` and
+ * `pageClose`.
+ */
+export type AdditionalActionsContext = 'field' | 'page';
+
+/** Field-level additional actions (PDF spec table 197). */
+const FIELD_ACTION_KEYS = [
+  { key: 'K', prop: 'keystroke' as const },
+  { key: 'F', prop: 'format' as const },
+  { key: 'V', prop: 'validate' as const },
+  { key: 'C', prop: 'calculate' as const },
+  { key: 'U', prop: 'mouseUp' as const },
+  { key: 'D', prop: 'mouseDown' as const },
+  { key: 'E', prop: 'mouseEnter' as const },
+  { key: 'X', prop: 'mouseExit' as const },
+  { key: 'Fo', prop: 'focus' as const },
+  { key: 'Bl', prop: 'blur' as const },
+];
+
+/** Page-level additional actions (PDF spec table 196). */
+const PAGE_ACTION_KEYS = [
+  { key: 'O', prop: 'pageOpen' as const },
+  { key: 'C', prop: 'pageClose' as const },
+];
+
+/**
  * Extract JavaScript actions from an Additional Actions (AA) dictionary.
+ *
+ * The `context` argument disambiguates the shared `C` key: pass `'field'` when
+ * reading a form field's `AA` dictionary (so `C` maps to `calculate`) and
+ * `'page'` when reading a page's `AA` dictionary (so `C` maps to `pageClose`).
+ * When omitted, field semantics are used together with the unambiguous page
+ * `O` (pageOpen) key, preserving backwards-compatible behaviour without ever
+ * mapping a single `C` entry to two different actions.
+ *
  * @param aaDict The AA dictionary
  * @param doc The document
+ * @param context Whether the dictionary belongs to a field or a page
  * @returns A map of JavaScript actions
  */
 export function extractAdditionalActions(
   aaDict: PDFDict,
   doc: PDFDocument,
+  context?: AdditionalActionsContext,
 ): JavaScriptActionMap {
   const actions: JavaScriptActionMap = {};
 
-  const actionKeys = [
-    { key: 'K', prop: 'keystroke' as const },
-    { key: 'F', prop: 'format' as const },
-    { key: 'V', prop: 'validate' as const },
-    { key: 'C', prop: 'calculate' as const },
-    { key: 'U', prop: 'mouseUp' as const },
-    { key: 'D', prop: 'mouseDown' as const },
-    { key: 'E', prop: 'mouseEnter' as const },
-    { key: 'X', prop: 'mouseExit' as const },
-    { key: 'O', prop: 'pageOpen' as const },
-    { key: 'C', prop: 'pageClose' as const }, // Note: C is used for both calculate (fields) and pageClose (pages)
-    { key: 'Fo', prop: 'focus' as const },
-    { key: 'Bl', prop: 'blur' as const },
-  ];
+  let actionKeys: Array<{ key: string; prop: keyof JavaScriptActionMap }>;
+  switch (context) {
+    case 'page':
+      actionKeys = PAGE_ACTION_KEYS;
+      break;
+    case 'field':
+      actionKeys = FIELD_ACTION_KEYS;
+      break;
+    default:
+      // field actions plus the unambiguous page-open key. `C` resolves to `calculate`
+      actionKeys = [
+        ...FIELD_ACTION_KEYS,
+        { key: 'O', prop: 'pageOpen' as const },
+      ];
+  }
 
   for (const { key, prop } of actionKeys) {
     const actionObj = aaDict.get(PDFName.of(key));
