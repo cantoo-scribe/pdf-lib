@@ -65,20 +65,26 @@ class PDFXRefStreamParser {
     }
     this.alreadyParsed = true;
 
+    // Merge with any previously parsed trailer. Later XRef streams (e.g. the
+    // main body stream of a linearized PDF) often omit Root/Info/ID.
+    const prev = this.context.trailerInfo;
     this.context.trailerInfo = {
-      Size: this.dict.lookup(PDFName.of('Size'), PDFNumber),
-      Root: this.dict.get(PDFName.of('Root')),
-      Encrypt: this.dict.get(PDFName.of('Encrypt')),
-      Info: this.dict.get(PDFName.of('Info')),
-      ID: this.dict.get(PDFName.of('ID')),
+      Size: this.dict.lookup(PDFName.of('Size'), PDFNumber) || prev.Size,
+      Root: this.dict.get(PDFName.of('Root')) || prev.Root,
+      Encrypt: this.dict.get(PDFName.of('Encrypt')) || prev.Encrypt,
+      Info: this.dict.get(PDFName.of('Info')) || prev.Info,
+      ID: this.dict.get(PDFName.of('ID')) || prev.ID,
     };
-    // if open for incremental update, make sure next object number doesn't overlap a deleted one
+    // if open for incremental update, make sure next object number doesn't overlap a deleted one.
+    // Use Math.max so a later section with a smaller Size (e.g. linearized PDFs) cannot lower the value.
     if (
       this.context.trailerInfo.Size &&
       this.context.pdfFileDetails.originalBytes
     ) {
-      this.context.largestObjectNumber =
-        this.context.trailerInfo.Size.asNumber() - 1;
+      this.context.largestObjectNumber = Math.max(
+        this.context.largestObjectNumber,
+        this.context.trailerInfo.Size.asNumber() - 1,
+      );
     }
 
     const entries = this.parseEntries();
