@@ -136,23 +136,32 @@ export const pluckIndices = <T>(arr: T[], indices: number[]) => {
   return plucked;
 };
 
-export const canBeConvertedToUint8Array = (
-  input: any,
-): input is string | ArrayBuffer | Uint8Array =>
-  input instanceof Uint8Array ||
-  input instanceof ArrayBuffer ||
-  typeof input === 'string';
+/**
+ * Binary input accepted by pdf-lib loaders/embedders.
+ * Includes Node.js `Buffer` (an `ArrayBufferView`) without depending on Node types.
+ */
+export type BinaryData = string | ArrayBuffer | ArrayBufferView;
 
-export const toUint8Array = (input: string | ArrayBuffer | Uint8Array) => {
+export const canBeConvertedToUint8Array = (input: any): input is BinaryData =>
+  typeof input === 'string' ||
+  input instanceof ArrayBuffer ||
+  ArrayBuffer.isView(input);
+
+export const toUint8Array = (input: BinaryData): Uint8Array => {
   if (typeof input === 'string') {
     return decodeFromBase64DataUri(input);
   } else if (input instanceof ArrayBuffer) {
     return new Uint8Array(input);
-  } else if (input instanceof Uint8Array) {
-    return input;
+  } else if (ArrayBuffer.isView(input)) {
+    // Node Buffer is a Uint8Array subclass; keep the zero-copy path for views
+    // that are already Uint8Array, and normalize other TypedArrays/DataViews.
+    if (input instanceof Uint8Array) {
+      return input as Uint8Array;
+    }
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
   } else {
     throw new TypeError(
-      '`input` must be one of `string | ArrayBuffer | Uint8Array`',
+      '`input` must be one of `string | ArrayBuffer | ArrayBufferView`',
     );
   }
 };

@@ -64,6 +64,7 @@ import {
   assertIsOneOfOrUndefined,
   assertOrUndefined,
   assertRange,
+  BinaryData,
   Cache,
   canBeConvertedToUint8Array,
   encodeToBase64,
@@ -111,11 +112,12 @@ export default class PDFDocument {
    * Load an existing [[PDFDocument]]. The input data can be provided in
    * multiple formats:
    *
-   * | Type          | Contents                                               |
-   * | ------------- | ------------------------------------------------------ |
-   * | `string`      | A base64 encoded string (or data URI) containing a PDF |
-   * | `Uint8Array`  | The raw bytes of a PDF                                 |
-   * | `ArrayBuffer` | The raw bytes of a PDF                                 |
+   * | Type               | Contents                                               |
+   * | ------------------ | ------------------------------------------------------ |
+   * | `string`           | A base64 encoded string (or data URI) containing a PDF |
+   * | `Uint8Array`       | The raw bytes of a PDF                                 |
+   * | `ArrayBuffer`      | The raw bytes of a PDF                                 |
+   * | `ArrayBufferView`  | The raw bytes of a PDF (includes Node.js `Buffer`)     |
    *
    * For example:
    * ```js
@@ -143,10 +145,10 @@ export default class PDFDocument {
    * const pdfDoc1 = await PDFDocument.load(base64)
    * const pdfDoc2 = await PDFDocument.load(dataUri)
    *
-   * // pdf=Uint8Array
+   * // pdf=Uint8Array / Node Buffer
    * import fs from 'fs'
-   * const uint8Array = fs.readFileSync('with_update_sections.pdf')
-   * const pdfDoc3 = await PDFDocument.load(uint8Array)
+   * const bytes = fs.readFileSync('with_update_sections.pdf')
+   * const pdfDoc3 = await PDFDocument.load(bytes)
    *
    * // pdf=ArrayBuffer
    * const url = 'https://pdf-lib.js.org/assets/with_update_sections.pdf'
@@ -159,10 +161,7 @@ export default class PDFDocument {
    * @param options The options to be used when loading the document.
    * @returns Resolves with a document loaded from the input.
    */
-  static async load(
-    pdf: string | Uint8Array | ArrayBuffer,
-    options: LoadOptions = {},
-  ) {
+  static async load(pdf: BinaryData, options: LoadOptions = {}) {
     const {
       ignoreEncryption = false,
       parseSpeed = ParseSpeeds.Slow,
@@ -174,7 +173,7 @@ export default class PDFDocument {
       forIncrementalUpdate = false,
     } = options;
 
-    assertIs(pdf, 'pdf', ['string', Uint8Array, ArrayBuffer]);
+    assertIs(pdf, 'pdf', ['string', ArrayBuffer, 'ArrayBufferView']);
     assertIs(ignoreEncryption, 'ignoreEncryption', ['boolean']);
     assertIs(parseSpeed, 'parseSpeed', ['number']);
     assertIs(throwOnInvalidObject, 'throwOnInvalidObject', ['boolean']);
@@ -973,11 +972,15 @@ export default class PDFDocument {
    * @returns Resolves when the attachment is complete.
    */
   async attach(
-    attachment: string | Uint8Array | ArrayBuffer,
+    attachment: BinaryData,
     name: string,
     options: AttachmentOptions = {},
   ): Promise<void> {
-    assertIs(attachment, 'attachment', ['string', Uint8Array, ArrayBuffer]);
+    assertIs(attachment, 'attachment', [
+      'string',
+      ArrayBuffer,
+      'ArrayBufferView',
+    ]);
     assertIs(name, 'name', ['string']);
     assertOrUndefined(options.mimeType, 'mimeType', ['string']);
     assertOrUndefined(options.description, 'description', ['string']);
@@ -1199,12 +1202,12 @@ export default class PDFDocument {
    * @returns Resolves with the embedded font.
    */
   async embedFont(
-    font: StandardFonts | string | Uint8Array | ArrayBuffer,
+    font: StandardFonts | BinaryData,
     options: EmbedFontOptions = {},
   ): Promise<PDFFont> {
     const { subset = false, customName, features } = options;
 
-    assertIs(font, 'font', ['string', Uint8Array, ArrayBuffer]);
+    assertIs(font, 'font', ['string', ArrayBuffer, 'ArrayBufferView']);
     assertIs(subset, 'subset', ['boolean']);
 
     let embedder: CustomFontEmbedder | StandardFontEmbedder;
@@ -1223,7 +1226,7 @@ export default class PDFDocument {
         : await CustomFontEmbedder.for(fontkit, bytes, customName, features);
     } else {
       throw new TypeError(
-        '`font` must be one of `StandardFonts | string | Uint8Array | ArrayBuffer`',
+        '`font` must be one of `StandardFonts | string | ArrayBuffer | ArrayBufferView`',
       );
     }
 
@@ -1290,8 +1293,8 @@ export default class PDFDocument {
    * @param jpg The input data for a JPEG image.
    * @returns Resolves with the embedded image.
    */
-  async embedJpg(jpg: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
-    assertIs(jpg, 'jpg', ['string', Uint8Array, ArrayBuffer]);
+  async embedJpg(jpg: BinaryData): Promise<PDFImage> {
+    assertIs(jpg, 'jpg', ['string', ArrayBuffer, 'ArrayBufferView']);
     const bytes = toUint8Array(jpg);
     const embedder = await JpegEmbedder.for(bytes);
     const ref = this.context.nextRef();
@@ -1330,8 +1333,8 @@ export default class PDFDocument {
    * @param png The input data for a PNG image.
    * @returns Resolves with the embedded image.
    */
-  async embedPng(png: string | Uint8Array | ArrayBuffer): Promise<PDFImage> {
-    assertIs(png, 'png', ['string', Uint8Array, ArrayBuffer]);
+  async embedPng(png: BinaryData): Promise<PDFImage> {
+    assertIs(png, 'png', ['string', ArrayBuffer, 'ArrayBufferView']);
     const bytes = toUint8Array(png);
     const embedder = await PngEmbedder.for(bytes);
     const ref = this.context.nextRef();
@@ -1391,13 +1394,13 @@ export default class PDFDocument {
    * @returns Resolves with an array of the embedded pages.
    */
   async embedPdf(
-    pdf: string | Uint8Array | ArrayBuffer | PDFDocument,
+    pdf: BinaryData | PDFDocument,
     indices: number[] = [0],
   ): Promise<PDFEmbeddedPage[]> {
     assertIs(pdf, 'pdf', [
       'string',
-      Uint8Array,
       ArrayBuffer,
+      'ArrayBufferView',
       [PDFDocument, 'PDFDocument'],
     ]);
     assertIs(indices, 'indices', [Array]);

@@ -1646,8 +1646,8 @@ describe('PDFDocument', () => {
           useObjectStreams: false,
         });
         const finalPdfBytes = Buffer.concat([
-          simplePdfBytes,
-          pdfIncrementalBytes,
+          Uint8Array.from(simplePdfBytes),
+          Uint8Array.from(pdfIncrementalBytes),
         ]);
         const pdfSaveBytes = Buffer.from(
           await pdfDoc.save({ useObjectStreams: false }),
@@ -2027,8 +2027,8 @@ describe('PDFDocument', () => {
 
         const pdfIncrementalBytes = await pdfDoc.saveIncremental(snapshot);
         const finalPdfBytes = Buffer.concat([
-          simplePdfBytes,
-          pdfIncrementalBytes,
+          Uint8Array.from(simplePdfBytes),
+          Uint8Array.from(pdfIncrementalBytes),
         ]);
         const pdfSaveBytes = await pdfDoc.save();
         expect(pdfIncrementalBytes.byteLength).toBeGreaterThan(0);
