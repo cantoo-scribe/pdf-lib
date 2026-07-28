@@ -215,7 +215,7 @@ class PDFWriter {
   ): Promise<SerializationInfo> {
     this._largestSkippedObjectNum = 0;
     this._lastXRefObjectNumber = 0;
-    const header = PDFHeader.forVersion(1, 7);
+    const header = this.context.header;
 
     let size = this.snapshot.pdfSize;
     if (!incremental) {

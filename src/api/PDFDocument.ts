@@ -27,6 +27,7 @@ import {
   PDFCatalog,
   PDFContext,
   PDFDict,
+  PDFHeader,
   decodePDFRawStream,
   PDFStream,
   PDFRawStream,
@@ -72,6 +73,7 @@ import {
   pluckIndices,
   range,
   toUint8Array,
+  utf8Encode,
 } from '../utils';
 import FileEmbedder, { AFRelationship } from '../core/embedders/FileEmbedder';
 import PDFEmbeddedFile from './PDFEmbeddedFile';
@@ -80,8 +82,16 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
+import CryptoJS from 'crypto-js';
 import { IncrementalDocumentSnapshot } from './snapshot';
 import type { DocumentSnapshot } from './snapshot';
+import {
+  ConvertToPDFAOptions,
+  buildPDFAMetadata,
+  getDefaultSRGBProfile,
+  parseConformance,
+  ParsedConformance,
+} from './pdfa';
 
 export type BasePDFAttachment = {
   name: string;
@@ -250,6 +260,7 @@ export default class PDFDocument {
   defaultWordBreaks: string[] = [' '];
 
   private fontkit?: Fontkit;
+  private pdfAConformance?: ParsedConformance;
   private pageCount: number | undefined;
   private readonly pageCache: Cache<PDFPage[]>;
   private readonly pageMap: Map<PDFPageLeaf, PDFPage>;
@@ -619,6 +630,126 @@ export default class PDFDocument {
     assertIs(modificationDate, 'modificationDate', [[Date, 'Date']]);
     const key = PDFName.of('ModDate');
     this.getInfoDict().set(key, PDFString.fromDate(modificationDate));
+  }
+
+  /**
+   * Convert this document into a PDF/A compliant document. PDF/A is an
+   * ISO-standardized subset of PDF designed for the long-term archiving of
+   * electronic documents. This method performs the structural changes that a
+   * PDF/A file requires:
+   *
+   * * A unique document identifier (`/ID`) is added to the trailer.
+   * * An `OutputIntent` referencing an embedded ICC color profile is added (the
+   *   bundled sRGB profile is used by default).
+   * * An XMP metadata packet identifying the PDF/A conformance level is added
+   *   and kept consistent with the document information dictionary.
+   * * The PDF header version is set appropriately for the targeted part.
+   *
+   * For example:
+   * ```js
+   * const pdfDoc = await PDFDocument.load(existingPdfBytes)
+   * pdfDoc.convertToPDFA({ conformance: '3B' })
+   * const pdfBytes = await pdfDoc.save()
+   * ```
+   *
+   * > **This method does not, and cannot, guarantee full PDF/A compliance on
+   * > its own.** PDF/A also forbids certain content (encryption, non-embedded
+   * > fonts, transparency for part 1, JavaScript, external references, etc.).
+   * > In particular, any text you draw must use an **embedded** font — the
+   * > 14 standard fonts are not embedded and are therefore not PDF/A compliant.
+   * > You are responsible for ensuring the document's content conforms. Validate
+   * > the result with a tool such as [veraPDF](https://verapdf.org/).
+   *
+   * > **Unicode conformance (`'2U'` / `'3U'`) is not verified.** The `U` levels
+   * > additionally require every glyph in the document to have a Unicode
+   * > mapping (a `ToUnicode` CMap or equivalent). This method writes the
+   * > requested conformance level into the metadata but does **not** inspect
+   * > existing content to confirm the mappings are present — ensuring that is
+   * > the caller's responsibility.
+   *
+   * @param options The options to be used when converting the document.
+   */
+  convertToPDFA(options: ConvertToPDFAOptions = {}): void {
+    assertOrUndefined(options.conformance, 'options.conformance', ['string']);
+    assertOrUndefined(options.iccProfile, 'options.iccProfile', [Uint8Array]);
+    assertOrUndefined(
+      options.outputConditionIdentifier,
+      'options.outputConditionIdentifier',
+      ['string'],
+    );
+    assertIsOneOfOrUndefined(
+      options.colorComponents,
+      'options.colorComponents',
+      [1, 3, 4],
+    );
+
+    const {
+      conformance = '3B',
+      iccProfile = getDefaultSRGBProfile(),
+      outputConditionIdentifier = 'sRGB IEC61966-2.1',
+      colorComponents = 3,
+    } = options;
+
+    const parsed = parseConformance(conformance);
+
+    if (this.isEncrypted) {
+      throw new Error('PDF/A documents must not be encrypted.');
+    }
+
+    // PDF/A-1 is based on PDF 1.4; parts 2 and 3 are based on PDF 1.7.
+    this.context.header = PDFHeader.forVersion(1, parsed.part === 1 ? 4 : 7);
+
+    // A file identifier is required. Reuse the existing one if present so that
+    // it stays consistent with the document information dictionary.
+    if (!this.context.lookup(this.context.trailerInfo.ID)) {
+      const id = this.generateDocumentId();
+      this.context.trailerInfo.ID = this.context.obj([id, id]);
+    }
+
+    // Embed the ICC profile and register it as the document's output intent.
+    const iccStream = this.context.stream(iccProfile, {
+      N: colorComponents,
+    });
+    const outputIntent = this.context.obj({
+      Type: 'OutputIntent',
+      S: 'GTS_PDFA1',
+      OutputConditionIdentifier: PDFString.of(outputConditionIdentifier),
+      DestOutputProfile: this.context.register(iccStream),
+    });
+    this.catalog.set(
+      PDFName.of('OutputIntents'),
+      this.context.obj([this.context.register(outputIntent)]),
+    );
+
+    // Build an XMP metadata packet that mirrors the information dictionary.
+    const metadataXML = buildPDFAMetadata({
+      conformance: parsed,
+      title: this.getTitle(),
+      author: this.getAuthor(),
+      subject: this.getSubject(),
+      keywords: this.getKeywords(),
+      creator: this.getCreator(),
+      producer: this.getProducer(),
+      creationDate: this.getCreationDate(),
+      modificationDate: this.getModificationDate(),
+    });
+
+    // The metadata stream must not be compressed or encrypted so that it can be
+    // read without parsing the PDF, hence a plain (unfiltered) stream. It must
+    // be UTF-8 encoded (the packet already carries its own byte order mark, so
+    // we do not prepend another one); passing the raw string to context.stream
+    // would use a per-char low-byte encoding that corrupts the BOM and any
+    // non-ASCII metadata (e.g. umlauts in ZUGFeRD/Factur-X documents).
+    const metadataStream = this.context.stream(utf8Encode(metadataXML, false), {
+      Type: 'Metadata',
+      Subtype: 'XML',
+    });
+    this.catalog.set(
+      PDFName.of('Metadata'),
+      this.context.register(metadataStream),
+    );
+
+    this.pdfAConformance = parsed;
   }
 
   /**
@@ -1527,6 +1658,15 @@ export default class PDFDocument {
   }
 
   encrypt(options: SecurityOptions) {
+    // PDF/A forbids encryption, so refuse to encrypt a document that has been
+    // converted with convertToPDFA rather than silently producing a file that
+    // claims PDF/A conformance but cannot be one.
+    if (this.pdfAConformance) {
+      throw new Error(
+        'Cannot encrypt a PDF/A document: PDF/A forbids encryption. A file ' +
+          'cannot be both encrypted and PDF/A compliant.',
+      );
+    }
     this.context.security = PDFSecurity.create(this.context, options).encrypt();
   }
 
@@ -1567,7 +1707,10 @@ export default class PDFDocument {
   async save(options: SaveOptions = {}) {
     const vparts = this.context.header.getVersionString().split('.');
     const uOS =
-      options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
+      // PDF/A-1 forbids object and cross-reference streams, so never enable
+      // them by default when targeting that part.
+      this.pdfAConformance?.part !== 1 &&
+      (options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5);
     const {
       useObjectStreams = uOS,
       addDefaultPage = true,
@@ -1800,6 +1943,11 @@ export default class PDFDocument {
 
     if (!info.get(PDFName.of('Creator'))) this.setCreator(pdfLib);
     if (!info.get(PDFName.of('CreationDate'))) this.setCreationDate(now);
+  }
+
+  private generateDocumentId(): PDFHexString {
+    const hex = CryptoJS.lib.WordArray.random(16).toString(CryptoJS.enc.Hex);
+    return PDFHexString.of(hex.toUpperCase());
   }
 
   private getInfoDict(): PDFDict {
