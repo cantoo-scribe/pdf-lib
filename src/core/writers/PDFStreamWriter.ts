@@ -1,4 +1,3 @@
-import PDFHeader from '../document/PDFHeader';
 import PDFTrailer from '../document/PDFTrailer';
 import PDFInvalidObject from '../objects/PDFInvalidObject';
 import PDFName from '../objects/PDFName';
@@ -69,7 +68,7 @@ class PDFStreamWriter extends PDFWriter {
   private _refToDeleteAfterSave = 0;
   protected async computeBufferSize(incremental: boolean) {
     this._refToDeleteAfterSave = 0;
-    const header = PDFHeader.forVersion(1, 7);
+    const header = this.context.header;
 
     let size = this.snapshot.pdfSize;
     if (!incremental) {

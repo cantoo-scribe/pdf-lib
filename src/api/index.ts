@@ -12,6 +12,7 @@ export * from './snapshot';
 export * from './PDFPageOptions';
 export * from './PDFDocumentOptions';
 export * from './StandardFonts';
+export * from './pdfa';
 export { default as PDFDocument } from './PDFDocument';
 export { default as PDFFont } from './PDFFont';
 export { default as PDFImage } from './PDFImage';
