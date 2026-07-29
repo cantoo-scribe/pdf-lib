@@ -1,5 +1,14 @@
 import PDFDocument from './PDFDocument';
-import { PDFDict, PDFName, PDFString, PDFHexString, PDFRef } from '../core';
+import {
+  PDFDict,
+  PDFName,
+  PDFString,
+  PDFHexString,
+  PDFRef,
+  PDFStream,
+  PDFRawStream,
+  decodePDFRawStream,
+} from '../core';
 
 /**
  * Represents a JavaScript action extracted from a PDF.
@@ -77,6 +86,16 @@ export default class PDFJavaScriptAction {
     if (jsValue instanceof PDFName) {
       return jsValue.decodeText();
     }
+
+    const jsRaw = js instanceof PDFRef ? this.dict.context.lookup(js) : js;
+    if (jsRaw instanceof PDFStream) {
+      const bytes =
+        jsRaw instanceof PDFRawStream
+          ? decodePDFRawStream(jsRaw).decode()
+          : jsRaw.getContents();
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+
     return undefined;
   }
 

@@ -60,7 +60,7 @@ export interface FlattenOptions {
 /**
  * Describes a signature field declared inside an XFA form template.
  */
-export interface XFASignature {
+export interface XFASignatureField {
   field: string;
   manifest: string | null;
   refs: string[];
@@ -70,7 +70,7 @@ export interface XFASignature {
  * Describes a signature field found in a [[PDFDocument]], regardless of whether
  * it is declared in the AcroForm `/Fields` array or inside an XFA template.
  */
-export interface SignatureFieldInfo {
+export interface SignatureField {
   name: string;
   source: 'acroform' | 'xfa';
   acroField?: PDFSignature;
@@ -358,8 +358,8 @@ export default class PDFForm {
    *
    * @returns An array of [[XFASignature]] objects, one per XFA signature field.
    */
-  getXFASignatures(): XFASignature[] {
-    const result: XFASignature[] = [];
+  getXFASignatures(): XFASignatureField[] {
+    const result: XFASignatureField[] = [];
 
     if (!this.hasXFA()) return result;
 
@@ -367,7 +367,7 @@ export default class PDFForm {
     if (xmlString === null) return result;
 
     try {
-      const doc = parseHtml(this.normalizeXFATemplate(xmlString), {
+      const doc = parseHtml(xmlString, {
         script: true,
       });
 
@@ -415,8 +415,8 @@ export default class PDFForm {
    * @returns An array of [[SignatureFieldInfo]] describing every signature
    *          field, whether it originates from the AcroForm or from XFA.
    */
-  getSignatureFields(): SignatureFieldInfo[] {
-    const results: SignatureFieldInfo[] = [];
+  getSignatureFields(): SignatureField[] {
+    const results: SignatureField[] = [];
 
     for (const field of this.getFields()) {
       if (field instanceof PDFSignature) {
@@ -478,19 +478,6 @@ export default class PDFForm {
     }
 
     return null;
-  }
-
-  /**
-   * Normalizes XFA template XML so that node-html-better-parser can parse it
-   * correctly. XFA uses `\n>` to close opening tags, and the HTML parser treats
-   * `<template>` as a special inert element, so both need to be worked around.
-   */
-  private normalizeXFATemplate(xml: string): string {
-    return xml
-      .replace(/\n>/g, '>')
-      .replace(/<template(\s)/g, '<xfa-template$1')
-      .replace(/<template>/g, '<xfa-template>')
-      .replace(/<\/template>/g, '</xfa-template>');
   }
 
   /**

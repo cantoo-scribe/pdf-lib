@@ -78,6 +78,7 @@ import FileEmbedder, { AFRelationship } from '../core/embedders/FileEmbedder';
 import PDFEmbeddedFile from './PDFEmbeddedFile';
 import PDFJavaScript from './PDFJavaScript';
 import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
+import PDFJavaScriptAction from './PDFJavaScriptAction';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
 import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
@@ -217,7 +218,6 @@ export default class PDFDocument {
         decryptedContext,
         true,
         updateMetadata,
-        false,
         preserveXFA,
       );
       if (forIncrementalUpdate) pdfDoc.takeSnapshot();
@@ -227,7 +227,6 @@ export default class PDFDocument {
         context,
         ignoreEncryption,
         updateMetadata,
-        false,
         preserveXFA,
       );
       if (forIncrementalUpdate) pdfDoc.takeSnapshot();
@@ -273,14 +272,12 @@ export default class PDFDocument {
   private readonly embeddedPages: PDFEmbeddedPage[];
   private readonly embeddedFiles: PDFEmbeddedFile[];
   private readonly javaScripts: PDFJavaScript[];
-  private readonly isNewDocument: boolean;
   private readonly preserveXFA: boolean;
 
   private constructor(
     context: PDFContext,
     ignoreEncryption: boolean,
     updateMetadata: boolean,
-    isNewDocument = false,
     preserveXFA = false,
   ) {
     assertIs(context, 'context', [[PDFContext, 'PDFContext']]);
@@ -1011,20 +1008,9 @@ export default class PDFDocument {
         continue;
       }
 
-      const s = actionDict.lookup(PDFName.of('S'));
-      if (!(s instanceof PDFName) || s.asString() !== '/JavaScript') {
-        continue;
-      }
-
-      const js = actionDict.lookup(PDFName.of('JS'));
-      let script: string;
-      if (js instanceof PDFString) {
-        script = js.asString();
-      } else if (js instanceof PDFHexString) {
-        script = js.decodeText();
-      } else {
-        continue;
-      }
+      const action = PDFJavaScriptAction.of(actionDict, this);
+      const script = action?.getScript();
+      if (!script) continue;
 
       scripts.push({ name, script });
     }
@@ -1042,19 +1028,6 @@ export default class PDFDocument {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
-  }
-
-  /**
-   * Normalizes XFA template XML so that node-html-better-parser can parse it
-   * correctly. XFA uses \n> to close opening tags, and the HTML parser treats
-   * <template> as a special inert element, so both need to be worked around.
-   */
-  private normalizeXfaXml(xml: string): string {
-    return xml
-      .replace(/\n>/g, '>')
-      .replace(/<template(\s)/g, '<xfa-template$1')
-      .replace(/<template>/g, '<xfa-template>')
-      .replace(/<\/template>/g, '</xfa-template>');
   }
 
   /**
@@ -1192,7 +1165,7 @@ export default class PDFDocument {
       const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
       const xmlString = decodeXfaXml(xmlBytes);
 
-      const doc = parseHtml(this.normalizeXfaXml(xmlString), { script: true });
+      const doc = parseHtml(xmlString, { script: true });
 
       for (const script of this.collectXFAScripts(doc)) {
         const scriptContent = script.scriptNode.text?.trim();
@@ -1255,8 +1228,7 @@ export default class PDFDocument {
       );
     }
 
-    const normalizedXml = this.normalizeXfaXml(xmlString);
-    const doc = parseHtml(normalizedXml, { script: true });
+    const doc = parseHtml(xmlString, { script: true });
 
     const entries = this.collectXFAScripts(doc).filter(
       (e) => e.field === fieldName && e.event === eventName,
@@ -1269,40 +1241,10 @@ export default class PDFDocument {
       );
     }
 
-    // Replace every matching <script> node rather than only the first one.
-    // Work through the entries in document order and consume one occurrence of
-    // each node's serialized form per iteration, so duplicated script bodies
-    // for the same (field, event) are each updated exactly once instead of the
-    // first occurrence being overwritten repeatedly.
-    //
-    // Note: this still relies on the parser's `outerHTML` matching the source
-    // bytes. If two logically-distinct scripts serialize identically and appear
-    // out of document order the mapping is ambiguous; such XFA templates are not
-    // supported. When the serialized form cannot be located at all abort instead
-    // of silently returning an unchanged document.
-    let updatedXml = normalizedXml;
     for (const entry of entries) {
-      const oldOuter = entry.scriptNode.outerHTML;
-      const tagOpen = oldOuter.match(/^(<script[^>]*>)/i)?.[1] ?? '<script>';
-      const newOuter = `${tagOpen}${this.escapeXML(newScript)}</script>`;
-
-      const index = updatedXml.indexOf(oldOuter);
-      if (index === -1) {
-        throw new Error(
-          `Unable to locate the serialized <script> for field "${fieldName}" ` +
-            `and event "${eventName}" in the XFA template. The parsed ` +
-            'representation does not match the source bytes, so the update was ' +
-            'aborted to avoid corrupting the document.',
-        );
-      }
-
-      updatedXml =
-        updatedXml.slice(0, index) +
-        newOuter +
-        updatedXml.slice(index + oldOuter.length);
+      entry.scriptNode.set_content(this.escapeXML(newScript));
     }
-
-    updatedXml = updatedXml.replace(/xfa-template/g, 'template');
+    const updatedXml = doc.toString();
 
     const newXmlBytes = new TextEncoder().encode(updatedXml);
     const filter = templateInfo.stream.dict.get(PDFName.of('Filter'));
