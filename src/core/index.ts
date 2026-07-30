@@ -66,6 +66,7 @@ export { default as PDFXRefStreamParser } from './parser/PDFXRefStreamParser';
 export {
   default as PDFSecurity,
   SecurityOptions,
+  generateRandomFileId,
 } from './security/PDFSecurity';
 
 export { decodePDFRawStream } from './streams/decode';

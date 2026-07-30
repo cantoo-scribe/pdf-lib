@@ -119,7 +119,7 @@ class PDFSecurity {
   }
 
   private initialize(options: SecurityOptions) {
-    this.id = generateFileID();
+    this.id = generateRandomFileId();
 
     let v: Algorithm;
     switch (this.context.header.getVersionString()) {
@@ -386,14 +386,11 @@ class PDFSecurity {
 }
 
 /**
- * A file ID is required if Encrypt entry is present in Trailer
- * Doesn't really matter what it is as long as it is consistently
- * used.
- *
- * @returns Uint8Array
+ * Generate a random 16-byte file identifier suitable for the PDF trailer
+ * `/ID` entry (and for encryption).
  */
-const generateFileID = (): Uint8Array =>
-  wordArrayToBuffer(CryptoJS.MD5(Date.now().toString()));
+export const generateRandomFileId = (): Uint8Array =>
+  wordArrayToBuffer(CryptoJS.lib.WordArray.random(16));
 
 const generateRandomWordArray = (bytes: number): WordArray =>
   CryptoJS.lib.WordArray.random(bytes);

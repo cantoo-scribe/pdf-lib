@@ -37,4 +37,14 @@ export interface ConvertToPDFAOptions {
    * default sRGB profile.
    */
   colorComponents?: 1 | 3 | 4;
+
+  /**
+   * Extra `rdf:Description` fragments to include in the initial XMP packet
+   * (e.g. Factur-X / ZUGFeRD schemas). They are written once on conversion and
+   * then preserved automatically across later saves when the Info dict changes.
+   *
+   * Each entry must be a full `<rdf:Description ...>...</rdf:Description>`
+   * element using a namespace other than `dc` / `xmp` / `pdf` / `pdfaid`.
+   */
+  extensions?: string[];
 }

@@ -2,6 +2,7 @@ import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import {
   buildPDFAMetadata,
+  extractForeignXmpDescriptions,
   getDefaultSRGBProfile,
   parseConformance,
   PDFArray,
@@ -78,6 +79,56 @@ describe('buildPDFAMetadata', () => {
     expect(xml).not.toContain('dc:title');
     expect(xml).not.toContain('xmp:CreateDate');
     expect(xml).toContain('<pdfaid:part>2</pdfaid:part>');
+  });
+
+  it('appends extension rdf:Description fragments', () => {
+    const fx =
+      '<rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+      '<fx:DocumentType>INVOICE</fx:DocumentType>' +
+      '</rdf:Description>';
+    const xml = buildPDFAMetadata({
+      conformance: { part: 3, level: 'B' },
+      extensions: [fx],
+    });
+    expect(xml).toContain('xmlns:fx=');
+    expect(xml).toContain('<fx:DocumentType>INVOICE</fx:DocumentType>');
+    expect(xml.indexOf('pdfaid:part')).toBeLessThan(xml.indexOf('xmlns:fx='));
+  });
+});
+
+describe('extractForeignXmpDescriptions', () => {
+  const ownedPacket = buildPDFAMetadata({
+    conformance: { part: 3, level: 'B' },
+    title: 'Hello',
+  });
+
+  const fxDescription =
+    '<rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+    '<fx:DocumentType>INVOICE</fx:DocumentType>' +
+    '<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>' +
+    '</rdf:Description>';
+
+  const extensionSchemaDescription =
+    '<rdf:Description rdf:about="" ' +
+    'xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/" ' +
+    'xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#" ' +
+    'xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">' +
+    '<pdfaExtension:schemas><rdf:Bag/></pdfaExtension:schemas>' +
+    '</rdf:Description>';
+
+  it('returns no foreign descriptions for an owned-only packet', () => {
+    expect(extractForeignXmpDescriptions(ownedPacket)).toEqual([]);
+  });
+
+  it('extracts fx and pdfaExtension descriptions as foreign', () => {
+    const xml = buildPDFAMetadata({
+      conformance: { part: 3, level: 'B' },
+      extensions: [fxDescription, extensionSchemaDescription],
+    });
+    const foreign = extractForeignXmpDescriptions(xml);
+    expect(foreign).toHaveLength(2);
+    expect(foreign[0]).toContain('xmlns:fx=');
+    expect(foreign[1]).toContain('pdfaExtension');
   });
 });
 
@@ -262,5 +313,49 @@ describe('PDFDocument.convertToPDFA', () => {
     const id = pdfDoc.context.lookup(pdfDoc.context.trailerInfo.ID, PDFArray);
     const value = (id.lookup(0) as PDFHexString).asBytes();
     expect(value.length).toBe(16);
+  });
+
+  it('refreshes XMP metadata on save after Info dict changes', async () => {
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '3B' });
+    pdfDoc.setTitle('Updated Title After Conversion');
+
+    await pdfDoc.save();
+
+    const metadata = pdfDoc.catalog.lookup(
+      PDFName.of('Metadata'),
+    ) as PDFRawStream;
+    const xml = Buffer.from(metadata.asUint8Array()).toString('utf8');
+    expect(xml).toContain('Updated Title After Conversion');
+    expect(xml).not.toContain('The &lt;Egg&gt;');
+  });
+
+  it('accepts one-shot XMP extensions and preserves them across save', async () => {
+    const fx =
+      '<rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+      '<fx:DocumentType>INVOICE</fx:DocumentType>' +
+      '<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>' +
+      '<fx:Version>1.0</fx:Version>' +
+      '<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>' +
+      '</rdf:Description>';
+
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '3B', extensions: [fx] });
+
+    pdfDoc.setTitle('New Title After fx Inject');
+    await pdfDoc.save();
+
+    const metadata = pdfDoc.catalog.lookup(
+      PDFName.of('Metadata'),
+    ) as PDFRawStream;
+    const xml = Buffer.from(metadata.asUint8Array()).toString('utf8');
+    expect(xml).toContain('New Title After fx Inject');
+    expect(xml).toContain('<fx:DocumentType>INVOICE</fx:DocumentType>');
+    expect(xml).toContain(
+      '<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>',
+    );
+    expect(xml).toContain('<pdfaid:part>3</pdfaid:part>');
+    // Extensions are preserved once, not duplicated on each save.
+    expect(xml.match(/xmlns:fx=/g)).toHaveLength(1);
   });
 });

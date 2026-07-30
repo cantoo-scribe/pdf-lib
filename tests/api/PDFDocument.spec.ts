@@ -19,6 +19,7 @@ import {
   AFRelationship,
 } from '../../src/index';
 import { PDFAttachment } from '../../src/api/PDFDocument';
+import { PDFHeader } from '../../src/core';
 
 const examplePngImageBase64 =
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TxaoVBzuIdMhQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5uak6CIl/i8ptIjx4Lgf7+497t4BQqPCVLNrAlA1y0jFY2I2tyr2vKIfAgLoRVhipp5IL2bgOb7u4ePrXZRneZ/7cwwoeZMBPpF4jumGRbxBPLNp6Zz3iUOsJCnE58TjBl2Q+JHrsstvnIsOCzwzZGRS88QhYrHYwXIHs5KhEk8TRxRVo3wh67LCeYuzWqmx1j35C4N5bSXNdZphxLGEBJIQIaOGMiqwEKVVI8VEivZjHv4Rx58kl0yuMhg5FlCFCsnxg//B727NwtSkmxSMAd0vtv0xCvTsAs26bX8f23bzBPA/A1da219tALOfpNfbWuQIGNwGLq7bmrwHXO4Aw0+6ZEiO5KcpFArA+xl9Uw4YugX61tzeWvs4fQAy1NXyDXBwCIwVKXvd492Bzt7+PdPq7wcdn3KFLu4iBAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlFJREFUeNrt289r02AYB/Dvk6Sl4EDKpllTlFKsnUdBHXgUBEHwqHj2IJ72B0zwKHhxJ08i/gDxX/AiRfSkBxELXTcVxTa2s2xTsHNN8ngQbQL70RZqG/Z9b29JnvflkydP37whghG3ZaegoxzfwB5vBCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgwB5rstWPtnP0LqBX/vZNyLF6vVrpN/hucewhb4g+B2AyAwiwY7NGOXijviS9vBeYh6CEP4edBLDADCAAAQhAAAIQgAAEIAABCDAUAFF/GIN1DM+PBYCo/ohMXDQ1WPjoeUZH1mMBEEh0oqLGvsHCy0S4NzWVWotJBogbvZB+brDwQT7UWSmXy5sxyQB9HQEROdVv4HQ+vx+QmS4iXsWmCK7Usu8AhOqAXMzlcn3VgWTbugQgEYrxMkZ/gyUPgnuhe2C6/Stxvdeg2ezMJERvhOuoZ+JBrNYBRuDdBtDuXkDM25nCHLbZSv9X6A4VHU+DpwCcbvbjcetLtTaOANtuirrux08HM0euisjDEMKC7RQuq+C+pVJqpzx3NZ3+eeBza9I0rWJgyHnxg2sAJrqnaHUzFcyN60Jox13hprv8aNopZBS4GcqWWVHM+lAkN0zY7ncgkYBukRoKLPpiXVj9UFkfV4Bdl8Jf60u3IMZZAG/6iLuhkDvaSZ74VqtUx3kp3NN7gUZt8RmA43a2eEY1OCfQ04AcBpAGkAKwpkBLIG8BfQE/eNJsvG/G4VlARj0BfjDBx2ECEIAABCAAAQhAAAIQgAAE+P/tN8YvpvbTDBOlAAAAAElFTkSuQmCC';
@@ -2122,6 +2123,36 @@ describe('PDFDocument', () => {
       const form2 = pdfDoc2.getForm();
 
       expect(form2.hasXFA()).toBe(true);
+    });
+  });
+
+  describe('save() PDF header version', () => {
+    it('bumps the header when rewriting a pre-1.5 document with object streams', async () => {
+      const pdfDoc = await PDFDocument.create({ updateMetadata: false });
+      pdfDoc.context.header = PDFHeader.forVersion(1, 3);
+      pdfDoc.addPage();
+
+      const bytes = await pdfDoc.save({ rewrite: true });
+      const text = Buffer.from(bytes).toString('latin1');
+
+      // PDFStreamWriter emits a cross-reference stream (PDF 1.5+); the header
+      // must be raised to match.
+      expect(pdfDoc.context.header.getVersionString()).toBe('1.7');
+      expect(text).toContain('%PDF-1.7');
+      expect(text).toContain('/Type /XRef');
+    });
+
+    it('preserves a pre-1.5 header when object streams are not used', async () => {
+      const pdfDoc = await PDFDocument.create({ updateMetadata: false });
+      pdfDoc.context.header = PDFHeader.forVersion(1, 4);
+      pdfDoc.addPage();
+
+      const bytes = await pdfDoc.save({ useObjectStreams: false });
+      const text = Buffer.from(bytes).toString('latin1');
+
+      expect(pdfDoc.context.header.getVersionString()).toBe('1.4');
+      expect(text).toContain('%PDF-1.4');
+      expect(text).not.toContain('/Type /XRef');
     });
   });
 });

@@ -83,13 +83,16 @@ import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
 import PDFJavaScriptAction from './PDFJavaScriptAction';
 import { CipherTransformFactory } from '../core/crypto';
 import PDFSvg from './PDFSvg';
-import PDFSecurity, { SecurityOptions } from '../core/security/PDFSecurity';
-import CryptoJS from 'crypto-js';
+import PDFSecurity, {
+  SecurityOptions,
+  generateRandomFileId,
+} from '../core/security/PDFSecurity';
 import { IncrementalDocumentSnapshot } from './snapshot';
 import type { DocumentSnapshot } from './snapshot';
 import {
   ConvertToPDFAOptions,
   buildPDFAMetadata,
+  extractForeignXmpDescriptions,
   getDefaultSRGBProfile,
   parseConformance,
   ParsedConformance,
@@ -693,6 +696,21 @@ export default class PDFDocument {
    * > existing content to confirm the mappings are present — ensuring that is
    * > the caller's responsibility.
    *
+   * > **XMP is refreshed on save.** After conversion, pdf-lib *manages* the
+   * > catalog `/Metadata` stream. On [[save]] / [[saveIncremental]] /
+   * > [[saveAsBase64]] it rebuilds the owned slice (Info-dict mirrors +
+   * > `pdfaid`) so Info and XMP stay equivalent as required by PDF/A, while
+   * > preserving foreign `rdf:Description` blocks (e.g. Factur-X / custom
+   * > schemas). Pass one-shot extras via `options.extensions`; they are written
+   * > into the initial packet and then preserved like any other foreign block.
+   *
+   * > **Ownership contract.** After this method runs, pdf-lib owns the `dc`,
+   * > `xmp`, `pdf`, and `pdfaid` schemas. Add extra XMP with
+   * > `options.extensions` or by merging foreign `rdf:Description` elements
+   * > into the packet — those are preserved on sync. Hand-editing owned fields
+   * > in the XMP (e.g. `dc:title`) without going through the Info setters will
+   * > be overwritten.
+   *
    * @param options The options to be used when converting the document.
    */
   convertToPDFA(options: ConvertToPDFAOptions = {}): void {
@@ -708,12 +726,14 @@ export default class PDFDocument {
       'options.colorComponents',
       [1, 3, 4],
     );
+    assertOrUndefined(options.extensions, 'options.extensions', [Array]);
 
     const {
       conformance = '3B',
       iccProfile = getDefaultSRGBProfile(),
       outputConditionIdentifier = 'sRGB IEC61966-2.1',
       colorComponents = 3,
+      extensions,
     } = options;
 
     const parsed = parseConformance(conformance);
@@ -725,10 +745,11 @@ export default class PDFDocument {
     // PDF/A-1 is based on PDF 1.4; parts 2 and 3 are based on PDF 1.7.
     this.context.header = PDFHeader.forVersion(1, parsed.part === 1 ? 4 : 7);
 
-    // A file identifier is required. Reuse the existing one if present so that
-    // it stays consistent with the document information dictionary.
+    // A file identifier (`/ID`) is required by PDF/A. Reuse an existing one if
+    // present so incremental updates and encryption stay consistent with the
+    // previously assigned identity.
     if (!this.context.lookup(this.context.trailerInfo.ID)) {
-      const id = this.generateDocumentId();
+      const id = PDFHexString.fromBytes(generateRandomFileId());
       this.context.trailerInfo.ID = this.context.obj([id, id]);
     }
 
@@ -747,35 +768,9 @@ export default class PDFDocument {
       this.context.obj([this.context.register(outputIntent)]),
     );
 
-    // Build an XMP metadata packet that mirrors the information dictionary.
-    const metadataXML = buildPDFAMetadata({
-      conformance: parsed,
-      title: this.getTitle(),
-      author: this.getAuthor(),
-      subject: this.getSubject(),
-      keywords: this.getKeywords(),
-      creator: this.getCreator(),
-      producer: this.getProducer(),
-      creationDate: this.getCreationDate(),
-      modificationDate: this.getModificationDate(),
-    });
-
-    // The metadata stream must not be compressed or encrypted so that it can be
-    // read without parsing the PDF, hence a plain (unfiltered) stream. It must
-    // be UTF-8 encoded (the packet already carries its own byte order mark, so
-    // we do not prepend another one); passing the raw string to context.stream
-    // would use a per-char low-byte encoding that corrupts the BOM and any
-    // non-ASCII metadata (e.g. umlauts in ZUGFeRD/Factur-X documents).
-    const metadataStream = this.context.stream(utf8Encode(metadataXML, false), {
-      Type: 'Metadata',
-      Subtype: 'XML',
-    });
-    this.catalog.set(
-      PDFName.of('Metadata'),
-      this.context.register(metadataStream),
-    );
-
     this.pdfAConformance = parsed;
+    // One-shot extras are written now; later saves preserve them as foreign.
+    this.syncPDFAMetadata(extensions);
   }
 
   /**
@@ -2080,6 +2075,21 @@ export default class PDFDocument {
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
     assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
     assertIs(rewrite, 'rewrite', ['boolean']);
+
+    // Object streams require PDF >= 1.5. If a loaded document still advertises
+    // an older header (e.g. 1.3/1.4) but we are about to emit ObjStm — typically
+    // via `rewrite: true` — bump the header so the declared version matches the
+    // features we write.
+    if (useObjectStreams) {
+      const [maj, min] = this.context.header
+        .getVersionString()
+        .split('.')
+        .map(Number);
+      if (maj < 1 || (maj === 1 && min < 5)) {
+        this.context.header = PDFHeader.forVersion(1, 7);
+      }
+    }
+
     const incrementalUpdate =
       !rewrite &&
       this.context.pdfFileDetails.originalBytes &&
@@ -2279,6 +2289,9 @@ export default class PDFDocument {
       if (form) form.updateFieldAppearances();
     }
 
+    // Keep Info dict and XMP Metadata equivalent, as required by PDF/A.
+    this.syncPDFAMetadata();
+
     await this.flush();
   }
 
@@ -2301,9 +2314,56 @@ export default class PDFDocument {
     if (!info.get(PDFName.of('CreationDate'))) this.setCreationDate(now);
   }
 
-  private generateDocumentId(): PDFHexString {
-    const hex = CryptoJS.lib.WordArray.random(16).toString(CryptoJS.enc.Hex);
-    return PDFHexString.of(hex.toUpperCase());
+  /**
+   * Rebuild the catalog `/Metadata` XMP packet when this document is under
+   * PDF/A metadata management: owned Info/`pdfaid` projection, plus any foreign
+   * `rdf:Description` blocks already present (and optional one-shot extras).
+   */
+  private syncPDFAMetadata(extraExtensions?: string[]): void {
+    if (!this.pdfAConformance) return;
+
+    const existingXml = this.readCatalogMetadataXml();
+    const preserved = existingXml
+      ? extractForeignXmpDescriptions(existingXml)
+      : [];
+    const extensions = extraExtensions
+      ? extraExtensions.concat(preserved)
+      : preserved;
+
+    const metadataXML = buildPDFAMetadata({
+      conformance: this.pdfAConformance,
+      title: this.getTitle(),
+      author: this.getAuthor(),
+      subject: this.getSubject(),
+      keywords: this.getKeywords(),
+      creator: this.getCreator(),
+      producer: this.getProducer(),
+      creationDate: this.getCreationDate(),
+      modificationDate: this.getModificationDate(),
+      extensions,
+    });
+
+    // Unfiltered UTF-8 stream — see convertToPDFA for the rationale.
+    const metadataStream = this.context.stream(utf8Encode(metadataXML, false), {
+      Type: 'Metadata',
+      Subtype: 'XML',
+    });
+    this.catalog.set(
+      PDFName.of('Metadata'),
+      this.context.register(metadataStream),
+    );
+  }
+
+  private readCatalogMetadataXml(): string | undefined {
+    try {
+      const meta = this.catalog.lookup(PDFName.of('Metadata'));
+      if (!(meta instanceof PDFRawStream)) return undefined;
+      const bytes = decodePDFRawStream(meta).decode();
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch {
+      // Malformed / undecodable Metadata: fall back to owned-only.
+      return undefined;
+    }
   }
 
   private getInfoDict(): PDFDict {
