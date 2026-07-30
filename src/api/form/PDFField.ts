@@ -289,7 +289,10 @@ export default class PDFField {
    */
   getAction(): PDFJavaScriptAction | undefined {
     const actionObj = this.acroField.dict.get(PDFName.of('A'));
-    const actionDict = this.acroField.dict.lookupMaybe(PDFName.of('A'), PDFDict);
+    const actionDict = this.acroField.dict.lookupMaybe(
+      PDFName.of('A'),
+      PDFDict,
+    );
     if (!actionDict) return undefined;
 
     return PDFJavaScriptAction.of(

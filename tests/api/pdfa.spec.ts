@@ -190,7 +190,10 @@ describe('mergeXmpExtensionFragments', () => {
     '</rdf:Description>';
 
   it('lets extras win over preserved fragments with the same namespace', () => {
-    const merged = mergeXmpExtensionFragments([fxUpdated], [fx, extensionSchema]);
+    const merged = mergeXmpExtensionFragments(
+      [fxUpdated],
+      [fx, extensionSchema],
+    );
     expect(merged).toHaveLength(2);
     expect(merged[0]).toContain('ORDER');
     expect(merged[0]).not.toContain('INVOICE');

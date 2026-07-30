@@ -227,11 +227,7 @@ export const embedFacturX = async (
   const existing = readCatalogPDFAConformance(pdfDoc.catalog);
   pdfDoc.convertToPDFA({
     conformance:
-      existing?.part === 3
-        ? existing.level === 'U'
-          ? '3U'
-          : '3B'
-        : '3B',
+      existing?.part === 3 ? (existing.level === 'U' ? '3U' : '3B') : '3B',
     extensions,
   });
 

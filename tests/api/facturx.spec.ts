@@ -15,10 +15,10 @@ import { readCatalogPDFAConformance } from '../../src/api/pdfa/catalogMetadata';
 const ttfFont = fs.readFileSync('assets/fonts/nunito/Nunito-Regular.ttf');
 
 const minimalInvoiceXml = Buffer.from(
-  `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">` +
-    `<rsm:ExchangedDocument><ram:ID xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">TEST-1</ram:ID></rsm:ExchangedDocument>` +
-    `</rsm:CrossIndustryInvoice>`,
+  '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">' +
+    '<rsm:ExchangedDocument><ram:ID xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">TEST-1</ram:ID></rsm:ExchangedDocument>' +
+    '</rsm:CrossIndustryInvoice>',
 );
 
 describe('buildFacturXDescription', () => {
@@ -29,10 +29,16 @@ describe('buildFacturXDescription', () => {
       documentType: 'INVOICE',
       conformanceLevel: 'EN 16931',
     });
-    expect(xml).toContain('xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#"');
+    expect(xml).toContain(
+      'xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#"',
+    );
     expect(xml).toContain('<fx:DocumentType>INVOICE</fx:DocumentType>');
-    expect(xml).toContain('<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>');
-    expect(xml).toContain('<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>');
+    expect(xml).toContain(
+      '<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>',
+    );
+    expect(xml).toContain(
+      '<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>',
+    );
   });
 });
 
@@ -57,7 +63,13 @@ describe('embedFacturX', () => {
     pdfDoc.registerFontkit(fontkit);
     const font = await pdfDoc.embedFont(ttfFont, { subset: true });
     const page = pdfDoc.addPage([300, 200]);
-    page.drawText('Invoice', { x: 20, y: 100, size: 24, font, color: rgb(0, 0, 0) });
+    page.drawText('Invoice', {
+      x: 20,
+      y: 100,
+      size: 24,
+      font,
+      color: rgb(0, 0, 0),
+    });
     pdfDoc.setTitle('Invoice TEST-1');
     pdfDoc.setAuthor('ACME GmbH');
 
@@ -81,7 +93,9 @@ describe('embedFacturX', () => {
     expect(xml).toContain('<pdfaid:part>3</pdfaid:part>');
     expect(xml).toContain('<pdfaid:conformance>B</pdfaid:conformance>');
     expect(xml).toContain('<fx:DocumentType>INVOICE</fx:DocumentType>');
-    expect(xml).toContain('<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>');
+    expect(xml).toContain(
+      '<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>',
+    );
     expect(xml).toContain('<fx:ConformanceLevel>BASIC</fx:ConformanceLevel>');
     expect(xml).toContain('pdfaExtension:schemas');
     expect(xml).toContain('Updated after embed');
@@ -103,7 +117,13 @@ describe('embedFacturX', () => {
     pdfDoc.registerFontkit(fontkit);
     const font = await pdfDoc.embedFont(ttfFont, { subset: true });
     const page = pdfDoc.addPage([300, 200]);
-    page.drawText('Invoice', { x: 20, y: 100, size: 24, font, color: rgb(0, 0, 0) });
+    page.drawText('Invoice', {
+      x: 20,
+      y: 100,
+      size: 24,
+      font,
+      color: rgb(0, 0, 0),
+    });
 
     pdfDoc.convertToPDFA({ conformance: '3U' });
     const outputIntents = pdfDoc.catalog.get(PDFName.of('OutputIntents'));

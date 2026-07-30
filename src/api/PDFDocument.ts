@@ -750,7 +750,8 @@ export default class PDFDocument {
       throw new Error('PDF/A documents must not be encrypted.');
     }
 
-    const alreadyConverted = readCatalogPDFAConformance(this.catalog) !== undefined;
+    const alreadyConverted =
+      readCatalogPDFAConformance(this.catalog) !== undefined;
 
     // PDF/A-1 is based on PDF 1.4; parts 2 and 3 are based on PDF 1.7.
     this.context.header = PDFHeader.forVersion(1, parsed.part === 1 ? 4 : 7);
@@ -1952,8 +1953,7 @@ export default class PDFDocument {
     const vparts = this.context.header.getVersionString().split('.');
     const pdfaPart = readCatalogPDFAConformance(this.catalog)?.part;
     const uOS =
-      pdfaPart !== 1 &&
-      (Number(vparts[0]) > 1 || Number(vparts[1]) >= 5);
+      pdfaPart !== 1 && (Number(vparts[0]) > 1 || Number(vparts[1]) >= 5);
     const { objectsPerTick = 50 } = options;
 
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
@@ -2235,7 +2235,7 @@ export default class PDFDocument {
     const acroForm = this.catalog.getAcroForm();
     if (!acroForm) return undefined;
     return PDFForm.of(acroForm, this);
-  };
+  }
 }
 
 /* tslint:disable-next-line only-arrow-functions */
