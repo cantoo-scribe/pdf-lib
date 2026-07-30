@@ -34,17 +34,48 @@ import {
   PDFAcroText,
   PDFAcroPushButton,
   PDFAcroNonTerminal,
+  PDFArray,
   PDFDict,
+  PDFHexString,
   PDFOperator,
+  PDFRawStream,
   PDFRef,
+  PDFString,
   createPDFAcroFields,
+  decodePDFRawStream,
   PDFName,
   PDFWidgetAnnotation,
 } from '../../core';
-import { assertIs, Cache, assertOrUndefined } from '../../utils';
+import { assertIs, Cache, assertOrUndefined, decodeXfaXml } from '../../utils';
+import {
+  parse as parseHtml,
+  HTMLElement,
+  NodeType,
+} from 'node-html-better-parser';
 
 export interface FlattenOptions {
   updateFieldAppearances: boolean;
+}
+
+/**
+ * Describes a signature field declared inside an XFA form template.
+ */
+export interface XFASignatureField {
+  field: string;
+  manifest: string | null;
+  refs: string[];
+}
+
+/**
+ * Describes a signature field found in a [[PDFDocument]], regardless of whether
+ * it is declared in the AcroForm `/Fields` array or inside an XFA template.
+ */
+export interface SignatureField {
+  name: string;
+  source: 'acroform' | 'xfa';
+  acroField?: PDFSignature;
+  manifest?: string | null;
+  refs?: string[];
 }
 
 /**
@@ -306,6 +337,215 @@ export default class PDFForm {
     const field = this.getField(name);
     if (field instanceof PDFSignature) return field;
     throw new UnexpectedFieldTypeError(name, PDFSignature, field);
+  }
+
+  /**
+   * Get the signature fields declared inside this form's XFA template (if any).
+   *
+   * Dynamic XFA forms declare signature fields inside the template XML rather
+   * than in the AcroForm `/Fields` array, so [[PDFForm.getSignature]] cannot
+   * see them. Each signature field carries a `<signature>` UI element that
+   * references a `<manifest>` describing which fields the signature covers (its
+   * FieldMDP scope). This method surfaces that information.
+   *
+   * For example:
+   * ```js
+   * const form = pdfDoc.getForm()
+   * form.getXFASignatures().forEach(({ field, manifest, refs }) => {
+   *   console.log(`Signature "${field}" (manifest ${manifest}) covers`, refs)
+   * })
+   * ```
+   *
+   * @returns An array of [[XFASignature]] objects, one per XFA signature field.
+   */
+  getXFASignatures(): XFASignatureField[] {
+    const result: XFASignatureField[] = [];
+
+    if (!this.hasXFA()) return result;
+
+    const xmlString = this.getXFATemplateXml();
+    if (xmlString === null) return result;
+
+    try {
+      const doc = parseHtml(xmlString, {
+        script: true,
+      });
+
+      const signatures: Array<{
+        field: string;
+        manifestUse?: string;
+        inlineRefs: string[];
+      }> = [];
+      const manifests = new Map<string, string[]>();
+      this.collectXFASignatureData(doc, signatures, manifests);
+
+      for (const sig of signatures) {
+        let refs = sig.inlineRefs;
+        if (sig.manifestUse && manifests.has(sig.manifestUse)) {
+          refs = manifests.get(sig.manifestUse)!;
+        }
+        result.push({
+          field: sig.field,
+          manifest: sig.manifestUse ?? null,
+          refs,
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to parse XFA template: ${error.message}`);
+      }
+      throw error;
+    }
+
+    return result;
+  }
+
+  /**
+   * Get all signature fields in this form, including both AcroForm signature
+   * fields and signature fields declared inside an XFA template.
+   * For example:
+   * ```js
+   * const form = pdfDoc.getForm()
+   * const sigFields = form.getSignatureFields()
+   * sigFields.forEach(({ name, source }) => {
+   *   console.log(`${source} signature field: ${name}`)
+   * })
+   * ```
+   *
+   * @returns An array of [[SignatureFieldInfo]] describing every signature
+   *          field, whether it originates from the AcroForm or from XFA.
+   */
+  getSignatureFields(): SignatureField[] {
+    const results: SignatureField[] = [];
+
+    for (const field of this.getFields()) {
+      if (field instanceof PDFSignature) {
+        results.push({
+          name: field.getName(),
+          source: 'acroform',
+          acroField: field,
+        });
+      }
+    }
+
+    for (const xfaSig of this.getXFASignatures()) {
+      results.push({
+        name: xfaSig.field,
+        source: 'xfa',
+        manifest: xfaSig.manifest,
+        refs: xfaSig.refs,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Reads this form's XFA `template` packet and returns its decoded XML, or
+   * `null` if the form has no XFA data or no template packet. The XFA data
+   * lives in this form's AcroForm dictionary under `/XFA`, stored as an array
+   * of alternating name/stream pairs.
+   */
+  private getXFATemplateXml(): string | null {
+    const context = this.acroForm.dict.context;
+    const xfaObj = this.acroForm.dict.get(PDFName.of('XFA'));
+    if (!xfaObj) return null;
+
+    const xfa = xfaObj instanceof PDFRef ? context.lookup(xfaObj) : xfaObj;
+    if (!(xfa instanceof PDFArray)) return null;
+
+    for (let idx = 0; idx < xfa.size(); idx += 2) {
+      const nameObj = xfa.get(idx);
+      const streamObj = xfa.get(idx + 1);
+      if (!nameObj || !streamObj) continue;
+
+      let sectionName: string;
+      if (nameObj instanceof PDFString) {
+        sectionName = nameObj.asString();
+      } else if (nameObj instanceof PDFHexString) {
+        sectionName = nameObj.decodeText();
+      } else {
+        continue;
+      }
+      if (sectionName !== 'template') continue;
+
+      const stream =
+        streamObj instanceof PDFRef ? context.lookup(streamObj) : streamObj;
+      if (!(stream instanceof PDFRawStream)) continue;
+
+      const xmlBytes = decodePDFRawStream(stream).decode();
+      return decodeXfaXml(xmlBytes);
+    }
+
+    return null;
+  }
+
+  /**
+   * Recursively walks the XFA template tree collecting signature fields (a
+   * `<field>` whose descendant is a `<signature>` element) together with every
+   * `<manifest>` definition keyed by its `id` so that a signature's
+   * `<manifest use="#id"/>` reference can be resolved to its `<ref>` list.
+   */
+  private collectXFASignatureData(
+    node: HTMLElement,
+    signatures: Array<{
+      field: string;
+      manifestUse?: string;
+      inlineRefs: string[];
+    }>,
+    manifests: Map<string, string[]>,
+    currentField?: string,
+  ): void {
+    const tag = node.tagName?.toLowerCase();
+    let fieldCtx = currentField;
+
+    if (tag === 'field') {
+      fieldCtx = node.getAttribute('name') ?? undefined;
+    } else if (tag === 'manifest') {
+      const id = node.getAttribute('id');
+      if (id) manifests.set(id, this.collectXFARefs(node));
+    } else if (tag === 'signature' && fieldCtx) {
+      let manifestUse: string | undefined;
+      const inlineRefs: string[] = [];
+      for (const child of node.childNodes) {
+        if (child.nodeType !== NodeType.ELEMENT_NODE) continue;
+        const el = child as HTMLElement;
+        if (el.tagName?.toLowerCase() !== 'manifest') continue;
+        const use = el.getAttribute('use');
+        if (use) manifestUse = use.replace(/^#/, '');
+        const id = el.getAttribute('id');
+        const refs = this.collectXFARefs(el);
+        if (id) manifests.set(id, refs);
+        inlineRefs.push(...refs);
+      }
+      signatures.push({ field: fieldCtx, manifestUse, inlineRefs });
+    }
+
+    for (const child of node.childNodes) {
+      if (child.nodeType === NodeType.ELEMENT_NODE) {
+        this.collectXFASignatureData(
+          child as HTMLElement,
+          signatures,
+          manifests,
+          fieldCtx,
+        );
+      }
+    }
+  }
+
+  /**
+   * Collects the trimmed text of every direct `<ref>` child of the given node.
+   */
+  private collectXFARefs(node: HTMLElement): string[] {
+    const refs: string[] = [];
+    for (const child of node.childNodes) {
+      if (child.nodeType !== NodeType.ELEMENT_NODE) continue;
+      const el = child as HTMLElement;
+      if (el.tagName?.toLowerCase() !== 'ref') continue;
+      const text = el.text?.trim();
+      if (text) refs.push(text);
+    }
+    return refs;
   }
 
   /**

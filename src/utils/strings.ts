@@ -190,3 +190,17 @@ export const findLastMatch = (value: string, regex: RegExp) => {
   }
   return { match: lastMatch, pos: position };
 };
+
+/**
+ * Decode XFA template bytes into a string.
+ * XFA templates are almost always UTF-8,
+ * Some producers, emit other single-byte encodings, rather than
+ * failing fall back to latin1, which maps every byte to a code point
+ */
+export const decodeXfaXml = (bytes: Uint8Array): string => {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('latin1').decode(bytes);
+  }
+};

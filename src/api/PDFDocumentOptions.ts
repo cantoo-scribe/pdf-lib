@@ -36,6 +36,7 @@ export interface LoadOptions {
   capNumbers?: boolean;
   password?: string;
   forIncrementalUpdate?: boolean;
+  preserveXFA?: boolean;
 }
 
 export interface CreateOptions {
