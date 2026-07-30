@@ -4,7 +4,9 @@ import {
   buildPDFAMetadata,
   extractForeignXmpDescriptions,
   getDefaultSRGBProfile,
+  mergeXmpExtensionFragments,
   parseConformance,
+  parsePDFAConformanceFromXmp,
   PDFArray,
   PDFDict,
   PDFDocument,
@@ -12,9 +14,11 @@ import {
   PDFName,
   PDFNumber,
   PDFRawStream,
+  PDFRef,
   PDFString,
   rgb,
 } from '../../src/index';
+import { readCatalogPDFAConformance } from '../../src/api/pdfa/catalogMetadata';
 
 const ttfFont = fs.readFileSync('assets/fonts/nunito/Nunito-Regular.ttf');
 const encryptedPdfBytes = fs.readFileSync('assets/pdfs/encrypted_new.pdf');
@@ -129,6 +133,75 @@ describe('extractForeignXmpDescriptions', () => {
     expect(foreign).toHaveLength(2);
     expect(foreign[0]).toContain('xmlns:fx=');
     expect(foreign[1]).toContain('pdfaExtension');
+  });
+
+  it('drops mixed owned+foreign descriptions to avoid duplicate pdfaid/dc', () => {
+    const mixed =
+      '<rdf:Description rdf:about="" ' +
+      'xmlns:dc="http://purl.org/dc/elements/1.1/" ' +
+      'xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" ' +
+      'xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+      '<pdfaid:part>3</pdfaid:part>' +
+      '<dc:format>application/pdf</dc:format>' +
+      '<fx:DocumentType>INVOICE</fx:DocumentType>' +
+      '</rdf:Description>';
+    expect(extractForeignXmpDescriptions(ownedPacket + mixed)).toEqual([]);
+  });
+});
+
+describe('parsePDFAConformanceFromXmp', () => {
+  it('reads pdfaid part and level', () => {
+    const xml = buildPDFAMetadata({ conformance: { part: 3, level: 'U' } });
+    expect(parsePDFAConformanceFromXmp(xml)).toEqual({ part: 3, level: 'U' });
+  });
+
+  it('reads Acrobat-style attribute form pdfaid', () => {
+    const xml =
+      '<rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" ' +
+      'pdfaid:part="2" pdfaid:conformance="B"/>';
+    expect(parsePDFAConformanceFromXmp(xml)).toEqual({ part: 2, level: 'B' });
+  });
+
+  it('returns undefined for missing or unsupported combinations', () => {
+    expect(parsePDFAConformanceFromXmp('<x/>')).toBeUndefined();
+    expect(
+      parsePDFAConformanceFromXmp(
+        '<pdfaid:part>1</pdfaid:part><pdfaid:conformance>U</pdfaid:conformance>',
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe('mergeXmpExtensionFragments', () => {
+  const fx =
+    '<rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+    '<fx:DocumentType>INVOICE</fx:DocumentType>' +
+    '</rdf:Description>';
+  const fxUpdated =
+    '<rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+    '<fx:DocumentType>ORDER</fx:DocumentType>' +
+    '</rdf:Description>';
+  const extensionSchema =
+    '<rdf:Description rdf:about="" ' +
+    'xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/" ' +
+    'xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#" ' +
+    'xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">' +
+    '<pdfaExtension:schemas><rdf:Bag/></pdfaExtension:schemas>' +
+    '</rdf:Description>';
+
+  it('lets extras win over preserved fragments with the same namespace', () => {
+    const merged = mergeXmpExtensionFragments([fxUpdated], [fx, extensionSchema]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toContain('ORDER');
+    expect(merged[0]).not.toContain('INVOICE');
+    expect(merged[1]).toContain('pdfaExtension');
+  });
+
+  it('keeps preserved fragments when extras omit them', () => {
+    const merged = mergeXmpExtensionFragments(undefined, [fx, extensionSchema]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toContain('xmlns:fx=');
+    expect(merged[1]).toContain('pdfaExtension');
   });
 });
 
@@ -357,5 +430,79 @@ describe('PDFDocument.convertToPDFA', () => {
     expect(xml).toContain('<pdfaid:part>3</pdfaid:part>');
     // Extensions are preserved once, not duplicated on each save.
     expect(xml.match(/xmlns:fx=/g)).toHaveLength(1);
+  });
+
+  it('does not duplicate XMP extensions on repeated convertToPDFA', async () => {
+    const fx =
+      '<rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">' +
+      '<fx:DocumentType>INVOICE</fx:DocumentType>' +
+      '</rdf:Description>';
+
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '3B', extensions: [fx] });
+    pdfDoc.convertToPDFA({ conformance: '3B', extensions: [fx] });
+
+    const metadata = pdfDoc.catalog.lookup(
+      PDFName.of('Metadata'),
+    ) as PDFRawStream;
+    const xml = Buffer.from(metadata.asUint8Array()).toString('utf8');
+    expect(xml.match(/xmlns:fx=/g)).toHaveLength(1);
+  });
+
+  it('reuses the catalog Metadata ref across saves', async () => {
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '3B' });
+    const firstRef = pdfDoc.catalog.get(PDFName.of('Metadata'));
+    expect(firstRef).toBeInstanceOf(PDFRef);
+
+    pdfDoc.setTitle('After first save');
+    await pdfDoc.save();
+    const secondRef = pdfDoc.catalog.get(PDFName.of('Metadata'));
+    expect(secondRef).toBe(firstRef);
+
+    pdfDoc.setTitle('After second save');
+    await pdfDoc.save();
+    expect(pdfDoc.catalog.get(PDFName.of('Metadata'))).toBe(firstRef);
+  });
+
+  it('does not reinstall OutputIntent on a second convert without ICC options', async () => {
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '3B' });
+    const firstIntents = pdfDoc.catalog.get(PDFName.of('OutputIntents'));
+
+    pdfDoc.convertToPDFA({ conformance: '3U' });
+    expect(pdfDoc.catalog.get(PDFName.of('OutputIntents'))).toBe(firstIntents);
+    expect(readCatalogPDFAConformance(pdfDoc.catalog)).toEqual({
+      part: 3,
+      level: 'U',
+    });
+  });
+
+  it('throws when forcing object streams on a PDF/A-1 document', async () => {
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '1B' });
+    await expect(pdfDoc.save({ useObjectStreams: true })).rejects.toThrow(
+      /PDF\/A-1 forbids object/,
+    );
+  });
+
+  it('reads PDF/A conformance from catalog XMP after load', async () => {
+    const pdfDoc = await buildDocument();
+    pdfDoc.convertToPDFA({ conformance: '3U' });
+    const bytes = await pdfDoc.save();
+
+    const loaded = await PDFDocument.load(bytes);
+    expect(readCatalogPDFAConformance(loaded.catalog)).toEqual({
+      part: 3,
+      level: 'U',
+    });
+
+    const intents = loaded.catalog.get(PDFName.of('OutputIntents'));
+    loaded.convertToPDFA({ conformance: '3U' });
+    expect(loaded.catalog.get(PDFName.of('OutputIntents'))).toBe(intents);
+    expect(readCatalogPDFAConformance(loaded.catalog)).toEqual({
+      part: 3,
+      level: 'U',
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { encode } from 'html-entities';
 import { ParsedConformance } from './PDFAConformance';
 
 const OWNED_XMP_NAMESPACE_URIS: ReadonlySet<string> = new Set([
@@ -33,14 +34,6 @@ export interface XMPMetadataInfo {
 // The recommended, fixed XMP packet id (see the XMP specification, part 1).
 const XPACKET_ID = 'W5M0MpCehiHzreSzNTczkc9d';
 
-const escapeXML = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-
 // XMP dates use ISO 8601. We drop the milliseconds so the value matches the
 // (second-precision) date stored in the document information dictionary, which
 // PDF/A requires to be equivalent.
@@ -65,27 +58,95 @@ const declaredNamespaceUris = (description: string): string[] => {
   return uris;
 };
 
-const isOwnedDescription = (description: string): boolean => {
+/**
+ * A description is preservable as "foreign" only when it declares at least one
+ * non-owned namespace and *no* owned ones. Mixed blocks (e.g. Acrobat packing
+ * `dc:` + `fx:` + `pdfaid:` in one Description) are dropped so sync does not
+ * duplicate owned fields; callers that need Factur-X should pass `extensions`
+ * or use [[embedFacturX]].
+ */
+const isStrictlyForeignDescription = (description: string): boolean => {
   const nss = declaredNamespaceUris(description).filter(
     (uri) => !STRUCTURAL_XMP_NAMESPACE_URIS.has(uri),
   );
   if (nss.length === 0) return false;
-  return nss.every((uri) => OWNED_XMP_NAMESPACE_URIS.has(uri));
+  return nss.every((uri) => !OWNED_XMP_NAMESPACE_URIS.has(uri));
 };
 
 /**
  * Extract `rdf:Description` elements from an XMP packet that are *not* owned
- * by pdf-lib (e.g. Factur-X `fx:`, `pdfaExtension` schemas). Owned blocks are
- * omitted so they can be rebuilt from the Info dictionary.
+ * by pdf-lib (e.g. Factur-X `fx:`, `pdfaExtension` schemas). Owned and mixed
+ * blocks are omitted so the owned Info/`pdfaid` slice can be rebuilt cleanly.
  */
 export const extractForeignXmpDescriptions = (xml: string): string[] => {
   const foreign: string[] = [];
   DESCRIPTION_RE.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = DESCRIPTION_RE.exec(xml)) !== null) {
-    if (!isOwnedDescription(match[0])) foreign.push(match[0]);
+    if (isStrictlyForeignDescription(match[0])) foreign.push(match[0]);
   }
   return foreign;
+};
+
+/**
+ * Read `pdfaid:part` / `pdfaid:conformance` from an XMP packet, if present and
+ * supported (`1B` / `2B` / `2U` / `3B` / `3U`).
+ */
+export const parsePDFAConformanceFromXmp = (
+  xml: string,
+): ParsedConformance | undefined => {
+  // Element form (pdf-lib / many writers) or attribute form (common in Acrobat).
+  const partMatch =
+    /<pdfaid:part>\s*([123])\s*<\/pdfaid:part>/.exec(xml) ||
+    /\bpdfaid:part\s*=\s*["']([123])["']/.exec(xml);
+  const levelMatch =
+    /<pdfaid:conformance>\s*([BU])\s*<\/pdfaid:conformance>/.exec(xml) ||
+    /\bpdfaid:conformance\s*=\s*["']([BU])["']/.exec(xml);
+  if (!partMatch || !levelMatch) return undefined;
+  const part = Number(partMatch[1]) as 1 | 2 | 3;
+  const level = levelMatch[1] as 'B' | 'U';
+  if (part === 1 && level === 'U') return undefined;
+  return { part, level };
+};
+
+const foreignNamespaceUris = (description: string): string[] =>
+  declaredNamespaceUris(description).filter(
+    (uri) =>
+      !STRUCTURAL_XMP_NAMESPACE_URIS.has(uri) &&
+      !OWNED_XMP_NAMESPACE_URIS.has(uri),
+  );
+
+/**
+ * Merge one-shot extension fragments with preserved foreign descriptions.
+ * Fragments in `extras` win over preserved ones that declare the same
+ * non-owned namespace URI, so repeated `convertToPDFA({ extensions })` calls
+ * do not duplicate Factur-X / custom schemas.
+ */
+export const mergeXmpExtensionFragments = (
+  extras: string[] | undefined,
+  preserved: string[],
+): string[] => {
+  const claimed = new Set<string>();
+  const merged: string[] = [];
+
+  const appendUnique = (fragment: string) => {
+    const trimmed = fragment.trim();
+    if (!trimmed) return;
+    const nss = foreignNamespaceUris(trimmed);
+    if (nss.length === 0 || nss.some((ns) => claimed.has(ns))) return;
+    for (let i = 0; i < nss.length; i++) claimed.add(nss[i]);
+    merged.push(trimmed);
+  };
+
+  if (extras) {
+    for (let idx = 0, len = extras.length; idx < len; idx++) {
+      appendUnique(extras[idx]);
+    }
+  }
+  for (let idx = 0, len = preserved.length; idx < len; idx++) {
+    appendUnique(preserved[idx]);
+  }
+  return merged;
 };
 
 /**
@@ -102,26 +163,26 @@ export const buildPDFAMetadata = (info: XMPMetadataInfo): string => {
   if (info.title !== undefined) {
     dcEntries.push(
       '<dc:title><rdf:Alt><rdf:li xml:lang="x-default">' +
-        `${escapeXML(info.title)}</rdf:li></rdf:Alt></dc:title>`,
+        `${encode(info.title)}</rdf:li></rdf:Alt></dc:title>`,
     );
   }
   if (info.author !== undefined) {
     dcEntries.push(
       '<dc:creator><rdf:Seq><rdf:li>' +
-        `${escapeXML(info.author)}</rdf:li></rdf:Seq></dc:creator>`,
+        `${encode(info.author)}</rdf:li></rdf:Seq></dc:creator>`,
     );
   }
   if (info.subject !== undefined) {
     dcEntries.push(
       '<dc:description><rdf:Alt><rdf:li xml:lang="x-default">' +
-        `${escapeXML(info.subject)}</rdf:li></rdf:Alt></dc:description>`,
+        `${encode(info.subject)}</rdf:li></rdf:Alt></dc:description>`,
     );
   }
 
   const xmpEntries: string[] = [];
   if (info.creator !== undefined) {
     xmpEntries.push(
-      `<xmp:CreatorTool>${escapeXML(info.creator)}</xmp:CreatorTool>`,
+      `<xmp:CreatorTool>${encode(info.creator)}</xmp:CreatorTool>`,
     );
   }
   if (info.creationDate !== undefined) {
@@ -137,10 +198,10 @@ export const buildPDFAMetadata = (info: XMPMetadataInfo): string => {
 
   const pdfEntries: string[] = [];
   if (info.producer !== undefined) {
-    pdfEntries.push(`<pdf:Producer>${escapeXML(info.producer)}</pdf:Producer>`);
+    pdfEntries.push(`<pdf:Producer>${encode(info.producer)}</pdf:Producer>`);
   }
   if (info.keywords !== undefined) {
-    pdfEntries.push(`<pdf:Keywords>${escapeXML(info.keywords)}</pdf:Keywords>`);
+    pdfEntries.push(`<pdf:Keywords>${encode(info.keywords)}</pdf:Keywords>`);
   }
 
   const descriptions: string[] = [

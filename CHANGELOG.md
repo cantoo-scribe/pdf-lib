@@ -14,12 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`pdfaid` + Info-dict mirrors), and the correct PDF header version for parts
   1–3 (`1B`, `2B`, `2U`, `3B`, `3U`). Level `A` (tagged) is intentionally not
   offered.
-- **Factur-X / ZUGFeRD helper** `embedFacturX()` — converts the document to
-  PDF/A-3B, writes the required `fx:` XMP properties and PDF/A extension schema,
-  and attaches the invoice XML with an associated-file relationship.
+- **Factur-X / ZUGFeRD helper** `embedFacturX()` — ensures PDF/A-3 (converts to
+  3B if needed; keeps an existing 3U/3B level), writes the required `fx:` XMP
+  properties and PDF/A extension schema, and attaches the invoice XML with an
+  associated-file relationship.
 - Optional `extensions` on `convertToPDFA()` for one-shot extra XMP
   `rdf:Description` fragments (preserved across later saves).
-- `generateRandomFileId()` helper in `PDFSecurity` for trailer `/ID` generation.
+- `generateRandomFileId()` (internal to `PDFSecurity`) for trailer `/ID`
+  generation.
 
 ### Changed
 
@@ -30,8 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the header is bumped to 1.7 so the declared version matches the features
   written.
 - After `convertToPDFA()`, XMP `/Metadata` is refreshed on save: the owned
-  Info/`pdfaid` slice is rebuilt for PDF/A consistency, while foreign
-  `rdf:Description` blocks (Factur-X, custom schemas, …) are preserved.
+  Info/`pdfaid` slice is rebuilt for PDF/A consistency, while strictly foreign
+  `rdf:Description` blocks (Factur-X, custom schemas, …) are preserved and
+  deduped against new `extensions`. The catalog `/Metadata` ref is reused so
+  repeated saves do not orphan streams.
+- Repeated `convertToPDFA()` calls skip reinstalling the OutputIntent unless a
+  custom ICC profile / condition is supplied (also when the catalog already
+  declares `pdfaid`).
+- `save()` / `saveIncremental()` reject `useObjectStreams: true` for PDF/A-1
+  documents (object streams are forbidden by that part).
 - `encrypt()` refuses to encrypt a document that has been converted to PDF/A.
 
 ### Notes

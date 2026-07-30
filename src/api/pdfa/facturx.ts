@@ -1,3 +1,4 @@
+import { encode } from 'html-entities';
 import PDFDocument from '../PDFDocument';
 import { AttachmentOptions } from '../PDFDocumentOptions';
 import { AFRelationship } from '../../core/embedders/FileEmbedder';
@@ -8,6 +9,7 @@ import {
   toUint8Array,
   BinaryData,
 } from '../../utils';
+import { readCatalogPDFAConformance } from './catalogMetadata';
 
 /**
  * Factur-X / ZUGFeRD 2.1+ profile advertised in `fx:ConformanceLevel`.
@@ -61,8 +63,8 @@ export interface EmbedFacturXOptions {
   description?: string;
 
   /**
-   * Associated-file relationship. Defaults to [[AFRelationship.Alternative]].
-   * Some profiles expect [[AFRelationship.Data]] instead.
+   * Associated-file relationship. Defaults to [[AFRelationship.Alternative]],
+   * which is what Factur-X / ZUGFeRD expect for the embedded invoice XML.
    */
   afRelationship?: AFRelationship;
 
@@ -121,14 +123,6 @@ export const FACTUR_X_EXTENSION_SCHEMA =
   '</rdf:li></rdf:Bag></pdfaExtension:schemas>' +
   '</rdf:Description>';
 
-const escapeXML = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-
 /**
  * Build the `fx:` `rdf:Description` fragment for Factur-X / ZUGFeRD XMP.
  */
@@ -139,10 +133,10 @@ export const buildFacturXDescription = (options: {
   conformanceLevel: FacturXConformanceLevel;
 }): string =>
   `<rdf:Description rdf:about="" xmlns:fx="${FACTUR_X_NAMESPACE_URI}">` +
-  `<fx:DocumentType>${escapeXML(options.documentType)}</fx:DocumentType>` +
-  `<fx:DocumentFileName>${escapeXML(options.fileName)}</fx:DocumentFileName>` +
-  `<fx:Version>${escapeXML(options.version)}</fx:Version>` +
-  `<fx:ConformanceLevel>${escapeXML(options.conformanceLevel)}</fx:ConformanceLevel>` +
+  `<fx:DocumentType>${encode(options.documentType)}</fx:DocumentType>` +
+  `<fx:DocumentFileName>${encode(options.fileName)}</fx:DocumentFileName>` +
+  `<fx:Version>${encode(options.version)}</fx:Version>` +
+  `<fx:ConformanceLevel>${encode(options.conformanceLevel)}</fx:ConformanceLevel>` +
   '</rdf:Description>';
 
 /**
@@ -150,7 +144,7 @@ export const buildFacturXDescription = (options: {
  * with the required XMP metadata.
  *
  * This helper:
- * 1. Converts the document to PDF/A-3B (OutputIntent, `/ID`, `pdfaid` XMP, …).
+ * 1. Ensures PDF/A-3 (converts to 3B if needed; keeps an existing 3U/3B level).
  * 2. Adds the Factur-X `fx:` properties and PDF/A extension schema to XMP.
  * 3. Attaches the invoice XML with an associated-file relationship.
  *
@@ -220,18 +214,29 @@ export const embedFacturX = async (
     modificationDate,
   } = options;
 
+  const extensions = [
+    buildFacturXDescription({
+      fileName,
+      version,
+      documentType,
+      conformanceLevel,
+    }),
+    FACTUR_X_EXTENSION_SCHEMA,
+  ];
+
+  const existing = readCatalogPDFAConformance(pdfDoc.catalog);
   pdfDoc.convertToPDFA({
-    conformance: '3B',
-    extensions: [
-      buildFacturXDescription({
-        fileName,
-        version,
-        documentType,
-        conformanceLevel,
-      }),
-      FACTUR_X_EXTENSION_SCHEMA,
-    ],
+    conformance:
+      existing?.part === 3
+        ? existing.level === 'U'
+          ? '3U'
+          : '3B'
+        : '3B',
+    extensions,
   });
+
+  // Replace any prior attachment with the same name (e.g. re-running the helper).
+  pdfDoc.detach(fileName);
 
   const attachOptions: AttachmentOptions = {
     mimeType: 'text/xml',

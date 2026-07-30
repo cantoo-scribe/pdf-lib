@@ -1248,15 +1248,20 @@ const pdfBytes = await pdfDoc.save()
 ```
 
 After conversion, pdf-lib keeps the Info dictionary and XMP metadata in sync on
-`save()`, while preserving any extra XMP `rdf:Description` blocks (for example
-Factur-X schemas passed via `extensions`).
+`save()`, while preserving any *strictly foreign* XMP `rdf:Description` blocks
+(for example Factur-X schemas passed via `extensions`). Descriptions that mix
+owned namespaces (`dc` / `xmp` / `pdf` / `pdfaid`) with custom ones are not
+preserved — re-supply them via `extensions` or `embedFacturX()`. Loading an
+existing PDF/A file does not enable that sync by itself: call `convertToPDFA()`
+(or `embedFacturX()`) again if you change Info fields and need them mirrored.
 
 ### Embed Factur-X / ZUGFeRD Invoices
 
 `embedFacturX()` wraps a human-readable PDF and a machine-readable Factur-X /
-ZUGFeRD XML into a PDF/A-3 hybrid invoice: it converts the document to PDF/A-3B,
-writes the required `fx:` XMP properties (plus the PDF/A extension schema), and
-attaches the XML with an associated-file relationship.
+ZUGFeRD XML into a PDF/A-3 hybrid invoice: it ensures PDF/A-3 (converting to 3B
+if needed, or keeping an existing 3U/3B level), writes the required `fx:` XMP
+properties (plus the PDF/A extension schema), and attaches the XML with an
+associated-file relationship.
 
 It does **not** generate or validate the Cross Industry Invoice XML — pass a
 complete `factur-x.xml` from your invoicing stack.

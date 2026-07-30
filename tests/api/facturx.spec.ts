@@ -10,6 +10,7 @@ import {
   PDFRawStream,
   rgb,
 } from '../../src/index';
+import { readCatalogPDFAConformance } from '../../src/api/pdfa/catalogMetadata';
 
 const ttfFont = fs.readFileSync('assets/fonts/nunito/Nunito-Regular.ttf');
 
@@ -95,5 +96,73 @@ describe('embedFacturX', () => {
         conformanceLevel: 'COMFORT' as any,
       }),
     ).rejects.toThrow(/conformanceLevel/);
+  });
+
+  it('preserves an existing PDF/A-3U level and does not duplicate fx XMP', async () => {
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    const font = await pdfDoc.embedFont(ttfFont, { subset: true });
+    const page = pdfDoc.addPage([300, 200]);
+    page.drawText('Invoice', { x: 20, y: 100, size: 24, font, color: rgb(0, 0, 0) });
+
+    pdfDoc.convertToPDFA({ conformance: '3U' });
+    const outputIntents = pdfDoc.catalog.get(PDFName.of('OutputIntents'));
+
+    await embedFacturX(pdfDoc, minimalInvoiceXml, {
+      conformanceLevel: 'EN 16931',
+    });
+
+    expect(readCatalogPDFAConformance(pdfDoc.catalog)).toEqual({
+      part: 3,
+      level: 'U',
+    });
+    expect(pdfDoc.catalog.get(PDFName.of('OutputIntents'))).toBe(outputIntents);
+
+    const metadata = pdfDoc.catalog.lookup(
+      PDFName.of('Metadata'),
+    ) as PDFRawStream;
+    const xml = Buffer.from(metadata.asUint8Array()).toString('utf8');
+    expect(xml).toContain('<pdfaid:conformance>U</pdfaid:conformance>');
+    expect(xml.match(/xmlns:fx=/g)).toHaveLength(1);
+    expect(xml.match(/xmlns:pdfaExtension=/g)).toHaveLength(1);
+  });
+
+  it('keeps 3U from catalog after load and replaces the XML attachment', async () => {
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    const font = await pdfDoc.embedFont(ttfFont, { subset: true });
+    pdfDoc.addPage([300, 200]).drawText('Invoice', {
+      x: 20,
+      y: 100,
+      size: 24,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    await embedFacturX(pdfDoc, minimalInvoiceXml);
+    // Upgrade claim to 3U, then round-trip through load.
+    pdfDoc.convertToPDFA({ conformance: '3U' });
+    const bytes = await pdfDoc.save();
+    const loaded = await PDFDocument.load(bytes);
+
+    expect(readCatalogPDFAConformance(loaded.catalog)).toEqual({
+      part: 3,
+      level: 'U',
+    });
+    expect(loaded.getAttachments()).toHaveLength(1);
+
+    const updatedXml = Buffer.from(
+      minimalInvoiceXml.toString().replace('TEST-1', 'TEST-2'),
+    );
+    await embedFacturX(loaded, updatedXml, { conformanceLevel: 'BASIC' });
+
+    expect(readCatalogPDFAConformance(loaded.catalog)).toEqual({
+      part: 3,
+      level: 'U',
+    });
+    expect(loaded.getAttachments()).toHaveLength(1);
+    expect(Buffer.from(loaded.getAttachments()[0].data).toString()).toContain(
+      'TEST-2',
+    );
   });
 });

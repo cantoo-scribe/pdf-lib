@@ -92,10 +92,15 @@ import {
   ConvertToPDFAOptions,
   buildPDFAMetadata,
   extractForeignXmpDescriptions,
+  mergeXmpExtensionFragments,
   getDefaultSRGBProfile,
   parseConformance,
   ParsedConformance,
 } from './pdfa';
+import {
+  readCatalogMetadataXml,
+  readCatalogPDFAConformance,
+} from './pdfa/catalogMetadata';
 
 export type BasePDFAttachment = {
   name: string;
@@ -275,7 +280,11 @@ export default class PDFDocument {
   defaultWordBreaks: string[] = [' '];
 
   private fontkit?: Fontkit;
-  private pdfAConformance?: ParsedConformance;
+  /**
+   * When true, [[prepareForSave]] regenerates owned Info/`pdfaid` XMP.
+   * Set by [[convertToPDFA]]. Part/level itself lives only in catalog XMP.
+   */
+  private managePDFAMetadata = false;
   private pageCount: number | undefined;
   private readonly pageCache: Cache<PDFPage[]>;
   private readonly pageMap: Map<PDFPageLeaf, PDFPage>;
@@ -741,6 +750,8 @@ export default class PDFDocument {
       throw new Error('PDF/A documents must not be encrypted.');
     }
 
+    const alreadyConverted = readCatalogPDFAConformance(this.catalog) !== undefined;
+
     // PDF/A-1 is based on PDF 1.4; parts 2 and 3 are based on PDF 1.7.
     this.context.header = PDFHeader.forVersion(1, parsed.part === 1 ? 4 : 7);
 
@@ -752,24 +763,35 @@ export default class PDFDocument {
       this.context.trailerInfo.ID = this.context.obj([id, id]);
     }
 
-    // Embed the ICC profile and register it as the document's output intent.
-    const iccStream = this.context.stream(iccProfile, {
-      N: colorComponents,
-    });
-    const outputIntent = this.context.obj({
-      Type: 'OutputIntent',
-      S: 'GTS_PDFA1',
-      OutputConditionIdentifier: PDFString.of(outputConditionIdentifier),
-      DestOutputProfile: this.context.register(iccStream),
-    });
-    this.catalog.set(
-      PDFName.of('OutputIntents'),
-      this.context.obj([this.context.register(outputIntent)]),
-    );
+    // Only (re)install the OutputIntent on first conversion, or when the caller
+    // supplies a custom ICC profile / condition — avoids orphaning ICC streams
+    // on repeated convertToPDFA / embedFacturX calls.
+    const shouldUpdateOutputIntent =
+      !alreadyConverted ||
+      options.iccProfile !== undefined ||
+      options.outputConditionIdentifier !== undefined ||
+      options.colorComponents !== undefined;
 
-    this.pdfAConformance = parsed;
-    // One-shot extras are written now; later saves preserve them as foreign.
-    this.syncPDFAMetadata(extensions);
+    if (shouldUpdateOutputIntent) {
+      const iccStream = this.context.stream(iccProfile, {
+        N: colorComponents,
+      });
+      const outputIntent = this.context.obj({
+        Type: 'OutputIntent',
+        S: 'GTS_PDFA1',
+        OutputConditionIdentifier: PDFString.of(outputConditionIdentifier),
+        DestOutputProfile: this.context.register(iccStream),
+      });
+      this.catalog.set(
+        PDFName.of('OutputIntents'),
+        this.context.obj([this.context.register(outputIntent)]),
+      );
+    }
+
+    // Opt into Info↔XMP sync on later saves; write `pdfaid` into catalog XMP
+    // (the single source of truth for part/level).
+    this.managePDFAMetadata = true;
+    this.syncPDFAMetadata(extensions, parsed);
   }
 
   /**
@@ -1786,10 +1808,8 @@ export default class PDFDocument {
   }
 
   encrypt(options: SecurityOptions) {
-    // PDF/A forbids encryption, so refuse to encrypt a document that has been
-    // converted with convertToPDFA rather than silently producing a file that
-    // claims PDF/A conformance but cannot be one.
-    if (this.pdfAConformance) {
+    // PDF/A forbids encryption — refuse when the catalog already claims PDF/A.
+    if (readCatalogPDFAConformance(this.catalog)) {
       throw new Error(
         'Cannot encrypt a PDF/A document: PDF/A forbids encryption. A file ' +
           'cannot be both encrypted and PDF/A compliant.',
@@ -1834,10 +1854,11 @@ export default class PDFDocument {
    */
   async save(options: SaveOptions = {}) {
     const vparts = this.context.header.getVersionString().split('.');
+    const pdfaPart = readCatalogPDFAConformance(this.catalog)?.part;
     const uOS =
       // PDF/A-1 forbids object and cross-reference streams, so never enable
       // them by default when targeting that part.
-      this.pdfAConformance?.part !== 1 &&
+      pdfaPart !== 1 &&
       (options.rewrite || Number(vparts[0]) > 1 || Number(vparts[1]) >= 5);
     const {
       useObjectStreams = uOS,
@@ -1852,6 +1873,13 @@ export default class PDFDocument {
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
     assertIs(updateFieldAppearances, 'updateFieldAppearances', ['boolean']);
     assertIs(rewrite, 'rewrite', ['boolean']);
+
+    if (pdfaPart === 1 && useObjectStreams) {
+      throw new Error(
+        'PDF/A-1 forbids object and cross-reference streams. ' +
+          'Save with useObjectStreams: false (the default for PDF/A-1).',
+      );
+    }
 
     // Object streams require PDF >= 1.5. If a loaded document still advertises
     // an older header (e.g. 1.3/1.4) but we are about to emit ObjStm — typically
@@ -1922,10 +1950,20 @@ export default class PDFDocument {
   ) {
     // check PDF version
     const vparts = this.context.header.getVersionString().split('.');
-    const uOS = Number(vparts[0]) > 1 || Number(vparts[1]) >= 5;
+    const pdfaPart = readCatalogPDFAConformance(this.catalog)?.part;
+    const uOS =
+      pdfaPart !== 1 &&
+      (Number(vparts[0]) > 1 || Number(vparts[1]) >= 5);
     const { objectsPerTick = 50 } = options;
 
     assertIs(objectsPerTick, 'objectsPerTick', ['number']);
+
+    if (pdfaPart === 1 && options.useObjectStreams === true) {
+      throw new Error(
+        'PDF/A-1 forbids object and cross-reference streams. ' +
+          'Save with useObjectStreams: false (the default for PDF/A-1).',
+      );
+    }
 
     const saveOptions: SaveOptions = {
       useObjectStreams: uOS,
@@ -2095,20 +2133,27 @@ export default class PDFDocument {
    * Rebuild the catalog `/Metadata` XMP packet when this document is under
    * PDF/A metadata management: owned Info/`pdfaid` projection, plus any foreign
    * `rdf:Description` blocks already present (and optional one-shot extras).
+   *
+   * @param conformance Explicit part/level when writing before catalog XMP
+   * exists (or when changing it). Otherwise read from catalog.
    */
-  private syncPDFAMetadata(extraExtensions?: string[]): void {
-    if (!this.pdfAConformance) return;
+  private syncPDFAMetadata(
+    extraExtensions?: string[],
+    conformance?: ParsedConformance,
+  ): void {
+    if (!this.managePDFAMetadata) return;
 
-    const existingXml = this.readCatalogMetadataXml();
+    const conf = conformance ?? readCatalogPDFAConformance(this.catalog);
+    if (!conf) return;
+
+    const existingXml = readCatalogMetadataXml(this.catalog);
     const preserved = existingXml
       ? extractForeignXmpDescriptions(existingXml)
       : [];
-    const extensions = extraExtensions
-      ? extraExtensions.concat(preserved)
-      : preserved;
+    const extensions = mergeXmpExtensionFragments(extraExtensions, preserved);
 
     const metadataXML = buildPDFAMetadata({
-      conformance: this.pdfAConformance,
+      conformance: conf,
       title: this.getTitle(),
       author: this.getAuthor(),
       subject: this.getSubject(),
@@ -2120,26 +2165,26 @@ export default class PDFDocument {
       extensions,
     });
 
-    // Unfiltered UTF-8 stream — see convertToPDFA for the rationale.
+    this.writeCatalogMetadataXml(metadataXML);
+  }
+
+  private writeCatalogMetadataXml(metadataXML: string): void {
+    // Unfiltered UTF-8 stream so validators can read XMP without decompressing.
     const metadataStream = this.context.stream(utf8Encode(metadataXML, false), {
       Type: 'Metadata',
       Subtype: 'XML',
     });
-    this.catalog.set(
-      PDFName.of('Metadata'),
-      this.context.register(metadataStream),
-    );
-  }
 
-  private readCatalogMetadataXml(): string | undefined {
-    try {
-      const meta = this.catalog.lookup(PDFName.of('Metadata'));
-      if (!(meta instanceof PDFRawStream)) return undefined;
-      const bytes = decodePDFRawStream(meta).decode();
-      return new TextDecoder('utf-8').decode(bytes);
-    } catch {
-      // Malformed / undecodable Metadata: fall back to owned-only.
-      return undefined;
+    const metaKey = PDFName.of('Metadata');
+    const existingRef = this.catalog.get(metaKey);
+    if (existingRef instanceof PDFRef) {
+      // Reuse the catalog ref so repeated saves do not orphan Metadata streams.
+      this.context.assign(existingRef, metadataStream);
+      if (this.context.snapshot) {
+        this.context.snapshot.markRefForSave(existingRef);
+      }
+    } else {
+      this.catalog.set(metaKey, this.context.register(metadataStream));
     }
   }
 
