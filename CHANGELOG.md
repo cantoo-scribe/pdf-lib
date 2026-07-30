@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.1]
 
+### Fixed
+
+- `PDFForm.flatten()` now also flattens orphaned widget annotations that carry
+  field properties (`/FT`, `/V`, …) on the page `Annots` entry but are not
+  registered in `AcroForm.Fields` (text fields and stateful checkboxes / radios).
+
 ### Changed
 
 - Prefer maintained upstream [`fontkit`](https://www.npmjs.com/package/fontkit) v2 for custom
