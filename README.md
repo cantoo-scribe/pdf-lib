@@ -78,6 +78,8 @@ Install with: `npm install @cantoo/pdf-lib`
   - [Embed Font and Measure Text](#embed-font-and-measure-text)
   - [Add Attachments](#add-attachments)
   - [Extract Attachments](#extract-attachments)
+  - [Create PDF/A Documents](#create-pdfa-documents)
+  - [Embed Factur-X / ZUGFeRD Invoices](#embed-factur-x--zugferd-invoices)
   - [Set Document Metadata](#set-document-metadata)
   - [Read Document Metadata](#read-document-metadata)
   - [Set Viewer Preferences](#set-viewer-preferences)
@@ -99,6 +101,7 @@ Install with: `npm install @cantoo/pdf-lib`
 - [Tutorials and Cool Stuff](#tutorials-and-cool-stuff)
 - [Prior Art](#prior-art)
 - [Git History Rewrite](#git-history-rewrite)
+- [Changelog](CHANGELOG.md)
 - [License](#license)
 
 ## Features
@@ -129,6 +132,8 @@ Install with: `npm install @cantoo/pdf-lib`
 - Read viewer preferences
 - Add attachments
 - Extract attachments
+- Create PDF/A documents (parts 1–3)
+- Embed Factur-X / ZUGFeRD e-invoices (PDF/A-3)
 
 ## Motivation
 
@@ -1209,6 +1214,80 @@ fs.writeFileSync(csv.name, csv.data)
 > NOTE: The method also finds attachments added after the last call to
 > `save()`.
 
+### Create PDF/A Documents
+
+Convert a document to PDF/A by calling `convertToPDFA()`. This adds the
+structural pieces PDF/A requires (document `/ID`, OutputIntent with an embedded
+sRGB ICC profile, uncompressed XMP metadata with `pdfaid`, and the appropriate
+PDF header version). It does **not** rewrite arbitrary content to make it
+compliant — in particular, drawn text must use an **embedded** font (the 14
+standard fonts are not PDF/A compliant). Validate the result with a tool such as
+[veraPDF](https://verapdf.org/).
+
+<!-- prettier-ignore -->
+```js
+import { PDFDocument } from '@cantoo/pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
+
+const fontBytes = ... // e.g. fs.readFileSync('Roboto-Regular.ttf')
+
+const pdfDoc = await PDFDocument.create()
+pdfDoc.registerFontkit(fontkit)
+
+const font = await pdfDoc.embedFont(fontBytes)
+const page = pdfDoc.addPage()
+page.drawText('Hello PDF/A', { x: 50, y: 700, size: 24, font })
+
+pdfDoc.setTitle('Archival document')
+pdfDoc.setAuthor('ACME GmbH')
+
+// '1B' | '2B' | '2U' | '3B' | '3U' — defaults to '3B'
+pdfDoc.convertToPDFA({ conformance: '3B' })
+
+const pdfBytes = await pdfDoc.save()
+```
+
+After conversion, pdf-lib keeps the Info dictionary and XMP metadata in sync on
+`save()`, while preserving any extra XMP `rdf:Description` blocks (for example
+Factur-X schemas passed via `extensions`).
+
+### Embed Factur-X / ZUGFeRD Invoices
+
+`embedFacturX()` wraps a human-readable PDF and a machine-readable Factur-X /
+ZUGFeRD XML into a PDF/A-3 hybrid invoice: it converts the document to PDF/A-3B,
+writes the required `fx:` XMP properties (plus the PDF/A extension schema), and
+attaches the XML with an associated-file relationship.
+
+It does **not** generate or validate the Cross Industry Invoice XML — pass a
+complete `factur-x.xml` from your invoicing stack.
+
+<!-- prettier-ignore -->
+```js
+import { PDFDocument, embedFacturX } from '@cantoo/pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
+
+const fontBytes = ...
+const invoiceXmlBytes = ... // Factur-X / ZUGFeRD XML (Uint8Array)
+
+const pdfDoc = await PDFDocument.create()
+pdfDoc.registerFontkit(fontkit)
+
+const font = await pdfDoc.embedFont(fontBytes)
+const page = pdfDoc.addPage()
+page.drawText('Invoice 2026-0001', { x: 50, y: 700, size: 18, font })
+// ... draw the rest of the human-readable invoice with the embedded font ...
+
+pdfDoc.setTitle('Invoice 2026-0001')
+pdfDoc.setAuthor('ACME GmbH')
+
+await embedFacturX(pdfDoc, invoiceXmlBytes, {
+  // MINIMUM | BASIC_WL | BASIC | EN 16931 | EXTENDED | XRECHNUNG
+  conformanceLevel: 'EN 16931',
+})
+
+const pdfBytes = await pdfDoc.save()
+```
+
 ### Set Document Metadata
 
 _This example produces [this PDF](assets/pdfs/examples/set_document_metadata.pdf)_.
@@ -1880,6 +1959,7 @@ Below are some of the most commonly used methods for reading and filling the afo
   [#329](https://github.com/Hopding/pdf-lib/issues/329), and
   [#380](https://github.com/Hopding/pdf-lib/issues/380).
 - `pdf-lib` does **not** support the use of HTML or CSS when adding content to a PDF. Similarly, `pdf-lib` **cannot** embed HTML/CSS content into PDFs. As convenient as such a feature might be, it would be extremely difficult to implement and is far beyond the scope of this library. If this capability is something you need, consider using [Puppeteer](https://github.com/puppeteer/puppeteer).
+- `convertToPDFA()` and `embedFacturX()` add the **structural** PDF/A (and Factur-X XMP / attachment) pieces, but they do **not** rewrite page content for compliance (fonts, transparency, JavaScript, …). `embedFacturX()` also does **not** generate or validate the invoice XML. Always validate archival / e-invoice output with dedicated tools (e.g. veraPDF, Mustang).
 
 ## Help and Discussion
 
