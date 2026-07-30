@@ -3,7 +3,7 @@
   "version": "2.8.1",
   "description": "Create and modify PDF files with JavaScript",
   "author": "Andrew Dillon <andrew.dillon.j@gmail.com>",
-  "packageManager": "yarn@1.22.19+",
+  "packageManager": "yarn@1.22.19",
   "exports": {
     ".": {
       "types": "./cjs/index.d.ts",
@@ -12,6 +12,9 @@
     }
   },
   "contributors": [
+    "François Billioud (https://github.com/Sharcoux)",
+    "Matheus Santos (https://github.com/matheus-santos)",
+    "Cantoo (https://github.com/cantoo-scribe)",
     "jerp (https://github.com/jerp)",
     "Greg Bacchus (https://github.com/gregbacchus)",
     "Mickael Lecoq (https://github.com/mlecoq)",
