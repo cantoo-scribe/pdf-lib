@@ -1,4 +1,4 @@
-import pako from 'pako';
+import { deflate } from 'pako';
 import type { DocumentSnapshot } from '../api';
 
 import PDFHeader from './document/PDFHeader';
@@ -328,7 +328,7 @@ class PDFContext {
     contents: string | Uint8Array,
     dict: LiteralObject = {},
   ): PDFRawStream {
-    return this.stream(pako.deflate(typedArrayFor(contents)), {
+    return this.stream(deflate(typedArrayFor(contents)), {
       ...dict,
       Filter: 'FlateDecode',
     });

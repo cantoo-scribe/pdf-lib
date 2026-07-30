@@ -1,4 +1,4 @@
-import fontkit from '@pdf-lib/fontkit';
+import fontkit from 'fontkit';
 import { FontNames } from '@pdf-lib/standard-fonts';
 import fs from 'fs';
 

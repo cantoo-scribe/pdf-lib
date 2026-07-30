@@ -11,7 +11,7 @@ import {
   PDFWidgetAnnotation,
 } from '../../..';
 
-import fontkit from '@pdf-lib/fontkit';
+import fontkit from 'fontkit';
 
 export default async (assets: Assets) => {
   const pdfDoc = await PDFDocument.load(assets.pdfs.fancy_fields);

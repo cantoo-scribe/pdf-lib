@@ -1,4 +1,4 @@
-import pako from 'pako';
+import { deflate } from 'pako';
 
 import {
   PDFArray,
@@ -128,7 +128,7 @@ describe('PDFContext', () => {
         '/Length 25\n',
         '>>\n',
         'stream\n',
-        pako.deflate('stuff and things!'),
+        deflate('stuff and things!'),
         '\nendstream',
       ),
     );

@@ -1,4 +1,4 @@
-import fontkit from '@pdf-lib/fontkit';
+import fontkit from 'fontkit';
 import fs from 'fs';
 import {
   buildPDFAMetadata,

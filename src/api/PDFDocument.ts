@@ -340,7 +340,7 @@ export default class PDFDocument {
    * For example:
    * ```js
    * import { PDFDocument } from 'pdf-lib'
-   * import fontkit from '@pdf-lib/fontkit'
+   * import fontkit from 'fontkit'
    *
    * const pdfDoc = await PDFDocument.create()
    * pdfDoc.registerFontkit(fontkit)

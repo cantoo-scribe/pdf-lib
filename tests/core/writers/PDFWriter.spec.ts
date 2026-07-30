@@ -1,4 +1,4 @@
-import pako from 'pako';
+import { deflate } from 'pako';
 import {
   mergeIntoTypedArray,
   PDFContext,
@@ -16,7 +16,7 @@ const contentStreamText = `
   ET
 `;
 
-const encodedContentStream = pako.deflate(typedArrayFor(contentStreamText));
+const encodedContentStream = deflate(typedArrayFor(contentStreamText));
 
 const pdfBytes = mergeIntoTypedArray(
   `%PDF-1.7

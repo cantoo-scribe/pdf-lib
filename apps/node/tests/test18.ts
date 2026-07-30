@@ -1,7 +1,7 @@
 import { Assets } from '..';
 import { PDFDocument } from '../../..';
 
-import fontkit from '@pdf-lib/fontkit';
+import fontkit from 'fontkit';
 
 // Based on test14.ts
 const loadA = async (assets: Assets) => {
