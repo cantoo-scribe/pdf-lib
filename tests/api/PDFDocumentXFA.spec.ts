@@ -119,6 +119,17 @@ describe('PDFDocument - XFA JavaScript', () => {
 
     expect(xfaScripts).toBeInstanceOf(Array);
     expect(xfaScripts.length).toBe(0);
+    // Must not create an AcroForm as a side effect of the lookup.
+    expect((pdfDoc as any).catalog.getAcroForm()).toBeUndefined();
+  });
+
+  it('throws for setXFAJavaScript without creating an AcroForm', async () => {
+    const pdfDoc = await PDFDocument.create();
+
+    expect(() =>
+      pdfDoc.setXFAJavaScript('field', 'event__click', 'test();'),
+    ).toThrow(/XFA form not found/);
+    expect((pdfDoc as any).catalog.getAcroForm()).toBeUndefined();
   });
 
   it('can modify XFA JavaScript', async () => {

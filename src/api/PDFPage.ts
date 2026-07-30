@@ -727,19 +727,9 @@ export default class PDFPage {
    * @returns A map of JavaScript actions for this page, or undefined if none exist.
    */
   getJavaScriptActions(): JavaScriptActionMap | undefined {
-    const aaDict = this.node.get(PDFName.of('AA'));
+    const aaDict = this.node.lookupMaybe(PDFName.of('AA'), PDFDict);
     if (!aaDict) return undefined;
-
-    let actualDict: PDFDict;
-    if (aaDict instanceof PDFRef) {
-      actualDict = this.doc.context.lookup(aaDict, PDFDict);
-    } else if (aaDict instanceof PDFDict) {
-      actualDict = aaDict;
-    } else {
-      return undefined;
-    }
-
-    return extractAdditionalActions(actualDict, this.doc, 'page');
+    return extractAdditionalActions(aaDict, this.doc, 'page');
   }
 
   /**

@@ -269,18 +269,8 @@ export default class PDFField {
    * @returns A map of JavaScript actions for this field, or undefined if none exist.
    */
   getJavaScriptActions(): JavaScriptActionMap | undefined {
-    const aaEntry = this.acroField.dict.get(PDFName.of('AA'));
-    if (!aaEntry) return undefined;
-
-    let aaDict: PDFDict;
-    if (aaEntry instanceof PDFRef) {
-      aaDict = this.doc.context.lookup(aaEntry, PDFDict);
-    } else if (aaEntry instanceof PDFDict) {
-      aaDict = aaEntry;
-    } else {
-      return undefined;
-    }
-
+    const aaDict = this.acroField.dict.lookupMaybe(PDFName.of('AA'), PDFDict);
+    if (!aaDict) return undefined;
     return extractAdditionalActions(aaDict, this.doc, 'field');
   }
 
@@ -299,16 +289,8 @@ export default class PDFField {
    */
   getAction(): PDFJavaScriptAction | undefined {
     const actionObj = this.acroField.dict.get(PDFName.of('A'));
-    if (!actionObj) return undefined;
-
-    let actionDict: PDFDict;
-    if (actionObj instanceof PDFRef) {
-      actionDict = this.acroField.dict.context.lookup(actionObj, PDFDict);
-    } else if (actionObj instanceof PDFDict) {
-      actionDict = actionObj;
-    } else {
-      return undefined;
-    }
+    const actionDict = this.acroField.dict.lookupMaybe(PDFName.of('A'), PDFDict);
+    if (!actionDict) return undefined;
 
     return PDFJavaScriptAction.of(
       actionDict,

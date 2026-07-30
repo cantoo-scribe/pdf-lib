@@ -42,15 +42,8 @@ export default class PDFJavaScriptAction {
     doc: PDFDocument,
     ref?: PDFRef,
   ): PDFJavaScriptAction | undefined {
-    const s = dict.get(PDFName.of('S'));
-    let sName: PDFName | undefined;
-    if (s instanceof PDFRef) {
-      sName = dict.context.lookup(s) as PDFName;
-    } else if (s instanceof PDFName) {
-      sName = s;
-    }
-
-    if (sName && sName.asString() === '/JavaScript') {
+    const s = dict.lookup(PDFName.of('S'));
+    if (s instanceof PDFName && s.asString() === '/JavaScript') {
       return new PDFJavaScriptAction(dict, doc, ref);
     }
     return undefined;
@@ -61,38 +54,17 @@ export default class PDFJavaScriptAction {
    * @returns The JavaScript code as a string
    */
   getScript(): string | undefined {
-    const js = this.dict.get(PDFName.of('JS'));
-    let jsValue: PDFString | PDFHexString | PDFName | undefined;
+    const js = this.dict.lookup(PDFName.of('JS'));
 
-    if (js instanceof PDFRef) {
-      jsValue = this.dict.context.lookup(js) as
-        | PDFString
-        | PDFHexString
-        | PDFName;
-    } else if (
-      js instanceof PDFString ||
-      js instanceof PDFHexString ||
-      js instanceof PDFName
-    ) {
-      jsValue = js;
-    }
+    if (js instanceof PDFString) return js.asString();
+    if (js instanceof PDFHexString) return js.decodeText();
+    if (js instanceof PDFName) return js.decodeText();
 
-    if (jsValue instanceof PDFString) {
-      return jsValue.asString();
-    }
-    if (jsValue instanceof PDFHexString) {
-      return jsValue.decodeText();
-    }
-    if (jsValue instanceof PDFName) {
-      return jsValue.decodeText();
-    }
-
-    const jsRaw = js instanceof PDFRef ? this.dict.context.lookup(js) : js;
-    if (jsRaw instanceof PDFStream) {
+    if (js instanceof PDFStream) {
       const bytes =
-        jsRaw instanceof PDFRawStream
-          ? decodePDFRawStream(jsRaw).decode()
-          : jsRaw.getContents();
+        js instanceof PDFRawStream
+          ? decodePDFRawStream(js).decode()
+          : js.getContents();
       return new TextDecoder('utf-8').decode(bytes);
     }
 
@@ -204,15 +176,17 @@ export function extractAdditionalActions(
   }
 
   for (const { key, prop } of actionKeys) {
-    const actionObj = aaDict.get(PDFName.of(key));
-    if (actionObj instanceof PDFRef) {
-      const actionDict = aaDict.context.lookup(actionObj, PDFDict);
-      const action = PDFJavaScriptAction.of(actionDict, doc, actionObj);
-      if (action) actions[prop] = action;
-    } else if (actionObj instanceof PDFDict) {
-      const action = PDFJavaScriptAction.of(actionObj, doc);
-      if (action) actions[prop] = action;
-    }
+    const name = PDFName.of(key);
+    const actionDict = aaDict.lookupMaybe(name, PDFDict);
+    if (!actionDict) continue;
+
+    const actionObj = aaDict.get(name);
+    const action = PDFJavaScriptAction.of(
+      actionDict,
+      doc,
+      actionObj instanceof PDFRef ? actionObj : undefined,
+    );
+    if (action) actions[prop] = action;
   }
 
   return actions;

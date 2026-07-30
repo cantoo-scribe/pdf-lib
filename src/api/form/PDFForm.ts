@@ -34,24 +34,21 @@ import {
   PDFAcroText,
   PDFAcroPushButton,
   PDFAcroNonTerminal,
-  PDFArray,
   PDFDict,
-  PDFHexString,
   PDFOperator,
-  PDFRawStream,
   PDFRef,
-  PDFString,
   createPDFAcroFields,
-  decodePDFRawStream,
   PDFName,
   PDFWidgetAnnotation,
 } from '../../core';
-import { assertIs, Cache, assertOrUndefined, decodeXfaXml } from '../../utils';
+import { assertIs, Cache, assertOrUndefined } from '../../utils';
+import { encode } from 'html-entities';
 import {
-  parse as parseHtml,
-  HTMLElement,
-  NodeType,
-} from 'node-html-better-parser';
+  collectXfaScripts,
+  collectXfaSignatures,
+  parseXfaTemplate,
+  readXfaTemplatePacket,
+} from './xfa';
 
 export interface FlattenOptions {
   updateFieldAppearances: boolean;
@@ -356,34 +353,25 @@ export default class PDFForm {
    * })
    * ```
    *
-   * @returns An array of [[XFASignature]] objects, one per XFA signature field.
+   * @returns An array of [[XFASignatureField]] objects, one per XFA signature field.
    */
   getXFASignatures(): XFASignatureField[] {
     const result: XFASignatureField[] = [];
-
     if (!this.hasXFA()) return result;
 
-    const xmlString = this.getXFATemplateXml();
-    if (xmlString === null) return result;
-
     try {
-      const doc = parseHtml(xmlString, {
-        script: true,
-      });
+      const packet = readXfaTemplatePacket(this.acroForm.dict);
+      if (!packet) return result;
 
-      const signatures: Array<{
-        field: string;
-        manifestUse?: string;
-        inlineRefs: string[];
-      }> = [];
-      const manifests = new Map<string, string[]>();
-      this.collectXFASignatureData(doc, signatures, manifests);
+      const { signatures, manifests } = collectXfaSignatures(
+        parseXfaTemplate(packet.xml),
+      );
 
       for (const sig of signatures) {
-        let refs = sig.inlineRefs;
-        if (sig.manifestUse && manifests.has(sig.manifestUse)) {
-          refs = manifests.get(sig.manifestUse)!;
-        }
+        const refs =
+          sig.manifestUse && manifests.has(sig.manifestUse)
+            ? manifests.get(sig.manifestUse)!
+            : sig.inlineRefs;
         result.push({
           field: sig.field,
           manifest: sig.manifestUse ?? null,
@@ -412,7 +400,7 @@ export default class PDFForm {
    * })
    * ```
    *
-   * @returns An array of [[SignatureFieldInfo]] describing every signature
+   * @returns An array of [[SignatureField]] describing every signature
    *          field, whether it originates from the AcroForm or from XFA.
    */
   getSignatureFields(): SignatureField[] {
@@ -441,111 +429,129 @@ export default class PDFForm {
   }
 
   /**
-   * Reads this form's XFA `template` packet and returns its decoded XML, or
-   * `null` if the form has no XFA data or no template packet. The XFA data
-   * lives in this form's AcroForm dictionary under `/XFA`, stored as an array
-   * of alternating name/stream pairs.
+   * Get all JavaScript from this form's XFA template.
+   * XFA forms can contain JavaScript in `<script>` elements within the template XML.
+   * For example:
+   * ```js
+   * const form = pdfDoc.getForm()
+   * const xfaScripts = form.getXFAJavaScripts()
+   * xfaScripts.forEach(({ field, event, script }) => {
+   *   console.log(`Field "${field}" on ${event}:`, script)
+   * })
+   * ```
+   *
+   * **Note:** load the document with `preserveXFA: true`. Prefer calling via
+   * [[PDFDocument.getXFAJavaScripts]] before [[PDFDocument.getForm]] when
+   * `preserveXFA` is not set, since `getForm()` strips XFA data otherwise.
+   *
+   * @returns An array of objects containing field names, events, and JavaScript code.
    */
-  private getXFATemplateXml(): string | null {
-    const context = this.acroForm.dict.context;
-    const xfaObj = this.acroForm.dict.get(PDFName.of('XFA'));
-    if (!xfaObj) return null;
+  getXFAJavaScripts(): Array<{ field: string; event: string; script: string }> {
+    const scripts: Array<{ field: string; event: string; script: string }> = [];
 
-    const xfa = xfaObj instanceof PDFRef ? context.lookup(xfaObj) : xfaObj;
-    if (!(xfa instanceof PDFArray)) return null;
+    try {
+      const packet = readXfaTemplatePacket(this.acroForm.dict);
+      if (!packet) return scripts;
 
-    for (let idx = 0; idx < xfa.size(); idx += 2) {
-      const nameObj = xfa.get(idx);
-      const streamObj = xfa.get(idx + 1);
-      if (!nameObj || !streamObj) continue;
-
-      let sectionName: string;
-      if (nameObj instanceof PDFString) {
-        sectionName = nameObj.asString();
-      } else if (nameObj instanceof PDFHexString) {
-        sectionName = nameObj.decodeText();
-      } else {
-        continue;
+      for (const entry of collectXfaScripts(parseXfaTemplate(packet.xml))) {
+        const scriptContent = entry.scriptNode.text?.trim();
+        if (scriptContent) {
+          scripts.push({
+            field: entry.field,
+            event: entry.event,
+            script: scriptContent,
+          });
+        }
       }
-      if (sectionName !== 'template') continue;
-
-      const stream =
-        streamObj instanceof PDFRef ? context.lookup(streamObj) : streamObj;
-      if (!(stream instanceof PDFRawStream)) continue;
-
-      const xmlBytes = decodePDFRawStream(stream).decode();
-      return decodeXfaXml(xmlBytes);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('decode')) {
+          throw new Error(
+            `Failed to decode XFA template stream: Invalid UTF-8 encoding. ${error.message}`,
+          );
+        }
+        throw new Error(`Failed to parse XFA template: ${error.message}`);
+      }
+      throw error;
     }
 
-    return null;
+    return scripts;
   }
 
   /**
-   * Recursively walks the XFA template tree collecting signature fields (a
-   * `<field>` whose descendant is a `<signature>` element) together with every
-   * `<manifest>` definition keyed by its `id` so that a signature's
-   * `<manifest use="#id"/>` reference can be resolved to its `<ref>` list.
+   * Modify JavaScript in this form's XFA template for a specific field and event.
+   * For example:
+   * ```js
+   * const form = pdfDoc.getForm()
+   * form.setXFAJavaScript('import', 'event__click', 'console.println("Modified!");')
+   * ```
+   * @param fieldName The name of the field containing the script
+   * @param eventName The name of the event (e.g., 'event__click', 'calculate')
+   * @param newScript The new JavaScript code to set
+   * @throws Error if the XFA form is not found, the script location is not found, or decoding fails
+   *
+   * **Note:** load the document with `preserveXFA: true`. Prefer calling via
+   * [[PDFDocument.setXFAJavaScript]] before [[PDFDocument.getForm]] when
+   * `preserveXFA` is not set, since `getForm()` strips XFA data otherwise.
    */
-  private collectXFASignatureData(
-    node: HTMLElement,
-    signatures: Array<{
-      field: string;
-      manifestUse?: string;
-      inlineRefs: string[];
-    }>,
-    manifests: Map<string, string[]>,
-    currentField?: string,
+  setXFAJavaScript(
+    fieldName: string,
+    eventName: string,
+    newScript: string,
   ): void {
-    const tag = node.tagName?.toLowerCase();
-    let fieldCtx = currentField;
+    let packet;
+    try {
+      packet = readXfaTemplatePacket(this.acroForm.dict);
+    } catch (error) {
+      throw new Error(
+        `Failed to decode XFA template stream: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
-    if (tag === 'field') {
-      fieldCtx = node.getAttribute('name') ?? undefined;
-    } else if (tag === 'manifest') {
-      const id = node.getAttribute('id');
-      if (id) manifests.set(id, this.collectXFARefs(node));
-    } else if (tag === 'signature' && fieldCtx) {
-      let manifestUse: string | undefined;
-      const inlineRefs: string[] = [];
-      for (const child of node.childNodes) {
-        if (child.nodeType !== NodeType.ELEMENT_NODE) continue;
-        const el = child as HTMLElement;
-        if (el.tagName?.toLowerCase() !== 'manifest') continue;
-        const use = el.getAttribute('use');
-        if (use) manifestUse = use.replace(/^#/, '');
-        const id = el.getAttribute('id');
-        const refs = this.collectXFARefs(el);
-        if (id) manifests.set(id, refs);
-        inlineRefs.push(...refs);
+    if (!packet) {
+      throw new Error(
+        'XFA form not found in document. Ensure the document has XFA forms and was loaded with preserveXFA: true.',
+      );
+    }
+
+    const doc = parseXfaTemplate(packet.xml);
+    const entries = collectXfaScripts(doc).filter(
+      (e) => e.field === fieldName && e.event === eventName,
+    );
+
+    if (entries.length === 0) {
+      throw new Error(
+        `Script not found for field "${fieldName}" and event "${eventName}". ` +
+          'Verify the field and event names exist in the XFA template.',
+      );
+    }
+
+    for (const entry of entries) {
+      entry.scriptNode.set_content(encode(newScript));
+    }
+
+    const context = this.acroForm.dict.context;
+    const newXmlBytes = new TextEncoder().encode(doc.toString());
+    const filter = packet.stream.dict.get(PDFName.of('Filter'));
+    const newStream =
+      filter !== undefined
+        ? context.flateStream(newXmlBytes)
+        : context.stream(newXmlBytes);
+
+    if (packet.streamRef) {
+      // Overwrite the existing template stream in place, preserving its object
+      // reference. Creating a new object and re-pointing the XFA array does not
+      // survive a save/reload for documents whose objects live in compressed
+      // object streams, because the re-emitted stale copy wins on the next load.
+      context.assign(packet.streamRef, newStream);
+      if (context.snapshot) {
+        context.snapshot.markRefForSave(packet.streamRef);
       }
-      signatures.push({ field: fieldCtx, manifestUse, inlineRefs });
+    } else {
+      // The template was stored as a direct (inline) stream; replace the array
+      // slot with a freshly registered stream object.
+      packet.xfa.set(packet.templateIndex, context.register(newStream));
     }
-
-    for (const child of node.childNodes) {
-      if (child.nodeType === NodeType.ELEMENT_NODE) {
-        this.collectXFASignatureData(
-          child as HTMLElement,
-          signatures,
-          manifests,
-          fieldCtx,
-        );
-      }
-    }
-  }
-
-  /**
-   * Collects the trimmed text of every direct `<ref>` child of the given node.
-   */
-  private collectXFARefs(node: HTMLElement): string[] {
-    const refs: string[] = [];
-    for (const child of node.childNodes) {
-      if (child.nodeType !== NodeType.ELEMENT_NODE) continue;
-      const el = child as HTMLElement;
-      if (el.tagName?.toLowerCase() !== 'ref') continue;
-      const text = el.text?.trim();
-      if (text) refs.push(text);
-    }
-    return refs;
   }
 
   /**

@@ -68,7 +68,6 @@ import {
   BinaryData,
   Cache,
   canBeConvertedToUint8Array,
-  decodeXfaXml,
   encodeToBase64,
   isStandardFont,
   pluckIndices,
@@ -1083,37 +1082,18 @@ export default class PDFDocument {
   getDocumentJavaScripts(): Array<{ name: string; script: string }> {
     const scripts: Array<{ name: string; script: string }> = [];
 
-    const names = this.catalog.get(PDFName.of('Names'));
-    if (!names || !(names instanceof PDFDict || names instanceof PDFRef)) {
-      return scripts;
-    }
-
-    const namesDict =
-      names instanceof PDFRef ? this.context.lookup(names, PDFDict) : names;
-
-    const javascript = namesDict.get(PDFName.of('JavaScript'));
-    if (
-      !javascript ||
-      !(javascript instanceof PDFDict || javascript instanceof PDFRef)
-    ) {
-      return scripts;
-    }
-
-    const javascriptDict =
-      javascript instanceof PDFRef
-        ? this.context.lookup(javascript, PDFDict)
-        : javascript;
-
-    const jsNames = javascriptDict.get(PDFName.of('Names'));
-    if (!jsNames || !(jsNames instanceof PDFArray)) {
-      return scripts;
-    }
+    const namesDict = this.catalog.lookupMaybe(PDFName.of('Names'), PDFDict);
+    const javascriptDict = namesDict?.lookupMaybe(
+      PDFName.of('JavaScript'),
+      PDFDict,
+    );
+    const jsNames = javascriptDict?.lookupMaybe(PDFName.of('Names'), PDFArray);
+    if (!jsNames) return scripts;
 
     // Names array is a flat array of [name1, dict1, name2, dict2, ...]
     for (let idx = 0; idx < jsNames.size(); idx += 2) {
       const nameObj = jsNames.get(idx);
       const actionObj = jsNames.get(idx + 1);
-
       if (!nameObj || !actionObj) continue;
 
       let name: string;
@@ -1125,142 +1105,25 @@ export default class PDFDocument {
         continue;
       }
 
-      let actionDict: PDFDict;
-      if (actionObj instanceof PDFRef) {
-        actionDict = this.context.lookup(actionObj, PDFDict);
-      } else if (actionObj instanceof PDFDict) {
-        actionDict = actionObj;
-      } else {
-        continue;
-      }
+      const actionDict =
+        actionObj instanceof PDFRef
+          ? this.context.lookupMaybe(actionObj, PDFDict)
+          : actionObj instanceof PDFDict
+            ? actionObj
+            : undefined;
+      if (!actionDict) continue;
 
-      const action = PDFJavaScriptAction.of(actionDict, this);
-      const script = action?.getScript();
+      const script = PDFJavaScriptAction.of(
+        actionDict,
+        this,
+        actionObj instanceof PDFRef ? actionObj : undefined,
+      )?.getScript();
       if (!script) continue;
 
       scripts.push({ name, script });
     }
 
     return scripts;
-  }
-
-  /**
-   * Helper method to escape XML special characters in script content
-   */
-  private escapeXML(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  /**
-   * Recursively collects all <script> nodes from the XFA XML tree that have a
-   * valid enclosing field and event context.
-   */
-  private collectXFAScripts(
-    node: HTMLElement,
-    currentField?: string,
-    currentEvent?: string,
-  ): Array<{ scriptNode: HTMLElement; field: string; event: string }> {
-    const results: Array<{
-      scriptNode: HTMLElement;
-      field: string;
-      event: string;
-    }> = [];
-
-    const tag = node.tagName?.toLowerCase();
-    let fieldCtx = currentField;
-    let eventCtx = currentEvent;
-
-    if (tag === 'field') {
-      fieldCtx = node.getAttribute('name') ?? undefined;
-      eventCtx = undefined;
-    } else if (tag === 'event') {
-      eventCtx = node.getAttribute('name') ?? undefined;
-    } else if (tag === 'script') {
-      if (fieldCtx && eventCtx) {
-        results.push({ scriptNode: node, field: fieldCtx, event: eventCtx });
-      }
-    }
-
-    for (const child of node.childNodes) {
-      if (child.nodeType === NodeType.ELEMENT_NODE) {
-        results.push(
-          ...this.collectXFAScripts(child as HTMLElement, fieldCtx, eventCtx),
-        );
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Helper method to extract XFA template information
-   */
-  private getXFATemplateInfo(): {
-    xfa: PDFArray;
-    templateIndex: number;
-    streamRef: PDFRef | null;
-    stream: PDFRawStream;
-  } | null {
-    const acroForm = this.catalog.get(PDFName.of('AcroForm'));
-    if (
-      !acroForm ||
-      !(acroForm instanceof PDFDict || acroForm instanceof PDFRef)
-    ) {
-      return null;
-    }
-
-    const formDict =
-      acroForm instanceof PDFRef
-        ? this.context.lookup(acroForm, PDFDict)
-        : acroForm;
-
-    const xfaObj = formDict.get(PDFName.of('XFA'));
-    if (!xfaObj) {
-      return null;
-    }
-
-    const xfa = xfaObj instanceof PDFRef ? this.context.lookup(xfaObj) : xfaObj;
-
-    if (!(xfa instanceof PDFArray)) {
-      return null;
-    }
-
-    for (let idx = 0; idx < xfa.size(); idx += 2) {
-      const nameObj = xfa.get(idx);
-      const streamObj = xfa.get(idx + 1);
-
-      if (!nameObj || !streamObj) continue;
-
-      let sectionName: string;
-      if (nameObj instanceof PDFString) {
-        sectionName = nameObj.asString();
-      } else if (nameObj instanceof PDFHexString) {
-        sectionName = nameObj.decodeText();
-      } else {
-        continue;
-      }
-
-      if (sectionName !== 'template') continue;
-
-      const streamRef = streamObj instanceof PDFRef ? streamObj : null;
-      const stream = streamRef ? this.context.lookup(streamRef) : streamObj;
-
-      if (!stream || !(stream instanceof PDFRawStream)) continue;
-
-      return {
-        xfa,
-        templateIndex: idx + 1,
-        streamRef,
-        stream,
-      };
-    }
-
-    return null;
   }
 
   /**
@@ -1280,42 +1143,8 @@ export default class PDFDocument {
    * @returns An array of objects containing field names, events, and JavaScript code.
    */
   getXFAJavaScripts(): Array<{ field: string; event: string; script: string }> {
-    const scripts: Array<{ field: string; event: string; script: string }> = [];
-
-    const templateInfo = this.getXFATemplateInfo();
-    if (!templateInfo) {
-      return scripts;
-    }
-
-    try {
-      const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
-      const xmlString = decodeXfaXml(xmlBytes);
-
-      const doc = parseHtml(xmlString, { script: true });
-
-      for (const script of this.collectXFAScripts(doc)) {
-        const scriptContent = script.scriptNode.text?.trim();
-        if (scriptContent) {
-          scripts.push({
-            field: script.field,
-            event: script.event,
-            script: scriptContent,
-          });
-        }
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('decode')) {
-          throw new Error(
-            `Failed to decode XFA template stream: Invalid UTF-8 encoding. ${error.message}`,
-          );
-        }
-        throw new Error(`Failed to parse XFA template: ${error.message}`);
-      }
-      throw error;
-    }
-
-    return scripts;
+    // Avoid [[getForm]] (strips XFA) and formCache.access() (creates AcroForm).
+    return this.getExistingForm()?.getXFAJavaScripts() ?? [];
   }
 
   /**
@@ -1337,65 +1166,13 @@ export default class PDFDocument {
     eventName: string,
     newScript: string,
   ): void {
-    const templateInfo = this.getXFATemplateInfo();
-    if (!templateInfo) {
+    const form = this.getExistingForm();
+    if (!form) {
       throw new Error(
         'XFA form not found in document. Ensure the document has XFA forms and was loaded with preserveXFA: true.',
       );
     }
-
-    let xmlString: string;
-    try {
-      const xmlBytes = decodePDFRawStream(templateInfo.stream).decode();
-      xmlString = decodeXfaXml(xmlBytes);
-    } catch (error) {
-      throw new Error(
-        `Failed to decode XFA template stream: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-
-    const doc = parseHtml(xmlString, { script: true });
-
-    const entries = this.collectXFAScripts(doc).filter(
-      (e) => e.field === fieldName && e.event === eventName,
-    );
-
-    if (entries.length === 0) {
-      throw new Error(
-        `Script not found for field "${fieldName}" and event "${eventName}". ` +
-          'Verify the field and event names exist in the XFA template.',
-      );
-    }
-
-    for (const entry of entries) {
-      entry.scriptNode.set_content(this.escapeXML(newScript));
-    }
-    const updatedXml = doc.toString();
-
-    const newXmlBytes = new TextEncoder().encode(updatedXml);
-    const filter = templateInfo.stream.dict.get(PDFName.of('Filter'));
-    const newStream =
-      filter !== undefined
-        ? this.context.flateStream(newXmlBytes)
-        : this.context.stream(newXmlBytes);
-
-    if (templateInfo.streamRef) {
-      // Overwrite the existing template stream in place, preserving its object
-      // reference. Creating a new object and re-pointing the XFA array does not
-      // survive a save/reload for documents whose objects live in compressed
-      // object streams, because the re-emitted stale copy wins on the next load.
-      this.context.assign(templateInfo.streamRef, newStream);
-      if (this.context.snapshot) {
-        this.context.snapshot.markRefForSave(templateInfo.streamRef);
-      }
-    } else {
-      // The template was stored as a direct (inline) stream; replace the array
-      // slot with a freshly registered stream object.
-      templateInfo.xfa.set(
-        templateInfo.templateIndex,
-        this.context.register(newStream),
-      );
-    }
+    form.setXFAJavaScript(fieldName, eventName, newScript);
   }
 
   /**
@@ -2398,6 +2175,20 @@ export default class PDFDocument {
 
   private getOrCreateForm = (): PDFForm => {
     const acroForm = this.catalog.getOrCreateAcroForm();
+    return PDFForm.of(acroForm, this);
+  };
+
+  /**
+   * Return an existing [[PDFForm]] without creating an AcroForm or stripping XFA.
+   * Prefers the form cache when already populated; otherwise wraps a catalog
+   * AcroForm if one is already present.
+   */
+  private getExistingForm(): PDFForm | undefined {
+    const cached = this.formCache.getValue();
+    if (cached) return cached;
+
+    const acroForm = this.catalog.getAcroForm();
+    if (!acroForm) return undefined;
     return PDFForm.of(acroForm, this);
   };
 }

@@ -94,6 +94,35 @@ describe('PDFJavaScriptAction', () => {
     const action = PDFJavaScriptAction.of(actionDict, pdfDoc);
     expect(action?.getScript()).toBeUndefined();
   });
+
+  it('can get script from a stream /JS value', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const context = pdfDoc.context;
+    const script = 'console.println("stream js");';
+
+    const actionDict = context.obj({
+      S: 'JavaScript',
+      JS: context.stream(script),
+    });
+
+    const action = PDFJavaScriptAction.of(actionDict, pdfDoc);
+    expect(action?.getScript()).toBe(script);
+  });
+
+  it('can get script from an indirect stream /JS value', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const context = pdfDoc.context;
+    const script = 'console.println("indirect stream js");';
+
+    const streamRef = context.register(context.flateStream(script));
+    const actionDict = context.obj({
+      S: 'JavaScript',
+      JS: streamRef,
+    });
+
+    const action = PDFJavaScriptAction.of(actionDict, pdfDoc);
+    expect(action?.getScript()).toBe(script);
+  });
 });
 
 describe('extractAdditionalActions', () => {
