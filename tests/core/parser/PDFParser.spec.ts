@@ -60,6 +60,49 @@ describe('PDFParser', () => {
     expect(context.lookup(PDFRef.of(1))).toBeInstanceOf(PDFString);
   });
 
+  // https://github.com/cantoo-scribe/pdf-lib/issues/63
+  it('recovers a truncated file whose last object never closes', async () => {
+    const input = `
+      %PDF-1.7
+      1 0 obj
+        (foobar)
+      endobj
+      2 0 obj
+        << /Length )) /Broken
+    `;
+    const parser = PDFParser.forBytesWithOptions(typedArrayFor(input));
+    const context = await parser.parseDocument();
+
+    // the complete object survives, the truncated fragment is discarded
+    expect(context.lookup(PDFRef.of(1))).toBeInstanceOf(PDFString);
+    expect(context.lookup(PDFRef.of(2))).toBeUndefined();
+  });
+
+  // https://github.com/cantoo-scribe/pdf-lib/issues/64
+  it('recovers when an xref subsection header is missing its second int', async () => {
+    const input = `
+      %PDF-1.7
+      1 0 obj
+        (foobar)
+      endobj
+      xref
+      0 2
+      0000000000 65535 f
+      0000000009 00000 n
+      2
+      trailer
+      << /Size 2 /Root 1 0 R >>
+      startxref
+      52
+      %%EOF
+    `;
+    const parser = PDFParser.forBytesWithOptions(typedArrayFor(input));
+    const context = await parser.parseDocument();
+
+    expect(context.lookup(PDFRef.of(1))).toBeInstanceOf(PDFString);
+    expect(context.trailerInfo.Root).toBeDefined();
+  });
+
   it('handles invalid binary comments after header', async () => {
     const input = mergeIntoTypedArray(
       '%PDF-1.7\n',

@@ -4,7 +4,6 @@ import PDFTrailer from '../document/PDFTrailer';
 import {
   MissingKeywordError,
   MissingPDFHeaderError,
-  PDFInvalidObjectParsingError,
   ReparseError,
   StalledParserError,
 } from '../errors';
@@ -228,7 +227,23 @@ class PDFParser extends PDFObjectParser {
       this.bytes.next();
     }
 
-    if (failed) throw new PDFInvalidObjectParsingError(startPos);
+    // The loop above only exits early when `endobj` was matched, so `failed`
+    // means we consumed the rest of the file without finding it — i.e. the PDF
+    // is truncated mid-object. Every complete object preceding this one has
+    // already been assigned to the context, so the document is usually still
+    // recoverable. Discard the trailing fragment instead of failing the whole
+    // parse. (Callers wanting the strict behaviour set `throwOnInvalidObject`,
+    // which already threw at the top of this method.)
+    if (failed) {
+      if (this.warnOnInvalidObjects) {
+        console.warn(
+          `Discarding truncated object at end of file: ${JSON.stringify(
+            startPos,
+          )}`,
+        );
+      }
+      return undefined;
+    }
 
     const end = this.bytes.offset() - Keywords.endobj.length;
 
