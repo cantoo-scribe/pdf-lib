@@ -1664,6 +1664,24 @@ describe('PDFDocument', () => {
   });
 
   describe('attach() method', () => {
+    it('Sorts attachment names lexically', async () => {
+      const pdfDoc = await PDFDocument.create();
+
+      await pdfDoc.attach(new Uint8Array(), '1.jpg');
+      await pdfDoc.attach(new Uint8Array(), '2.jpg');
+      await pdfDoc.attach(new Uint8Array(), '10.jpg');
+      await pdfDoc.save();
+
+      const Names = pdfDoc.catalog.lookup(PDFName.of('Names'), PDFDict);
+      const EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+      const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
+      const names = [0, 2, 4].map((idx) =>
+        EFNames.lookup(idx, PDFHexString).decodeText(),
+      );
+
+      expect(names).toEqual(['1.jpg', '10.jpg', '2.jpg']);
+    });
+
     it('Saves to the same value after attaching a file', async () => {
       const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
       const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });

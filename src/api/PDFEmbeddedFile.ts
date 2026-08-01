@@ -1,7 +1,22 @@
 import Embeddable from './Embeddable';
 import PDFDocument from './PDFDocument';
 import FileEmbedder from '../core/embedders/FileEmbedder';
-import { PDFName, PDFArray, PDFDict, PDFHexString, PDFRef } from '../core';
+import {
+  PDFName,
+  PDFArray,
+  PDFDict,
+  PDFHexString,
+  PDFRef,
+  PDFString,
+} from '../core';
+
+const compareBytes = (left: Uint8Array, right: Uint8Array): number => {
+  const length = Math.min(left.length, right.length);
+  for (let idx = 0; idx < length; idx++) {
+    if (left[idx] !== right[idx]) return left[idx] - right[idx];
+  }
+  return left.length - right.length;
+};
 
 /**
  * Represents a file that has been embedded in a [[PDFDocument]].
@@ -67,8 +82,20 @@ export default class PDFEmbeddedFile implements Embeddable {
       }
       const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
 
-      EFNames.push(PDFHexString.fromText(this.embedder.fileName));
-      EFNames.push(ref);
+      const fileName = PDFHexString.fromText(this.embedder.fileName);
+      const fileNameBytes = fileName.asBytes();
+      let insertionIndex = EFNames.size();
+
+      for (let idx = 0, len = EFNames.size(); idx < len; idx += 2) {
+        const existingFileName = EFNames.lookup(idx, PDFString, PDFHexString);
+        if (compareBytes(fileNameBytes, existingFileName.asBytes()) < 0) {
+          insertionIndex = idx;
+          break;
+        }
+      }
+
+      EFNames.insert(insertionIndex, fileName);
+      EFNames.insert(insertionIndex + 1, ref);
 
       /**
        * The AF-Tag is needed to achieve PDF-A3 compliance for embedded files
