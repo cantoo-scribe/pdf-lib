@@ -4,7 +4,6 @@ import PDFTrailer from '../document/PDFTrailer';
 import {
   MissingKeywordError,
   MissingPDFHeaderError,
-  PDFInvalidObjectParsingError,
   ReparseError,
   StalledParserError,
 } from '../errors';
@@ -228,7 +227,14 @@ class PDFParser extends PDFObjectParser {
       this.bytes.next();
     }
 
-    if (failed) throw new PDFInvalidObjectParsingError(startPos);
+    // The loop above only exits early when `endobj` was matched, so `failed`
+    // means we reached EOF without finding it — the object never closes. Drop
+    // it instead of failing the whole parse, and rewind so the caller can still
+    // pick up an xref section or trailer that follows the broken object.
+    if (failed) {
+      this.bytes.moveTo(start);
+      return;
+    }
 
     const end = this.bytes.offset() - Keywords.endobj.length;
 
