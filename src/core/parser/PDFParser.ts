@@ -228,21 +228,12 @@ class PDFParser extends PDFObjectParser {
     }
 
     // The loop above only exits early when `endobj` was matched, so `failed`
-    // means we consumed the rest of the file without finding it — i.e. the PDF
-    // is truncated mid-object. Every complete object preceding this one has
-    // already been assigned to the context, so the document is usually still
-    // recoverable. Discard the trailing fragment instead of failing the whole
-    // parse. (Callers wanting the strict behaviour set `throwOnInvalidObject`,
-    // which already threw at the top of this method.)
+    // means we reached EOF without finding it — the object never closes. Drop
+    // it instead of failing the whole parse, and rewind so the caller can still
+    // pick up an xref section or trailer that follows the broken object.
     if (failed) {
-      if (this.warnOnInvalidObjects) {
-        console.warn(
-          `Discarding truncated object at end of file: ${JSON.stringify(
-            startPos,
-          )}`,
-        );
-      }
-      return undefined;
+      this.bytes.moveTo(start);
+      return;
     }
 
     const end = this.bytes.offset() - Keywords.endobj.length;

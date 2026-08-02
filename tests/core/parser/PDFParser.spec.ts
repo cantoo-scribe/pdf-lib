@@ -78,6 +78,31 @@ describe('PDFParser', () => {
     expect(context.lookup(PDFRef.of(2))).toBeUndefined();
   });
 
+  it('still reads the trailer that follows an unterminated object', async () => {
+    const input = `
+      %PDF-1.7
+      1 0 obj
+        << /Type /Catalog /Pages 3 0 R >>
+      endobj
+      2 0 obj
+        << /Length )) /Broken
+      xref
+      0 1
+      0000000000 65535 f
+      trailer
+      << /Size 3 /Root 1 0 R >>
+      startxref
+      9
+      %%EOF
+    `;
+    const parser = PDFParser.forBytesWithOptions(typedArrayFor(input));
+    const context = await parser.parseDocument();
+
+    expect(context.lookup(PDFRef.of(2))).toBeUndefined();
+    expect(context.trailerInfo.Root).toBe(PDFRef.of(1));
+    expect(context.trailerInfo.Size).toBeDefined();
+  });
+
   // https://github.com/cantoo-scribe/pdf-lib/issues/64
   it('recovers when an xref subsection header is missing its second int', async () => {
     const input = `
