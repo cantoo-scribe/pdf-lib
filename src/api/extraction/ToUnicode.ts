@@ -7,13 +7,14 @@ import { arrayAsString } from '../../utils';
  * Supports `beginbfchar` / `endbfchar` and `beginbfrange` / `endbfrange`
  * (both destination-offset and array forms).
  */
-export const parseToUnicode = (data: Uint8Array | string): Map<number, string> => {
+export const parseToUnicode = (
+  data: Uint8Array | string,
+): Map<number, string> => {
   const text = typeof data === 'string' ? data : arrayAsString(data);
   const map = new Map<number, string>();
 
   // bfchar: <src> <dst>
-  const bfcharRe =
-    /(\d+)\s+beginbfchar([\s\S]*?)endbfchar/g;
+  const bfcharRe = /(\d+)\s+beginbfchar([\s\S]*?)endbfchar/g;
   let match: RegExpExecArray | null;
   while ((match = bfcharRe.exec(text))) {
     const body = match[2];
@@ -26,23 +27,28 @@ export const parseToUnicode = (data: Uint8Array | string): Map<number, string> =
   }
 
   // bfrange: <srcLow> <srcHigh> <dstLow>  OR  <srcLow> <srcHigh> [<dst> ...]
-  const bfrangeRe =
-    /(\d+)\s+beginbfrange([\s\S]*?)endbfrange/g;
+  const bfrangeRe = /(\d+)\s+beginbfrange([\s\S]*?)endbfrange/g;
   while ((match = bfrangeRe.exec(text))) {
     const body = match[2];
     // Array form first
-    const arrayRangeRe =
-      /<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[([^\]]*)\]/g;
+    const arrayRangeRe = /<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[([^\]]*)\]/g;
     let range: RegExpExecArray | null;
     const consumedSpans: Array<{ start: number; end: number }> = [];
     while ((range = arrayRangeRe.exec(body))) {
-      consumedSpans.push({ start: range.index, end: range.index + range[0].length });
+      consumedSpans.push({
+        start: range.index,
+        end: range.index + range[0].length,
+      });
       const low = parseInt(range[1], 16);
       const high = parseInt(range[2], 16);
-      const dests = [
-        ...range[3].matchAll(/<([0-9A-Fa-f]+)>/g),
-      ].map((m) => m[1]);
-      for (let code = low, i = 0; code <= high && i < dests.length; code++, i++) {
+      const dests = [...range[3].matchAll(/<([0-9A-Fa-f]+)>/g)].map(
+        (m) => m[1],
+      );
+      for (
+        let code = low, i = 0;
+        code <= high && i < dests.length;
+        code++, i++
+      ) {
         map.set(code, hexToUnicodeString(dests[i]));
       }
     }
@@ -76,9 +82,10 @@ export const inferCodeByteLength = (
   cmapText: string,
   mapping: Map<number, string>,
 ): number => {
-  const spaceMatch = /begincodespacersange\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/i.exec(
-    cmapText,
-  );
+  const spaceMatch =
+    /begincodespacersange\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/i.exec(
+      cmapText,
+    );
   if (spaceMatch) {
     return Math.ceil(spaceMatch[1].length / 2);
   }

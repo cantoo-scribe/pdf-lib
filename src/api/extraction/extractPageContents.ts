@@ -14,12 +14,7 @@ import { TransformationMatrix, identityMatrix } from '../../types/matrix';
 import { mergeIntoTypedArray } from '../../utils';
 import { parseContentStream } from './ContentStreamParser';
 import { FontDecoder, isStringOperand } from './FontDecoder';
-import {
-  PdfPathBuilder,
-  cmykCss,
-  grayCss,
-  rgbCss,
-} from './graphicsSvg';
+import { PdfPathBuilder, cmykCss, grayCss, rgbCss } from './graphicsSvg';
 import { extractImageBytes } from './imageBytes';
 import {
   ContentStreamOperand,
@@ -194,8 +189,12 @@ const walkOperations = (
       return;
     }
     const result = path.paint(gs.ctm, {
-      fill: opts.fill ? gs.fill ?? '#000000' : opts.stroke ? 'none' : undefined,
-      stroke: opts.stroke ? gs.stroke ?? '#000000' : 'none',
+      fill: opts.fill
+        ? (gs.fill ?? '#000000')
+        : opts.stroke
+          ? 'none'
+          : undefined,
+      stroke: opts.stroke ? (gs.stroke ?? '#000000') : 'none',
       fillRule: opts.evenOdd ? 'evenodd' : undefined,
       lineWidth: gs.lineWidth,
     });

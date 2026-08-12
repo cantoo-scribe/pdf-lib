@@ -2,6 +2,7 @@ import Embeddable from './Embeddable';
 import PDFDocument from './PDFDocument';
 import FileEmbedder from '../core/embedders/FileEmbedder';
 import { PDFName, PDFArray, PDFDict, PDFHexString, PDFRef } from '../core';
+import { addNameTreeEntry } from './nameTree';
 
 /**
  * Represents a file that has been embedded in a [[PDFDocument]].
@@ -62,13 +63,12 @@ export default class PDFEmbeddedFile implements Embeddable {
       }
       const EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
 
-      if (!EmbeddedFiles.has(PDFName.of('Names'))) {
-        EmbeddedFiles.set(PDFName.of('Names'), this.doc.context.obj([]));
-      }
-      const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
-
-      EFNames.push(PDFHexString.fromText(this.embedder.fileName));
-      EFNames.push(ref);
+      // Flat `/Names` only — leave `/Kids` (and other incompatible) trees alone.
+      addNameTreeEntry(
+        EmbeddedFiles,
+        PDFHexString.fromText(this.embedder.fileName),
+        ref,
+      );
 
       /**
        * The AF-Tag is needed to achieve PDF-A3 compliance for embedded files

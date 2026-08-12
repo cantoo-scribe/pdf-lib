@@ -203,8 +203,12 @@ class ContentStreamParser {
         else if (esc === CharCodes.BackSlash) out.push(CharCodes.BackSlash);
         else if (IsDigit[esc]) {
           let oct = charFromCode(esc);
-          if (!this.done() && IsDigit[this.peek()]) oct += charFromCode(this.next());
-          if (!this.done() && IsDigit[this.peek()]) oct += charFromCode(this.next());
+          if (!this.done() && IsDigit[this.peek()]) {
+            oct += charFromCode(this.next());
+          }
+          if (!this.done() && IsDigit[this.peek()]) {
+            oct += charFromCode(this.next());
+          }
           out.push(parseInt(oct, 8) & 0xff);
         } else if (
           esc === CharCodes.Newline ||
@@ -247,22 +251,24 @@ class ContentStreamParser {
       // Reuse operand parsers; operators shouldn't appear in arrays, but TJ has nested strings/numbers
       const byte = this.peek();
       if (byte === CharCodes.ForwardSlash) items.push(this.parseName());
-      else if (byte === CharCodes.LeftParen) items.push(this.parseLiteralString());
-      else if (
+      else if (byte === CharCodes.LeftParen) {
+        items.push(this.parseLiteralString());
+      } else if (
         byte === CharCodes.LessThan &&
         this.peekAhead(1) === CharCodes.LessThan
-      )
+      ) {
         items.push(this.parseDict());
-      else if (byte === CharCodes.LessThan) items.push(this.parseHexString());
-      else if (byte === CharCodes.LeftSquareBracket) items.push(this.parseArray());
-      else if (
+      } else if (byte === CharCodes.LessThan) items.push(this.parseHexString());
+      else if (byte === CharCodes.LeftSquareBracket) {
+        items.push(this.parseArray());
+      } else if (
         byte === CharCodes.Plus ||
         byte === CharCodes.Minus ||
         byte === CharCodes.Period ||
         IsDigit[byte]
-      )
+      ) {
         items.push(this.parseNumber());
-      else {
+      } else {
         // Unexpected operator-like token inside array — skip as name-ish
         this.parseOperator();
       }
@@ -293,18 +299,18 @@ class ContentStreamParser {
       else if (
         byte === CharCodes.LessThan &&
         this.peekAhead(1) === CharCodes.LessThan
-      )
+      ) {
         value = this.parseDict();
-      else if (byte === CharCodes.LessThan) value = this.parseHexString();
+      } else if (byte === CharCodes.LessThan) value = this.parseHexString();
       else if (byte === CharCodes.LeftSquareBracket) value = this.parseArray();
       else if (
         byte === CharCodes.Plus ||
         byte === CharCodes.Minus ||
         byte === CharCodes.Period ||
         IsDigit[byte]
-      )
+      ) {
         value = this.parseNumber();
-      else {
+      } else {
         const op = this.parseOperator();
         value = op === 'true' ? 1 : op === 'false' ? 0 : op === 'null' ? 0 : op;
       }
@@ -354,9 +360,13 @@ class ContentStreamParser {
         // skip value crudely
         const b = this.peek();
         if (b === CharCodes.ForwardSlash) this.parseName();
-        else if (IsNumeric[b] || b === CharCodes.Plus || b === CharCodes.Minus)
+        else if (
+          IsNumeric[b] ||
+          b === CharCodes.Plus ||
+          b === CharCodes.Minus
+        ) {
           this.parseNumber();
-        else if (b === CharCodes.LeftParen) this.parseLiteralString();
+        } else if (b === CharCodes.LeftParen) this.parseLiteralString();
         else if (b === CharCodes.LessThan) {
           if (this.peekAhead(1) === CharCodes.LessThan) this.parseDict();
           else this.parseHexString();

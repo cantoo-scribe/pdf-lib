@@ -50,7 +50,11 @@ export const extractImageBytes = (
   }
 
   if (bits !== 8) return undefined;
-  if (csName !== 'DeviceRGB' && csName !== 'DeviceGray' && csName !== 'CalRGB') {
+  if (
+    csName !== 'DeviceRGB' &&
+    csName !== 'DeviceGray' &&
+    csName !== 'CalRGB'
+  ) {
     return undefined;
   }
 
@@ -150,17 +154,21 @@ const encodePng = (
         raw[dst + 3] = alpha[y * width + x];
       }
     } else {
-      raw.set(
-        pixels.subarray(y * stride, y * stride + stride),
-        rowStart + 1,
-      );
+      raw.set(pixels.subarray(y * stride, y * stride + stride), rowStart + 1);
     }
   }
 
   const compressed = deflate(raw);
 
   const signature = Uint8Array.of(
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
   );
   const ihdr = new Uint8Array(13);
   writeUint32(ihdr, 0, width);

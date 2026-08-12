@@ -8,10 +8,7 @@ import PDFContext from '../../core/PDFContext';
 import { decodePDFRawStream } from '../../core/streams/decode';
 import PDFContentStream from '../../core/structures/PDFContentStream';
 import { arrayAsString } from '../../utils';
-import {
-  HexStringOperand,
-  LiteralStringOperand,
-} from './types';
+import { HexStringOperand, LiteralStringOperand } from './types';
 import { inferCodeByteLength, parseToUnicode } from './ToUnicode';
 
 type StringOperand = HexStringOperand | LiteralStringOperand;
@@ -83,7 +80,11 @@ export class FontDecoder {
     const bytes = operand.bytes;
     let out = '';
 
-    for (let i = 0; i + this.codeByteLength <= bytes.length; i += this.codeByteLength) {
+    for (
+      let i = 0;
+      i + this.codeByteLength <= bytes.length;
+      i += this.codeByteLength
+    ) {
       let code = 0;
       for (let b = 0; b < this.codeByteLength; b++) {
         code = (code << 8) | bytes[i + b];
@@ -154,9 +155,7 @@ const stripSubsetPrefix = (name: string): string => {
   return plus >= 0 ? name.slice(plus + 1) : name;
 };
 
-export const isStringOperand = (
-  value: unknown,
-): value is StringOperand =>
+export const isStringOperand = (value: unknown): value is StringOperand =>
   !!value &&
   typeof value === 'object' &&
   ((value as StringOperand).type === 'hexString' ||

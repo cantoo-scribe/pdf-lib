@@ -144,8 +144,7 @@ export class PdfPathBuilder {
 
     const fill = style.fill ?? (style.stroke ? 'none' : '#000000');
     const stroke = style.stroke ?? 'none';
-    const fillRule =
-      style.fillRule === 'evenodd' ? ' fill-rule="evenodd"' : '';
+    const fillRule = style.fillRule === 'evenodd' ? ' fill-rule="evenodd"' : '';
 
     const attrs = [
       `d="${dParts.join(' ')}"`,
@@ -160,7 +159,7 @@ export class PdfPathBuilder {
     const vbX = minX;
     const vbY = -maxY;
     const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" ` +
+      '<svg xmlns="http://www.w3.org/2000/svg" ' +
       `viewBox="${fmt(vbX)} ${fmt(vbY)} ${fmt(width)} ${fmt(height)}">` +
       `<g transform="scale(1,-1)"><path ${attrs}/></g></svg>`;
 
@@ -191,12 +190,7 @@ export const rgbCss = (r: number, g: number, b: number): string => {
 export const grayCss = (g: number): string => rgbCss(g, g, g);
 
 /** Rough CMYK→RGB for extraction display */
-export const cmykCss = (
-  c: number,
-  m: number,
-  y: number,
-  k: number,
-): string => {
+export const cmykCss = (c: number, m: number, y: number, k: number): string => {
   const C = clamp01(c);
   const M = clamp01(m);
   const Y = clamp01(y);

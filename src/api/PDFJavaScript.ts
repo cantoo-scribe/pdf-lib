@@ -1,7 +1,8 @@
 import Embeddable from './Embeddable';
 import PDFDocument from './PDFDocument';
 import JavaScriptEmbedder from '../core/embedders/JavaScriptEmbedder';
-import { PDFName, PDFArray, PDFDict, PDFHexString, PDFRef } from '../core';
+import { PDFName, PDFDict, PDFHexString, PDFRef } from '../core';
+import { addNameTreeEntry } from './nameTree';
 
 /**
  * Represents JavaScript that has been embedded in a [[PDFDocument]].
@@ -68,13 +69,12 @@ export default class PDFJavaScript implements Embeddable {
       }
       const Javascript = Names.lookup(PDFName.of('JavaScript'), PDFDict);
 
-      if (!Javascript.has(PDFName.of('Names'))) {
-        Javascript.set(PDFName.of('Names'), context.obj([]));
-      }
-      const JSNames = Javascript.lookup(PDFName.of('Names'), PDFArray);
-
-      JSNames.push(PDFHexString.fromText(this.embedder.scriptName));
-      JSNames.push(ref);
+      // Flat `/Names` only — leave `/Kids` (and other incompatible) trees alone.
+      addNameTreeEntry(
+        Javascript,
+        PDFHexString.fromText(this.embedder.scriptName),
+        ref,
+      );
 
       this.alreadyEmbedded = true;
     }

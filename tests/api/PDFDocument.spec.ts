@@ -568,6 +568,47 @@ describe('PDFDocument', () => {
       expect(JSNames.lookup(0, PDFHexString).decodeText()).toEqual('first');
       expect(JSNames.lookup(2, PDFHexString).decodeText()).toEqual('second');
     });
+
+    it('sorts JavaScript name tree entries lexically', async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.addJavaScript('zebra', 'console.println("z");');
+      pdfDoc.addJavaScript('alpha', 'console.println("a");');
+      pdfDoc.addJavaScript('middle', 'console.println("m");');
+      await pdfDoc.flush();
+
+      const Names = pdfDoc.catalog.lookup(PDFName.of('Names'), PDFDict);
+      const Javascript = Names.lookup(PDFName.of('JavaScript'), PDFDict);
+      const JSNames = Javascript.lookup(PDFName.of('Names'), PDFArray);
+      const names = [0, 2, 4].map((idx) =>
+        JSNames.lookup(idx, PDFHexString).decodeText(),
+      );
+
+      expect(names).toEqual(['alpha', 'middle', 'zebra']);
+    });
+
+    it('does not add Names alongside an existing Kids JavaScript tree', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const leafRef = pdfDoc.context.register(
+        pdfDoc.context.obj({
+          Names: [],
+        }),
+      );
+      pdfDoc.catalog.set(
+        PDFName.of('Names'),
+        pdfDoc.context.obj({
+          JavaScript: { Kids: [leafRef] },
+        }),
+      );
+
+      pdfDoc.addJavaScript('newScript', 'console.println("x");');
+      await pdfDoc.flush();
+
+      const Javascript = pdfDoc.catalog
+        .lookup(PDFName.of('Names'), PDFDict)
+        .lookup(PDFName.of('JavaScript'), PDFDict);
+      expect(Javascript.has(PDFName.of('Kids'))).toBe(true);
+      expect(Javascript.has(PDFName.of('Names'))).toBe(false);
+    });
   });
 
   describe('embedPng() method', () => {
@@ -1664,6 +1705,52 @@ describe('PDFDocument', () => {
   });
 
   describe('attach() method', () => {
+    it('sorts attachment names lexically', async () => {
+      const pdfDoc = await PDFDocument.create();
+
+      await pdfDoc.attach(new Uint8Array(), '1.jpg');
+      await pdfDoc.attach(new Uint8Array(), '2.jpg');
+      await pdfDoc.attach(new Uint8Array(), '10.jpg');
+      await pdfDoc.save();
+
+      const Names = pdfDoc.catalog.lookup(PDFName.of('Names'), PDFDict);
+      const EmbeddedFiles = Names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+      const EFNames = EmbeddedFiles.lookup(PDFName.of('Names'), PDFArray);
+      const names = [0, 2, 4].map((idx) =>
+        EFNames.lookup(idx, PDFHexString).decodeText(),
+      );
+
+      expect(names).toEqual(['1.jpg', '10.jpg', '2.jpg']);
+    });
+
+    it('does not add Names alongside an existing Kids EmbeddedFiles tree', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const leafRef = pdfDoc.context.register(
+        pdfDoc.context.obj({
+          Names: [],
+        }),
+      );
+      pdfDoc.catalog.set(
+        PDFName.of('Names'),
+        pdfDoc.context.obj({
+          EmbeddedFiles: { Kids: [leafRef] },
+        }),
+      );
+
+      await pdfDoc.attach(new Uint8Array([1, 2, 3]), 'new.txt');
+      await pdfDoc.save();
+
+      const EmbeddedFiles = pdfDoc.catalog
+        .lookup(PDFName.of('Names'), PDFDict)
+        .lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+      expect(EmbeddedFiles.has(PDFName.of('Kids'))).toBe(true);
+      expect(EmbeddedFiles.has(PDFName.of('Names'))).toBe(false);
+
+      // File stream is still embedded and listed under AF.
+      const AF = pdfDoc.catalog.lookup(PDFName.of('AF'), PDFArray);
+      expect(AF.size()).toBe(1);
+    });
+
     it('Saves to the same value after attaching a file', async () => {
       const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
       const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });

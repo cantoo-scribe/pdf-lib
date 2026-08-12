@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep catalog name trees for embedded files and document JavaScript in PDF
+  lexical order by re-sorting flat `/Names` entries on insert (required by
+  ISO 32000). Existing `/Kids` trees and other incompatible name-tree shapes
+  are left untouched instead of creating an invalid sibling `/Names` array.
 - `PDFForm.flatten()` now also flattens orphaned widget annotations that carry
   field properties (`/FT`, `/V`, …) on the page `Annots` entry but are not
   registered in `AcroForm.Fields` (text fields and stateful checkboxes / radios).
