@@ -63,6 +63,8 @@ import {
   assertIsOneOfOrUndefined,
 } from '../utils';
 import { drawSvg } from './svg';
+import { extractPageContents } from './extraction/extractPageContents';
+import { PdfAsset } from './extraction/types';
 
 /**
  * Represents a single page of a [[PDFDocument]].
@@ -433,6 +435,32 @@ export default class PDFPage {
    */
   getHeight(): number {
     return this.getSize().height;
+  }
+
+  /**
+   * Extract typed content assets (text runs and images) from this page.
+   *
+   * Parses the page content streams, decodes show-text operators via each
+   * font's ToUnicode CMap (or WinAnsi for standard fonts), converts painted
+   * Image XObjects into JPEG or PNG bytes, and approximates vector paths as
+   * SVG (`kind: 'graphics'`). Form XObjects are traversed recursively. Each
+   * text asset includes page-space `x`/`y`, `fontSize`, and `fontFamily`.
+   * Path-outlined text is not extracted as text.
+   *
+   * For example:
+   * ```js
+   * const assets = page.extractContents()
+   * for (const asset of assets) {
+   *   if (asset.kind === 'text') console.log(asset.getText())
+   *   if (asset.kind === 'image') console.log(asset.mimeType, asset.width)
+   *   if (asset.kind === 'graphics') console.log(asset.getSvg())
+   * }
+   * ```
+   *
+   * @returns Extracted text, image, and graphics assets in paint order.
+   */
+  extractContents(): PdfAsset[] {
+    return extractPageContents(this.node);
   }
 
   /**

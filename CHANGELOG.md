@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.1]
 
+### Added
+
+- `PDFPage.extractContents()` returns typed `PdfAsset[]` (text, images, and
+  approximate vector `graphics` as SVG) from page content streams. Text is
+  decoded via ToUnicode / WinAnsi and includes `x`, `y`, `fontSize`, and
+  `fontFamily`. Image XObjects become JPEG or PNG bytes with page-space
+  position. Painted paths become `kind: 'graphics'` with `getSvg()`. Form
+  XObjects are traversed. Path-outlined text is not extracted as text.
+
 ### Fixed
 
 - `PDFForm.flatten()` now also flattens orphaned widget annotations that carry
