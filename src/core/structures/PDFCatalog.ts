@@ -5,6 +5,7 @@ import PDFContext from '../PDFContext';
 import PDFPageTree from './PDFPageTree';
 import { PDFAcroForm } from '../acroform';
 import ViewerPreferences from '../interactive/ViewerPreferences';
+import OptionalContentProperties from '../interactive/OptionalContent';
 import PDFArray from '../objects/PDFArray';
 
 class PDFCatalog extends PDFDict {
@@ -71,6 +72,11 @@ class PDFCatalog extends PDFDict {
       this.set(PDFName.of('ViewerPreferences'), viewerPrefsRef);
     }
     return viewerPrefs;
+  }
+
+  getOCProperties(): OptionalContentProperties | undefined {
+    const dict = this.lookupMaybe(PDFName.of('OCProperties'), PDFDict);
+    return dict && OptionalContentProperties.fromDict(dict);
   }
 
   /**

@@ -25,6 +25,11 @@ export {
   PageBoundingBox,
 } from './embedders/PDFPageEmbedder';
 
+export { default as OptionalContentProperties } from './interactive/OptionalContent';
+export type {
+  PDFOptionalContentGroup,
+  OptionalContentVisibilityUpdate,
+} from './interactive/OptionalContent';
 export {
   default as ViewerPreferences,
   NonFullScreenPageMode,
@@ -32,7 +37,6 @@ export {
   PrintScaling,
   Duplex,
 } from './interactive/ViewerPreferences';
-
 export { default as PDFObject } from './objects/PDFObject';
 export { default as PDFBool } from './objects/PDFBool';
 export { default as PDFNumber } from './objects/PDFNumber';

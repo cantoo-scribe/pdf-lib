@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.2]
+
+### Added
+
+- Optional content (PDF layers) helpers: `PDFDocument.getOptionalContentGroups()`
+  and `PDFDocument.setOptionalContentGroupVisibility()` update the default
+  `/OCProperties` `/D` configuration (`/ON`, `/OFF`, `/BaseState`) so viewers
+  open layers in the requested state. Also available via
+  `catalog.getOCProperties()`.
+
 ## [2.8.1]
 
 ### Added
@@ -59,5 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page content or generate/validate invoice XML. Use embedded fonts and validate
   with veraPDF (and a Factur-X checker for e-invoices).
 
-[2.8.1]: https://github.com/cantoo-scribe/pdf-lib/compare/v2.8.0...HEAD
+[2.8.2]: https://github.com/cantoo-scribe/pdf-lib/compare/v2.8.1...HEAD
+[2.8.1]: https://github.com/cantoo-scribe/pdf-lib/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/cantoo-scribe/pdf-lib/compare/v2.7.4...v2.8.0

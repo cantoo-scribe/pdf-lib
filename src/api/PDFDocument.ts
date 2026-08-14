@@ -101,6 +101,10 @@ import {
   readCatalogMetadataXml,
   readCatalogPDFAConformance,
 } from './pdfa/catalogMetadata';
+import type {
+  PDFOptionalContentGroup,
+  OptionalContentVisibilityUpdate,
+} from '../core/interactive/OptionalContent';
 
 export type BasePDFAttachment = {
   name: string;
@@ -384,6 +388,67 @@ export default class PDFDocument {
       form.deleteXFA();
     }
     return form;
+  }
+
+  /**
+   * List this document's optional content groups (PDF "layers"), if any.
+   * Visibility reflects the default configuration (`/OCProperties` `/D`).
+   * Returns an empty array when the document has no `/OCProperties`.
+   *
+   * For example:
+   * ```js
+   * const layers = pdfDoc.getOptionalContentGroups()
+   * layers.forEach((layer) => console.log(layer.name, layer.visible))
+   * ```
+   */
+  getOptionalContentGroups(): PDFOptionalContentGroup[] {
+    return this.catalog.getOCProperties()?.getGroups() ?? [];
+  }
+
+  /**
+   * Set the default visibility of an optional content group (layer) so PDF
+   * readers open the file with that layer on or off. Matches by layer name
+   * (all groups with that name) or by indirect `PDFRef`.
+   *
+   * For example:
+   * ```js
+   * pdfDoc.setOptionalContentGroupVisibility('Watermark', false)
+   * pdfDoc.setOptionalContentGroupVisibility([
+   *   { name: 'Notes', visible: false },
+   *   { ref: layers[0].ref, visible: true },
+   * ])
+   * ```
+   *
+   * This updates `/OCProperties` `/D` (`/ON`, `/OFF`, `/BaseState`) only. It
+   * does not remove layer content from page streams.
+   */
+  setOptionalContentGroupVisibility(
+    nameOrRef: string | PDFRef,
+    visible: boolean,
+  ): void;
+  setOptionalContentGroupVisibility(
+    updates: OptionalContentVisibilityUpdate[],
+  ): void;
+  setOptionalContentGroupVisibility(
+    nameOrRefOrUpdates: string | PDFRef | OptionalContentVisibilityUpdate[],
+    visible?: boolean,
+  ): void {
+    const ocProperties = this.catalog.getOCProperties();
+    if (!ocProperties) {
+      throw new Error('This document has no optional content properties');
+    }
+
+    const updates: OptionalContentVisibilityUpdate[] = Array.isArray(
+      nameOrRefOrUpdates,
+    )
+      ? nameOrRefOrUpdates
+      : [
+          nameOrRefOrUpdates instanceof PDFRef
+            ? { ref: nameOrRefOrUpdates, visible: visible as boolean }
+            : { name: nameOrRefOrUpdates, visible: visible as boolean },
+        ];
+
+    ocProperties.setVisibility(updates);
   }
 
   /**
