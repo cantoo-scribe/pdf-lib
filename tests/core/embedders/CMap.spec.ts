@@ -1,5 +1,5 @@
 import fontkit from 'fontkit';
-import { Font, Glyph } from '../../../src/types/fontkit';
+import { Font, Glyph, asFont } from '../../../src/types/fontkit';
 import fs from 'fs';
 
 import { createCmap } from '../../../src/core/embedders/CMap';
@@ -28,7 +28,7 @@ const allGlyphsInFontSortedById = (font: Font) => {
 
 describe('createCmap', () => {
   it('creates CMaps for embedded Ubuntu-R font files', () => {
-    const font = fontkit.create(ubuntuFont);
+    const font = asFont(fontkit.create(ubuntuFont));
 
     const glyphs = allGlyphsInFontSortedById(font);
     const cmap = createCmap(glyphs, (g) => (g ? g.id : -1));
@@ -37,7 +37,7 @@ describe('createCmap', () => {
   });
 
   it('creates CMaps for embedded SourceHanSerifJP-Regular font files', () => {
-    const font = fontkit.create(sourceHansJpFont);
+    const font = asFont(fontkit.create(sourceHansJpFont));
 
     const glyphs = allGlyphsInFontSortedById(font);
     const cmap = createCmap(glyphs, (g) => (g ? g.id : -1));

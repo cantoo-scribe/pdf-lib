@@ -4,6 +4,7 @@ import {
   Glyph,
   Subset,
   TypeFeatures,
+  asFont,
 } from '../../types/fontkit';
 
 import CustomFontEmbedder from './CustomFontEmbedder';
@@ -21,8 +22,9 @@ class CustomFontSubsetEmbedder extends CustomFontEmbedder {
     fontData: Uint8Array,
     customFontName?: string,
     fontFeatures?: TypeFeatures,
+    postscriptName?: string,
   ) {
-    const font = await fontkit.create(fontData);
+    const font = asFont(await fontkit.create(fontData, postscriptName));
     return new CustomFontSubsetEmbedder(
       font,
       fontData,
@@ -55,7 +57,13 @@ class CustomFontSubsetEmbedder extends CustomFontEmbedder {
 
     for (let idx = 0, len = glyphs.length; idx < len; idx++) {
       const glyph = glyphs[idx];
-      const subsetGlyphId = this.subset.includeGlyph(glyph);
+      const included = this.subset.includeGlyph(glyph);
+      if (typeof included !== 'number') {
+        throw new Error(
+          'fontkit subset.includeGlyph() must return a glyph id (number)',
+        );
+      }
+      const subsetGlyphId = included;
 
       this.glyphs[subsetGlyphId - 1] = glyph;
       this.glyphIdMap.set(glyph.id, subsetGlyphId);

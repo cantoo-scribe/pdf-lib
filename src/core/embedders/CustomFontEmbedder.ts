@@ -1,4 +1,10 @@
-import { Font, Fontkit, Glyph, TypeFeatures } from '../../types/fontkit';
+import {
+  Font,
+  Fontkit,
+  Glyph,
+  TypeFeatures,
+  asFont,
+} from '../../types/fontkit';
 
 import { createCmap } from './CMap';
 import { deriveFontFlags } from './FontFlags';
@@ -24,8 +30,9 @@ class CustomFontEmbedder {
     fontData: Uint8Array,
     customName?: string,
     fontFeatures?: TypeFeatures,
+    postscriptName?: string,
   ) {
-    const font = await fontkit.create(fontData);
+    const font = asFont(await fontkit.create(fontData, postscriptName));
     return new CustomFontEmbedder(font, fontData, customName, fontFeatures);
   }
 

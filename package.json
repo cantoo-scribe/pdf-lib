@@ -130,6 +130,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@types/color": "^3.0.1",
     "@types/crypto-js": "^4.2.2",
+    "@types/fontkit": "^2.0.9",
     "@types/jest": "^29.5.12",
     "@types/node-fetch": "^2.5.7",
     "@types/pako": "^2.0.4",

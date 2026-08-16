@@ -47,6 +47,11 @@ export interface EmbedFontOptions {
   subset?: boolean;
   customName?: string;
   features?: TypeFeatures;
+  /**
+   * For font collections (`.ttc` / `.dfont`), select a face by PostScript name.
+   * Ignored for single-font files.
+   */
+  postscriptName?: string;
 }
 
 export interface SetTitleOptions {
