@@ -27,6 +27,8 @@ const buildEncryptedPdf = async (major: number, minor: number | string) => {
     .addPage([300, 200])
     .drawText(SECRET, { x: 20, y: 100, size: 14, font });
 
+  // `forVersion` is typed `(major: number, minor: number)`, but PDFSecurity
+  // selects AES-256 off the version string '1.7ext3' — hence the cast.
   pdfDoc.context.header = (PDFHeader.forVersion as any)(major, minor);
   pdfDoc.encrypt({
     userPassword: USER_PASSWORD,

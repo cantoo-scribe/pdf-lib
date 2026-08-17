@@ -2023,6 +2023,31 @@ const doc = await PDFDocument.load(content, { password: '' })
 
 If the password is wrong, `PDFDocument.load` throws an error.
 
+To encrypt a document, call `encrypt()` before saving. The security handler is
+chosen from the document's PDF version — 1.4/1.5 uses RC4-128, 1.6/1.7 uses
+AES-128, and 1.7ext3 uses AES-256:
+
+```js
+const doc = await PDFDocument.create()
+doc.addPage().drawText('Hello!')
+
+doc.encrypt({
+  userPassword: 'user-pw',
+  ownerPassword: 'owner-pw',
+  permissions: { printing: 'highResolution' },
+})
+
+const bytes = await doc.save()
+```
+
+> **Requirement:** `encrypt()` needs the Web Crypto API
+> (`crypto.getRandomValues`) to generate secure random keys, salts, and IVs.
+> That is available in modern browsers, **Node >= 18**, Deno, and Bun. On older
+> Node versions, or in React Native without a polyfill such as
+> [`react-native-get-random-values`](https://www.npmjs.com/package/react-native-get-random-values),
+> `encrypt()` throws. No other part of `pdf-lib` requires it — loading,
+> decrypting, and saving unencrypted documents all work without it.
+
 ## Contributing
 
 We welcome contributions from the open source community! If you are interested in contributing to `pdf-lib`, please take a look at the [CONTRIBUTING.md](docs/CONTRIBUTING.md) file. It contains information to help you get `pdf-lib` setup and running on your machine. (We try to make this as simple and fast as possible! :rocket:)

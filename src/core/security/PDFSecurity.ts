@@ -358,12 +358,16 @@ class PDFSecurity {
  */
 export const generateRandomFileId = (): Uint8Array => getRandomBytes(16);
 
-/** A fresh initialization vector is prepended to each AES encrypted string. */
-const aesEncryptFn = (key: Uint8Array): EncryptFn => {
-  const iv = getRandomBytes(16);
-  return (buffer) =>
-    mergeUint8Arrays([iv, aesCbcEncrypt(key, iv, pkcs7Pad(buffer))]);
-};
+/**
+ * A fresh initialization vector is drawn per call and prepended to the
+ * ciphertext, so reusing the returned fn never reuses an IV.
+ */
+const aesEncryptFn =
+  (key: Uint8Array): EncryptFn =>
+  (buffer) => {
+    const iv = getRandomBytes(16);
+    return mergeUint8Arrays([iv, aesCbcEncrypt(key, iv, pkcs7Pad(buffer))]);
+  };
 
 /**
  * Get Permission Flag for use Encryption Dictionary (Key: P)

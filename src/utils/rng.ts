@@ -37,7 +37,12 @@ const getWebCrypto = (): Crypto => {
 
 /**
  * Generates cryptographically secure random bytes using the platform's Web
- * Crypto API, which is available in browsers, Node (>= 18), Deno, and Bun.
+ * Crypto API (`crypto.getRandomValues`), which is available in modern browsers,
+ * Node (>= 18), Deno, and Bun.
+ *
+ * Throws when `globalThis.crypto.getRandomValues` is missing — Node < 18, or
+ * React Native without a polyfill such as `react-native-get-random-values`.
+ * Only document encryption needs this; the rest of `pdf-lib` is unaffected.
  */
 export const getRandomBytes = (byteCount: number): Uint8Array => {
   const webCrypto = getWebCrypto();

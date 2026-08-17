@@ -208,6 +208,8 @@ afterAll(() => {
 
 const contextFor = (major: number, minor: number | string) => {
   const context = PDFContext.create();
+  // `forVersion` is typed `(major: number, minor: number)`, but PDFSecurity
+  // selects AES-256 off the version string '1.7ext3' — hence the cast.
   context.header = (PDFHeader.forVersion as any)(major, minor);
   return context;
 };
@@ -278,6 +280,39 @@ describe('PDFSecurity', () => {
             expected.obj2,
           );
         });
+
+        // Only the AESV2 / AESV3 crypt filters prepend an IV; RC4 has none
+        if (expected.V === 4 || expected.V === 5) {
+          it('draws a fresh IV per call', () => {
+            resetRandom();
+            const context = contextFor(major, minor);
+            const security: any = PDFSecurity.create(
+              context,
+              options,
+            ).encrypt();
+
+            const encryptFn = security.getEncryptFn(7, 0);
+            const first = encryptFn(PLAINTEXT);
+            const second = encryptFn(PLAINTEXT);
+
+            expect(toHex(first.subarray(0, 16))).not.toBe(
+              toHex(second.subarray(0, 16)),
+            );
+
+            // Both must still decrypt, each against its own prepended IV
+            const factory = new CipherTransformFactory(
+              context.lookup(context.trailerInfo.Encrypt) as PDFDict,
+              security.id,
+              options.userPassword ?? options.ownerPassword,
+            );
+            [first, second].forEach((ciphertext) => {
+              const decrypted = factory
+                .createCipherTransform(7, 0)
+                .decryptBytes(ciphertext);
+              expect(Array.from(decrypted)).toEqual(Array.from(PLAINTEXT));
+            });
+          });
+        }
 
         it('produces output the PDF decrypter can read back', () => {
           resetRandom();
