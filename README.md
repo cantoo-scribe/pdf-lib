@@ -1099,7 +1099,7 @@ _This example produces [this PDF](assets/pdfs/examples/embed_font_and_measure_te
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument, rgb } from 'pdf-lib'
-import fontkit from 'fontkit'
+import * as fontkit from 'fontkit'
 
 // This should be a Uint8Array or ArrayBuffer
 // This data can be obtained in a number of different ways
@@ -1231,7 +1231,7 @@ standard fonts are not PDF/A compliant). Validate the result with a tool such as
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument } from '@cantoo/pdf-lib'
-import fontkit from 'fontkit'
+import * as fontkit from 'fontkit'
 
 const fontBytes = ... // e.g. fs.readFileSync('Roboto-Regular.ttf')
 
@@ -1273,7 +1273,7 @@ complete `factur-x.xml` from your invoicing stack.
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument, embedFacturX } from '@cantoo/pdf-lib'
-import fontkit from 'fontkit'
+import * as fontkit from 'fontkit'
 
 const fontBytes = ...
 const invoiceXmlBytes = ... // Factur-X / ZUGFeRD XML (Uint8Array)
@@ -1766,12 +1766,12 @@ npm install --save fontkit
 yarn add fontkit
 ```
 
-To register the `fontkit` instance:
+To register the `fontkit` instance, use a namespace import. Upstream `fontkit` v2 has no default export under Node's `import` condition (`dist/module.mjs`), so `import fontkit from 'fontkit'` throws in a `"type": "module"` package. Bundlers and CommonJS apply interop, so the default form may still work there.
 
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument } from 'pdf-lib'
-import fontkit from 'fontkit'
+import * as fontkit from 'fontkit'
 
 const pdfDoc = await PDFDocument.create()
 pdfDoc.registerFontkit(fontkit)
@@ -1828,7 +1828,7 @@ When working with PDFs, you will frequently come across the terms "character enc
   <!-- prettier-ignore -->
   ```js
   import { PDFDocument } from 'pdf-lib'
-  import fontkit from 'fontkit'
+  import * as fontkit from 'fontkit'
 
   const url = 'https://pdf-lib.js.org/assets/ubuntu/Ubuntu-R.ttf'
   const fontBytes = await fetch(url).then((res) => res.arrayBuffer())
@@ -1880,7 +1880,7 @@ You can use an embedded font when filling form fields as follows:
 
 ```js
 import { PDFDocument } from 'pdf-lib';
-import fontkit from 'fontkit';
+import * as fontkit from 'fontkit';
 
 // Fetch the PDF with form fields
 const formUrl = 'https://pdf-lib.js.org/assets/dod_character.pdf';

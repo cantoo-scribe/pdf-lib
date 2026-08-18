@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Harden custom-font / fontkit interop for upstream `fontkit` v2 and
   `@types/fontkit` (font collections, optional font tables, subset
   `includeGlyph` return values).
+- Document the Node ESM `import * as fontkit from 'fontkit'` form for
+  `registerFontkit` (upstream `fontkit` v2 has no default export).
 
 ## [2.8.2]
 
@@ -72,6 +74,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade direct `pako` dependency from v1 to v2, and force transitive
   `pako` installs to `^2.2.0` via Yarn `resolutions` / npm `overrides`
   (consumers should mirror this in their own root `package.json`).
+
+### Notes
+
+- Register upstream `fontkit` v2 in Node ESM with `import * as fontkit from 'fontkit'`.
+  The package has no default export under the `node/import` condition, so
+  `import fontkit from 'fontkit'` throws (`Missing 'default' export`). Bundlers
+  and CommonJS still apply interop. `registerFontkit` needs the namespace object
+  (it calls `.create`).
 
 ## [2.8.0]
 
