@@ -40,6 +40,25 @@ describe('buildFacturXDescription', () => {
       '<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>',
     );
   });
+
+  it('writes BASIC WL, including when the BASIC_WL alias is passed', () => {
+    expect(
+      buildFacturXDescription({
+        fileName: 'factur-x.xml',
+        version: '1.0',
+        documentType: 'INVOICE',
+        conformanceLevel: 'BASIC WL',
+      }),
+    ).toContain('<fx:ConformanceLevel>BASIC WL</fx:ConformanceLevel>');
+    expect(
+      buildFacturXDescription({
+        fileName: 'factur-x.xml',
+        version: '1.0',
+        documentType: 'INVOICE',
+        conformanceLevel: 'BASIC_WL',
+      }),
+    ).toContain('<fx:ConformanceLevel>BASIC WL</fx:ConformanceLevel>');
+  });
 });
 
 describe('FACTUR_X_EXTENSION_SCHEMA', () => {
@@ -110,6 +129,30 @@ describe('embedFacturX', () => {
         conformanceLevel: 'COMFORT' as any,
       }),
     ).rejects.toThrow(/conformanceLevel/);
+  });
+
+  it('accepts BASIC WL and the BASIC_WL alias', async () => {
+    const withSpace = await PDFDocument.create();
+    await expect(
+      embedFacturX(withSpace, minimalInvoiceXml, {
+        conformanceLevel: 'BASIC WL',
+      }),
+    ).resolves.toBeUndefined();
+
+    const withUnderscore = await PDFDocument.create();
+    await embedFacturX(withUnderscore, minimalInvoiceXml, {
+      conformanceLevel: 'BASIC_WL',
+    });
+    const metadata = withUnderscore.catalog.lookup(
+      PDFName.of('Metadata'),
+    ) as PDFRawStream;
+    const xml = Buffer.from(metadata.asUint8Array()).toString('utf8');
+    expect(xml).toContain(
+      '<fx:ConformanceLevel>BASIC WL</fx:ConformanceLevel>',
+    );
+    expect(xml).not.toContain(
+      '<fx:ConformanceLevel>BASIC_WL</fx:ConformanceLevel>',
+    );
   });
 
   it('preserves an existing PDF/A-3U level and does not duplicate fx XMP', async () => {

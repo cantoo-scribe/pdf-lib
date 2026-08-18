@@ -14,9 +14,13 @@ import { readCatalogPDFAConformance } from './catalogMetadata';
 /**
  * Factur-X / ZUGFeRD 2.1+ profile advertised in `fx:ConformanceLevel`.
  * Must match the profile URN embedded in the invoice XML.
+ *
+ * `'BASIC_WL'` is accepted as an alias of `'BASIC WL'`, the value Factur-X
+ * writes in XMP.
  */
 export type FacturXConformanceLevel =
   | 'MINIMUM'
+  | 'BASIC WL'
   | 'BASIC_WL'
   | 'BASIC'
   | 'EN 16931'
@@ -25,12 +29,18 @@ export type FacturXConformanceLevel =
 
 const FACTUR_X_CONFORMANCE_LEVELS: FacturXConformanceLevel[] = [
   'MINIMUM',
+  'BASIC WL',
   'BASIC_WL',
   'BASIC',
   'EN 16931',
   'EXTENDED',
   'XRECHNUNG',
 ];
+
+/** Map API aliases to the `fx:ConformanceLevel` value Factur-X expects. */
+const canonicalizeFacturXConformanceLevel = (
+  level: FacturXConformanceLevel,
+): string => (level === 'BASIC_WL' ? 'BASIC WL' : level);
 
 /**
  * Options for [[embedFacturX]].
@@ -54,6 +64,7 @@ export interface EmbedFacturXOptions {
 
   /**
    * Factur-X / ZUGFeRD profile. Defaults to `'EN 16931'`.
+   * `'BASIC_WL'` is normalised to `'BASIC WL'` in XMP.
    */
   conformanceLevel?: FacturXConformanceLevel;
 
@@ -136,7 +147,9 @@ export const buildFacturXDescription = (options: {
   `<fx:DocumentType>${encode(options.documentType)}</fx:DocumentType>` +
   `<fx:DocumentFileName>${encode(options.fileName)}</fx:DocumentFileName>` +
   `<fx:Version>${encode(options.version)}</fx:Version>` +
-  `<fx:ConformanceLevel>${encode(options.conformanceLevel)}</fx:ConformanceLevel>` +
+  `<fx:ConformanceLevel>${encode(
+    canonicalizeFacturXConformanceLevel(options.conformanceLevel),
+  )}</fx:ConformanceLevel>` +
   '</rdf:Description>';
 
 /**

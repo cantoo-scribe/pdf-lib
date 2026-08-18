@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `embedFacturX()` writes Factur-X `fx:ConformanceLevel` as `BASIC WL` (with a
+  space), matching the profile URN. `'BASIC_WL'` is still accepted and
+  normalised to the spaced form.
 - `PDFDocument.convertToPDFA()` now Flate-compresses the OutputIntent ICC
   profile (`/Filter /FlateDecode`). PDF/A permits this on ICC streams; the XMP
   packet stays uncompressed.
