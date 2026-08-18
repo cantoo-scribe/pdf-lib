@@ -1,5 +1,6 @@
 import fontkit from 'fontkit';
 import fs from 'fs';
+import { inflate } from 'pako';
 import {
   buildPDFAMetadata,
   extractForeignXmpDescriptions,
@@ -240,7 +241,12 @@ describe('PDFDocument.convertToPDFA', () => {
       PDFName.of('DestOutputProfile'),
     ) as PDFRawStream;
     expect(profile.dict.lookup(PDFName.of('N'), PDFNumber).asNumber()).toBe(3);
-    expect(profile.asUint8Array().length).toBe(3144);
+    expect(profile.dict.lookup(PDFName.of('Filter'))).toBe(
+      PDFName.of('FlateDecode'),
+    );
+    const inflated = inflate(profile.asUint8Array());
+    expect(inflated.length).toBe(3144);
+    expect(inflated).toEqual(getDefaultSRGBProfile());
   });
 
   it('adds an uncompressed XMP metadata stream to the catalog', async () => {

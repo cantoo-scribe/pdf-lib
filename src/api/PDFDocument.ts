@@ -839,7 +839,9 @@ export default class PDFDocument {
       options.colorComponents !== undefined;
 
     if (shouldUpdateOutputIntent) {
-      const iccStream = this.context.stream(iccProfile, {
+      // PDF/A permits FlateDecode on ICC streams; the XMP packet stays
+      // unfiltered in writeCatalogMetadataXml.
+      const iccStream = this.context.flateStream(iccProfile, {
         N: colorComponents,
       });
       const outputIntent = this.context.obj({

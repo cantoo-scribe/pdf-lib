@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `PDFDocument.convertToPDFA()` now Flate-compresses the OutputIntent ICC
+  profile (`/Filter /FlateDecode`). PDF/A permits this on ICC streams; the XMP
+  packet stays uncompressed.
 - Drop the discontinued `crypto-js` dependency (and `@types/crypto-js`).
   Document encryption now uses the AES / RC4 / MD5 / SHA-256 implementations
   already vendored in `src/core/crypto.ts` for decryption, plus the Web Crypto
