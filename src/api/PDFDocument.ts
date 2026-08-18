@@ -1883,6 +1883,19 @@ export default class PDFDocument {
     return embeddedPages;
   }
 
+  /**
+   * Encrypt this document with the given passwords and permissions. The
+   * security handler revision is picked from the document's PDF version
+   * (1.4/1.5 → RC4-128, 1.6/1.7 → AES-128, 1.7ext3 → AES-256).
+   *
+   * > **NOTE:** This requires the Web Crypto API (`crypto.getRandomValues`) for
+   * > secure randomness — present in modern browsers, Node (>= 18), Deno, and
+   * > Bun. On Node < 18, or React Native without a polyfill such as
+   * > `react-native-get-random-values`, this throws. Nothing else in `pdf-lib`
+   * > needs it.
+   *
+   * @param options The options to be used when encrypting this document.
+   */
   encrypt(options: SecurityOptions) {
     // PDF/A forbids encryption — refuse when the catalog already claims PDF/A.
     if (readCatalogPDFAConformance(this.catalog)) {

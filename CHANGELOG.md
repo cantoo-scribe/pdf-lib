@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Drop the discontinued `crypto-js` dependency (and `@types/crypto-js`).
+  Document encryption now uses the AES / RC4 / MD5 / SHA-256 implementations
+  already vendored in `src/core/crypto.ts` for decryption, plus the Web Crypto
+  API (`crypto.getRandomValues`) for secure randomness. No public API changed,
+  and output is byte-for-byte identical given the same randomness.
+- **`PDFDocument.encrypt()` now requires `crypto.getRandomValues`** — available
+  in modern browsers, Node >= 18, Deno, and Bun. On Node < 18, or in React
+  Native without a polyfill such as `react-native-get-random-values`,
+  `encrypt()` throws a descriptive error instead of silently working (`crypto-js`
+  4.2 fell back to `require('crypto')`). Nothing else in `pdf-lib` is affected.
+
 ## [2.8.4]
 
 ### Added
