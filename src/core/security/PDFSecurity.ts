@@ -4,12 +4,15 @@ import {
   AES256Cipher,
   ARCFourCipher,
   calculateMD5,
-  calculateSHA256,
+  encodeRevision6Password,
+  PDF20,
 } from '../crypto';
+import PDFHeader from '../document/PDFHeader';
+import PDFDict from '../objects/PDFDict';
+import PDFName from '../objects/PDFName';
+import PDFNumber from '../objects/PDFNumber';
 import { mergeUint8Arrays } from '../../utils';
 import { getRandomBytes } from '../../utils/rng';
-
-type RandomBytesGenerator = (bytes: number) => Uint8Array;
 
 /**
  * Interface representing user permissions.
@@ -51,6 +54,16 @@ interface UserPermissions {
 export type EncryptFn = (buffer: Uint8Array) => Uint8Array;
 
 /**
+ * Cipher used to encrypt a document.
+ *
+ * `AES-256` is the default and the only one recommended by ISO 32000-2. The RC4
+ * variants are broken and are kept only to interoperate with viewers predating
+ * Acrobat 7; selecting one requires
+ * {@link SecurityOptions.allowWeakCryptography}.
+ */
+export type EncryptionAlgorithm = 'AES-256' | 'AES-128' | 'RC4-128' | 'RC4-40';
+
+/**
  * Interface options for security
  * @interface SecurityOptions
  */
@@ -72,11 +85,75 @@ export interface SecurityOptions {
    * @link {@link UserPermissions}
    */
   permissions?: UserPermissions;
+
+  /**
+   * Cipher to encrypt the document with. Defaults to `'AES-256'`.
+   *
+   * The document's own PDF version is never used to pick the cipher: it
+   * describes the syntax its producer used, not what the reader opening the
+   * encrypted file supports. The header is instead raised to the minimum
+   * version the chosen cipher requires, so the file stays self-consistent.
+   */
+  algorithm?: EncryptionAlgorithm;
+
+  /**
+   * Permits selecting a broken cipher (`'RC4-40'` or `'RC4-128'`). Without it,
+   * asking for RC4 throws. Only useful for viewers predating Acrobat 7 (2005).
+   */
+  allowWeakCryptography?: boolean;
 }
 
 type Algorithm = 1 | 2 | 4 | 5;
-type Revision = 2 | 3 | 4 | 5;
+type Revision = 2 | 3 | 4 | 6;
 type KeyBits = 40 | 128 | 256;
+
+interface AlgorithmProfile {
+  V: Algorithm;
+  R: Revision;
+  keyBits: KeyBits;
+  /**
+   * Lowest PDF version whose specification defines this handler, per ISO
+   * 32000-1 Table 20 and, for AES-256, Adobe Extension Level 8.
+   */
+  minimumVersion: [number, number];
+  weak: boolean;
+}
+
+const ALGORITHM_PROFILES: Record<EncryptionAlgorithm, AlgorithmProfile> = {
+  'AES-256': {
+    V: 5,
+    R: 6,
+    keyBits: 256,
+    minimumVersion: [1, 7],
+    weak: false,
+  },
+  'AES-128': {
+    V: 4,
+    R: 4,
+    keyBits: 128,
+    minimumVersion: [1, 6],
+    weak: false,
+  },
+  'RC4-128': {
+    V: 2,
+    R: 3,
+    keyBits: 128,
+    minimumVersion: [1, 4],
+    weak: true,
+  },
+  'RC4-40': {
+    V: 1,
+    R: 2,
+    keyBits: 40,
+    minimumVersion: [1, 1],
+    weak: true,
+  },
+};
+
+const DEFAULT_ALGORITHM: EncryptionAlgorithm = 'AES-256';
+
+/** Adobe extension level that introduced AES-256 with revision 6. */
+const AES256_EXTENSION_LEVEL = 8;
 
 type Encryption = {
   V: number;
@@ -108,6 +185,7 @@ class PDFSecurity {
   private encryption!: Encryption;
   private keyBits!: KeyBits;
   private encryptionKey!: Uint8Array;
+  private profile!: AlgorithmProfile;
 
   static create(context: PDFContext, options: SecurityOptions) {
     return new PDFSecurity(context, options);
@@ -128,63 +206,117 @@ class PDFSecurity {
   private initialize(options: SecurityOptions) {
     this.id = generateRandomFileId();
 
-    let v: Algorithm;
-    switch (this.context.header.getVersionString()) {
-      case '1.4':
-      case '1.5':
-        v = 2;
-        break;
-      case '1.6':
-      case '1.7':
-        v = 4;
-        break;
-      case '1.7ext3':
-        v = 5;
-        break;
-      default:
-        v = 1;
-        break;
+    const algorithm = options.algorithm ?? DEFAULT_ALGORITHM;
+    const profile = ALGORITHM_PROFILES[algorithm];
+
+    if (!profile) {
+      throw new Error(
+        `Unknown encryption algorithm '${algorithm}'. Expected one of ` +
+          `${Object.keys(ALGORITHM_PROFILES).join(', ')}.`,
+      );
     }
 
-    switch (v) {
-      case 1:
-      case 2:
-      case 4:
-        this.encryption = this.initializeV1V2V4(v, options);
-        break;
-      case 5:
-        this.encryption = this.initializeV5(options);
-        break;
+    if (profile.weak && !options.allowWeakCryptography) {
+      throw new Error(
+        `Refusing to encrypt with ${algorithm}: RC4 is broken and was removed ` +
+          "from ISO 32000-2. Use 'AES-256' (the default), or pass " +
+          'allowWeakCryptography: true if you must target a viewer released ' +
+          'before Acrobat 7.',
+      );
     }
+
+    this.profile = profile;
+    this.encryption =
+      profile.V === 5
+        ? this.initializeV5(options)
+        : this.initializeV1V2V4(profile, options);
   }
 
-  private initializeV1V2V4(v: Algorithm, options: SecurityOptions): Encryption {
+  /**
+   * Raises the header to the lowest version that defines the chosen handler, so
+   * the file never advertises a version older than the encryption it uses. The
+   * version is only ever raised, never lowered.
+   */
+  private raiseHeaderVersion() {
+    const [major, minor] = this.profile.minimumVersion;
+    const [currentMajor, currentMinor] = this.context.header
+      .getVersionString()
+      .split('.')
+      // A minor version may carry a suffix, as in the '1.7ext3' that older
+      // releases used to request AES-256.
+      .map((part) => parseInt(part, 10) || 0);
+
+    if (
+      currentMajor > major ||
+      (currentMajor === major && currentMinor >= minor)
+    ) {
+      return;
+    }
+
+    this.context.header = PDFHeader.forVersion(major, minor);
+  }
+
+  /**
+   * AES-256 is not part of PDF 1.7; it arrived with Adobe extension level 8,
+   * which a 1.7 file declares through the catalog's `/Extensions` dictionary
+   * (ISO 32000-1 §7.1, Annex E). Skipped for PDF 2.0 and later, where the
+   * handler is part of the base specification.
+   */
+  private declareExtensionLevel() {
+    if (this.profile.V !== 5) return;
+
+    const major = parseInt(this.context.header.getVersionString(), 10) || 0;
+    if (major >= 2) return;
+
+    const { Root } = this.context.trailerInfo;
+    if (!Root) return;
+
+    const catalog = this.context.lookupMaybe(Root, PDFDict);
+    if (!catalog) return;
+
+    const extensions =
+      catalog.lookupMaybe(PDFName.of('Extensions'), PDFDict) ??
+      this.context.obj({});
+
+    // Other developer prefixes describe unrelated extensions and are left alone;
+    // only ADBE numbers the levels the security handlers belong to.
+    const adbe =
+      extensions.lookupMaybe(PDFName.of('ADBE'), PDFDict) ??
+      this.context.obj({});
+    const declared =
+      adbe.lookupMaybe(PDFName.of('ExtensionLevel'), PDFNumber)?.asNumber() ??
+      0;
+
+    if (declared < AES256_EXTENSION_LEVEL) {
+      adbe.set(
+        PDFName.of('BaseVersion'),
+        PDFName.of(this.context.header.getVersionString()),
+      );
+      adbe.set(
+        PDFName.of('ExtensionLevel'),
+        PDFNumber.of(AES256_EXTENSION_LEVEL),
+      );
+    }
+
+    extensions.set(PDFName.of('ADBE'), adbe);
+    catalog.set(PDFName.of('Extensions'), extensions);
+  }
+
+  private initializeV1V2V4(
+    profile: AlgorithmProfile,
+    options: SecurityOptions,
+  ): Encryption {
     const encryption = {
       Filter: 'Standard',
     } as Encryption;
 
-    let r: Revision;
-    let permissions: number;
-
-    switch (v) {
-      case 1:
-        r = 2;
-        this.keyBits = 40;
-        permissions = getPermissionsR2(options.permissions);
-        break;
-      case 2:
-        r = 3;
-        this.keyBits = 128;
-        permissions = getPermissionsR3(options.permissions);
-        break;
-      case 4:
-        r = 4;
-        this.keyBits = 128;
-        permissions = getPermissionsR3(options.permissions);
-        break;
-      default:
-        throw new Error(`Unsupported algorithm '${v}'.`);
-    }
+    const v = profile.V;
+    const r = profile.R;
+    this.keyBits = profile.keyBits;
+    const permissions =
+      r === 2
+        ? getPermissionsR2(options.permissions)
+        : getPermissionsR3(options.permissions);
 
     const paddedUserPassword = processPasswordR2R3R4(options.userPassword);
 
@@ -241,71 +373,65 @@ class PDFSecurity {
   }
 
   private initializeV5(options: SecurityOptions): Encryption {
-    const encryption = {
-      Filter: 'Standard',
-    } as Encryption;
+    this.keyBits = this.profile.keyBits;
+    this.encryptionKey = getRandomBytes(32);
 
-    this.keyBits = 256;
-
-    this.encryptionKey = getEncryptionKeyR5(getRandomBytes);
-
-    const processedUserPassword = processPasswordR5(options.userPassword);
-    const userPasswordEntry = getUserPasswordR5(
-      processedUserPassword,
-      getRandomBytes,
-    );
-    const userKeySalt = userPasswordEntry.subarray(40, 48);
-    const userEncryptionKeyEntry = getUserEncryptionKeyR5(
-      processedUserPassword,
-      userKeySalt,
+    const userPassword = encodeRevision6Password(options.userPassword);
+    const userPasswordEntry = r6PasswordEntry(userPassword, EMPTY_BYTES);
+    const userEncryptionKeyEntry = r6WrappedKey(
+      userPassword,
+      userPasswordEntry.subarray(40, 48),
+      EMPTY_BYTES,
       this.encryptionKey,
     );
 
-    const processedOwnerPassword = options.ownerPassword
-      ? processPasswordR5(options.ownerPassword)
-      : processedUserPassword;
-    const ownerPasswordEntry = getOwnerPasswordR5(
-      processedOwnerPassword,
+    const ownerPassword = options.ownerPassword
+      ? encodeRevision6Password(options.ownerPassword)
+      : userPassword;
+    const ownerPasswordEntry = r6PasswordEntry(
+      ownerPassword,
       userPasswordEntry,
-      getRandomBytes,
     );
-    const ownerKeySalt = ownerPasswordEntry.subarray(40, 48);
-    const ownerEncryptionKeyEntry = getOwnerEncryptionKeyR5(
-      processedOwnerPassword,
-      ownerKeySalt,
+    const ownerEncryptionKeyEntry = r6WrappedKey(
+      ownerPassword,
+      ownerPasswordEntry.subarray(40, 48),
       userPasswordEntry,
       this.encryptionKey,
     );
 
     const permissions = getPermissionsR3(options.permissions);
-    const permissionsEntry = getEncryptedPermissionsR5(
-      permissions,
+    // One-block CBC with a zero IV is ECB, which ISO 32000-2 Algorithm 10 asks for.
+    const permissionsEntry = aesCbcEncrypt(
       this.encryptionKey,
-      getRandomBytes,
+      ZERO_IV,
+      mergeUint8Arrays([
+        lsbFirstBytes(permissions),
+        PERMS_SUFFIX,
+        getRandomBytes(4),
+      ]),
     );
 
-    encryption.V = 5;
-    encryption.Length = this.keyBits;
-    encryption.CF = {
-      StdCF: {
-        AuthEvent: 'DocOpen',
-        CFM: 'AESV3',
-        Length: this.keyBits / 8,
+    return {
+      Filter: 'Standard',
+      V: this.profile.V,
+      R: this.profile.R,
+      Length: this.keyBits,
+      CF: {
+        StdCF: {
+          AuthEvent: 'DocOpen',
+          CFM: 'AESV3',
+          Length: this.keyBits / 8,
+        },
       },
+      StmF: 'StdCF',
+      StrF: 'StdCF',
+      O: ownerPasswordEntry,
+      OE: ownerEncryptionKeyEntry,
+      U: userPasswordEntry,
+      UE: userEncryptionKeyEntry,
+      P: permissions,
+      Perms: permissionsEntry,
     };
-    encryption.StmF = 'StdCF';
-    encryption.StrF = 'StdCF';
-
-    encryption.R = 5;
-
-    encryption.O = ownerPasswordEntry;
-    encryption.OE = ownerEncryptionKeyEntry;
-    encryption.U = userPasswordEntry;
-    encryption.UE = userEncryptionKeyEntry;
-    encryption.P = permissions;
-    encryption.Perms = permissionsEntry;
-
-    return encryption;
   }
 
   getEncryptFn(obj: number, gen: number): EncryptFn {
@@ -342,6 +468,9 @@ class PDFSecurity {
   }
 
   encrypt() {
+    this.raiseHeaderVersion();
+    this.declareExtensionLevel();
+
     const ID = this.context.obj([this.id, this.id]);
     this.context.trailerInfo.ID = ID;
 
@@ -493,85 +622,38 @@ const getEncryptionKeyR2R3R4 = (
   return key;
 };
 
-const getUserPasswordR5 = (
-  processedUserPassword: Uint8Array,
-  randomBytesGenerator: RandomBytesGenerator,
-) => {
-  const validationSalt = randomBytesGenerator(8);
-  const keySalt = randomBytesGenerator(8);
-  return mergeUint8Arrays([
-    sha256(mergeUint8Arrays([processedUserPassword, validationSalt])),
-    validationSalt,
-    keySalt,
-  ]);
-};
+const pdf20 = new PDF20();
 
-const getUserEncryptionKeyR5 = (
-  processedUserPassword: Uint8Array,
-  userKeySalt: Uint8Array,
-  encryptionKey: Uint8Array,
-) =>
-  aesCbcEncrypt(
-    sha256(mergeUint8Arrays([processedUserPassword, userKeySalt])),
-    ZERO_IV,
-    encryptionKey,
-  );
-
-const getOwnerPasswordR5 = (
-  processedOwnerPassword: Uint8Array,
-  userPasswordEntry: Uint8Array,
-  randomBytesGenerator: RandomBytesGenerator,
-) => {
-  const validationSalt = randomBytesGenerator(8);
-  const keySalt = randomBytesGenerator(8);
+/** Algorithm 8/9: hash || validationSalt || keySalt. `userBytes` is empty for U. */
+const r6PasswordEntry = (password: Uint8Array, userBytes: Uint8Array) => {
+  const validationSalt = getRandomBytes(8);
+  const keySalt = getRandomBytes(8);
   return mergeUint8Arrays([
-    sha256(
-      mergeUint8Arrays([
-        processedOwnerPassword,
-        validationSalt,
-        userPasswordEntry,
-      ]),
+    pdf20.hash(
+      password,
+      mergeUint8Arrays([password, validationSalt, userBytes]),
+      userBytes,
     ),
     validationSalt,
     keySalt,
   ]);
 };
 
-const getOwnerEncryptionKeyR5 = (
-  processedOwnerPassword: Uint8Array,
-  ownerKeySalt: Uint8Array,
-  userPasswordEntry: Uint8Array,
+/** Algorithm 8/9: wrap the file encryption key with AES-256-CBC, zero IV. */
+const r6WrappedKey = (
+  password: Uint8Array,
+  keySalt: Uint8Array,
+  userBytes: Uint8Array,
   encryptionKey: Uint8Array,
 ) =>
   aesCbcEncrypt(
-    sha256(
-      mergeUint8Arrays([
-        processedOwnerPassword,
-        ownerKeySalt,
-        userPasswordEntry,
-      ]),
+    pdf20.hash(
+      password,
+      mergeUint8Arrays([password, keySalt, userBytes]),
+      userBytes,
     ),
     ZERO_IV,
     encryptionKey,
-  );
-
-const getEncryptionKeyR5 = (randomBytesGenerator: RandomBytesGenerator) =>
-  randomBytesGenerator(32);
-
-const getEncryptedPermissionsR5 = (
-  permissions: number,
-  encryptionKey: Uint8Array,
-  randomBytesGenerator: RandomBytesGenerator,
-) =>
-  // A single block of CBC with a zero IV is equivalent to the ECB the spec asks for
-  aesCbcEncrypt(
-    encryptionKey,
-    ZERO_IV,
-    mergeUint8Arrays([
-      lsbFirstBytes(permissions),
-      PERMS_SUFFIX,
-      randomBytesGenerator(4),
-    ]),
   );
 
 const processPasswordR2R3R4 = (password = '') => {
@@ -593,26 +675,8 @@ const processPasswordR2R3R4 = (password = '') => {
   return out;
 };
 
-const processPasswordR5 = (password = '') => {
-  // NOTE: Removed this line to eliminate need for the saslprep dependency.
-  // Probably worth investigating the cases that would be impacted by this.
-  // password = unescape(encodeURIComponent(saslprep(password)));
-
-  const length = Math.min(127, password.length);
-  const out = new Uint8Array(length);
-
-  for (let i = 0; i < length; i++) {
-    out[i] = password.charCodeAt(i);
-  }
-
-  return out;
-};
-
 const md5 = (data: Uint8Array): Uint8Array =>
   calculateMD5(data, 0, data.length);
-
-const sha256 = (data: Uint8Array): Uint8Array =>
-  calculateSHA256(data, 0, data.length);
 
 const rc4 = (key: Uint8Array, data: Uint8Array): Uint8Array =>
   new ARCFourCipher(key).encrypt(data);
@@ -646,6 +710,7 @@ const lsbFirstBytes = (data: number): Uint8Array =>
   ]);
 
 const ZERO_IV = new Uint8Array(16);
+const EMPTY_BYTES = new Uint8Array();
 
 /** 'sAlT', appended to the object key digest by the AESV2 crypt filter. */
 const AESV2_SALT = new Uint8Array([0x73, 0x41, 0x6c, 0x54]);

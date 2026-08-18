@@ -2,7 +2,10 @@ import PDFContext from '../../../src/core/PDFContext';
 import { CipherTransformFactory } from '../../../src/core/crypto';
 import PDFHeader from '../../../src/core/document/PDFHeader';
 import PDFDict from '../../../src/core/objects/PDFDict';
+import PDFName from '../../../src/core/objects/PDFName';
+import PDFNumber from '../../../src/core/objects/PDFNumber';
 import PDFSecurity, {
+  EncryptionAlgorithm,
   SecurityOptions,
 } from '../../../src/core/security/PDFSecurity';
 
@@ -122,55 +125,13 @@ const EXPECTED = {
     obj1: 'ac08f38e1ef3158756566fc9fe0d899da3b2abdf2ae7de2fa85487ef9cc4ecc4f1502b8635dd96e736c12cdf4ed5fa2b6e0d379455051c453118ab7aaac5b863',
     obj2: '1324e6f19864a21208a565f30057f9546122f8cdedbcbc84d2f8c1e9a6c5f703ee0f930af4c49a15edab6aff3ee7abf8959e9a82a5d8c2257a8891a422192d65',
   },
-  'v5-user': {
-    V: 5,
-    R: 5,
-    P: -3904,
-    id: '7306c60730d423842267399697ea9628',
-    O: '4eb82172b7a686268f27064ede6b2a15ebfbcbacf2e5e2c1f0130e32a93606d5cfce3d2397021fcf8da652e52d378325',
-    U: '2c5946bc7811645c467d5ef9ca7352c0e3dc75e7dfefa17459650f2b230821cc93fcaf428448624c2f49389ca8018c93',
-    OE: 'db3f72a934ac7991926a544fb3b97ab0ff4a651adfffc1a0b72fa1d8092694b8',
-    UE: 'becef6486694b6046786e37652531fb1d0bfd8a3544e6221f574f1dce2ebf8b1',
-    Perms: '29ad3b4c3c568c1b966d12f4b83d0a65',
-    obj1: 'd7526d1e80127d7f3656e95f2ede6934401f9aa65b1343e71375d57591d03d4fc9de3c574fce030e67138e8530f6afcc59a5560c8236feaec1531c253aa9d370',
-    obj2: 'd1454473372f2be583e678cccc7b7c0288eac2f3d04b9ec3ae95d37234ba43ac390d623c3b39f71260047867d4eaccc187964c34b1e052571698604c583219d9',
-  },
-  'v5-owner': {
-    V: 5,
-    R: 5,
-    P: -3904,
-    id: '7306c60730d423842267399697ea9628',
-    O: '9a7f8b927a2e4a9e2a00a5d4d2939a52f685bc15d0f1e32ff00d46d5ed6608cdcfce3d2397021fcf8da652e52d378325',
-    U: '1cbf59d575271aa7dafa9a826d2b80e613ff62d7a4b6b9e34690e0afe46ee5d993fcaf428448624c2f49389ca8018c93',
-    OE: '1f89ef40966545e2f4fb7c74f8f48bf96113681381c058604d173cf8b5f4a01c',
-    UE: '03879b42f0a05151e117f9246d2e411e3720d20aed3544b2a06a3265489e3009',
-    Perms: '29ad3b4c3c568c1b966d12f4b83d0a65',
-    obj1: 'd7526d1e80127d7f3656e95f2ede6934401f9aa65b1343e71375d57591d03d4fc9de3c574fce030e67138e8530f6afcc59a5560c8236feaec1531c253aa9d370',
-    obj2: 'd1454473372f2be583e678cccc7b7c0288eac2f3d04b9ec3ae95d37234ba43ac390d623c3b39f71260047867d4eaccc187964c34b1e052571698604c583219d9',
-  },
-  'v5-both': {
-    V: 5,
-    R: 5,
-    P: -4,
-    id: '7306c60730d423842267399697ea9628',
-    O: '380d42ead8237b42ca61c0af7ce7be84a315c7ed1791064030c01704094be90dcfce3d2397021fcf8da652e52d378325',
-    U: '2c5946bc7811645c467d5ef9ca7352c0e3dc75e7dfefa17459650f2b230821cc93fcaf428448624c2f49389ca8018c93',
-    OE: '99625dc1fc47b105eef2f2bdae0a039c1daf76bc7d8e089c53803f20f2dd37bf',
-    UE: 'becef6486694b6046786e37652531fb1d0bfd8a3544e6221f574f1dce2ebf8b1',
-    Perms: '08832be034d4e223847edbd388779ca0',
-    obj1: 'd7526d1e80127d7f3656e95f2ede6934401f9aa65b1343e71375d57591d03d4fc9de3c574fce030e67138e8530f6afcc59a5560c8236feaec1531c253aa9d370',
-    obj2: 'd1454473372f2be583e678cccc7b7c0288eac2f3d04b9ec3ae95d37234ba43ac390d623c3b39f71260047867d4eaccc187964c34b1e052571698604c583219d9',
-  },
 };
 
-const VERSIONS: Array<
-  [keyof typeof EXPECTED & string, number, number | string]
-> = [
-  ['v1', 1, 3],
-  ['v2', 1, 4],
-  ['v4', 1, 6],
-  ['v5', 1, '7ext3'],
-] as any;
+const VERSIONS: Array<[string, EncryptionAlgorithm, SecurityOptions?]> = [
+  ['v1', 'RC4-40', { allowWeakCryptography: true }],
+  ['v2', 'RC4-128', { allowWeakCryptography: true }],
+  ['v4', 'AES-128'],
+];
 
 const OPTIONS: Array<[string, SecurityOptions]> = [
   ['a user password', { userPassword: USER_PASSWORD }],
@@ -206,11 +167,10 @@ afterAll(() => {
   globalThis.crypto.getRandomValues = realGetRandomValues;
 });
 
-const contextFor = (major: number, minor: number | string) => {
+const contextFor = (major = 1, minor = 7) => {
   const context = PDFContext.create();
-  // `forVersion` is typed `(major: number, minor: number)`, but PDFSecurity
-  // selects AES-256 off the version string '1.7ext3' — hence the cast.
-  context.header = (PDFHeader.forVersion as any)(major, minor);
+  context.header = PDFHeader.forVersion(major, minor);
+  context.trailerInfo.Root = context.register(context.obj({ Type: 'Catalog' }));
   return context;
 };
 
@@ -227,9 +187,12 @@ describe('PDFSecurity', () => {
     );
   });
 
-  it('rejects passwords outside Latin-1', () => {
+  it('rejects Latin-1-only passwords outside Latin-1 on RC4 / AES-128', () => {
     expect(() =>
-      PDFSecurity.create(contextFor(1, 7), { userPassword: '🔒' }),
+      PDFSecurity.create(contextFor(), {
+        userPassword: '🔒',
+        algorithm: 'AES-128',
+      }),
     ).toThrow('Password contains one or more invalid characters.');
   });
 
@@ -242,17 +205,18 @@ describe('PDFSecurity', () => {
     expect(context.trailerInfo.Encrypt).toBeDefined();
   });
 
-  VERSIONS.forEach(([version, major, minor]) => {
+  VERSIONS.forEach(([version, algorithm, extraOptions]) => {
     OPTIONS.forEach(([optionName, options], optionIdx) => {
       const key = `${version}-${['user', 'owner', 'both'][optionIdx]}`;
       const expected = (EXPECTED as any)[key];
+      const securityOptions = { ...options, ...extraOptions, algorithm };
 
-      describe(`with ${optionName} at PDF ${major}.${minor}`, () => {
+      describe(`with ${optionName} using ${algorithm}`, () => {
         it('derives the documented encryption dictionary', () => {
           resetRandom();
           const security: any = PDFSecurity.create(
-            contextFor(major, minor),
-            options,
+            contextFor(),
+            securityOptions,
           );
 
           expect(security.encryption.V).toBe(expected.V);
@@ -261,17 +225,11 @@ describe('PDFSecurity', () => {
           expect(toHex(security.id)).toBe(expected.id);
           expect(toHex(security.encryption.O)).toBe(expected.O);
           expect(toHex(security.encryption.U)).toBe(expected.U);
-          expect(toHex(security.encryption.OE)).toBe(expected.OE);
-          expect(toHex(security.encryption.UE)).toBe(expected.UE);
-          expect(toHex(security.encryption.Perms)).toBe(expected.Perms);
         });
 
         it('encrypts objects as documented', () => {
           resetRandom();
-          const security = PDFSecurity.create(
-            contextFor(major, minor),
-            options,
-          );
+          const security = PDFSecurity.create(contextFor(), securityOptions);
 
           expect(toHex(security.getEncryptFn(1, 0)(PLAINTEXT))).toBe(
             expected.obj1,
@@ -285,10 +243,10 @@ describe('PDFSecurity', () => {
         if (expected.V === 4 || expected.V === 5) {
           it('draws a fresh IV per call', () => {
             resetRandom();
-            const context = contextFor(major, minor);
+            const context = contextFor();
             const security: any = PDFSecurity.create(
               context,
-              options,
+              securityOptions,
             ).encrypt();
 
             const encryptFn = security.getEncryptFn(7, 0);
@@ -316,8 +274,11 @@ describe('PDFSecurity', () => {
 
         it('produces output the PDF decrypter can read back', () => {
           resetRandom();
-          const context = contextFor(major, minor);
-          const security: any = PDFSecurity.create(context, options).encrypt();
+          const context = contextFor();
+          const security: any = PDFSecurity.create(
+            context,
+            securityOptions,
+          ).encrypt();
 
           const encryptDict = context.lookup(
             context.trailerInfo.Encrypt,
@@ -335,6 +296,67 @@ describe('PDFSecurity', () => {
 
           expect(Array.from(decrypted)).toEqual(Array.from(PLAINTEXT));
         });
+      });
+    });
+  });
+
+  describe('AES-256 (V5/R6)', () => {
+    OPTIONS.forEach(([optionName, options]) => {
+      it(`round trips with ${optionName}`, () => {
+        resetRandom();
+        const context = contextFor(1, 3);
+        const security: any = PDFSecurity.create(context, options).encrypt();
+
+        expect(security.encryption.V).toBe(5);
+        expect(security.encryption.R).toBe(6);
+        expect(context.header.getVersionString()).toBe('1.7');
+        expect(
+          (
+            context
+              .lookup(context.trailerInfo.Root, PDFDict)
+              .lookup(PDFName.of('Extensions'), PDFDict)
+              .lookup(PDFName.of('ADBE'), PDFDict)
+              .lookup(PDFName.of('ExtensionLevel'), PDFNumber) as PDFNumber
+          ).asNumber(),
+        ).toBe(8);
+
+        const factory = new CipherTransformFactory(
+          context.lookup(context.trailerInfo.Encrypt) as PDFDict,
+          security.id,
+          options.userPassword ?? options.ownerPassword,
+        );
+        const ciphertext = security.getEncryptFn(7, 0)(PLAINTEXT);
+        const decrypted = factory
+          .createCipherTransform(7, 0)
+          .decryptBytes(ciphertext);
+        expect(Array.from(decrypted)).toEqual(Array.from(PLAINTEXT));
+      });
+    });
+
+    it('draws a fresh IV per call', () => {
+      resetRandom();
+      const context = contextFor();
+      const security: any = PDFSecurity.create(context, {
+        userPassword: USER_PASSWORD,
+      }).encrypt();
+
+      const encryptFn = security.getEncryptFn(7, 0);
+      const first = encryptFn(PLAINTEXT);
+      const second = encryptFn(PLAINTEXT);
+      expect(toHex(first.subarray(0, 16))).not.toBe(
+        toHex(second.subarray(0, 16)),
+      );
+
+      const factory = new CipherTransformFactory(
+        context.lookup(context.trailerInfo.Encrypt) as PDFDict,
+        security.id,
+        USER_PASSWORD,
+      );
+      [first, second].forEach((ciphertext) => {
+        const decrypted = factory
+          .createCipherTransform(7, 0)
+          .decryptBytes(ciphertext);
+        expect(Array.from(decrypted)).toEqual(Array.from(PLAINTEXT));
       });
     });
   });

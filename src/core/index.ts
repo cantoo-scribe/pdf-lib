@@ -71,6 +71,7 @@ export {
   default as PDFSecurity,
   SecurityOptions,
 } from './security/PDFSecurity';
+export type { EncryptionAlgorithm } from './security/PDFSecurity';
 
 export { decodePDFRawStream } from './streams/decode';
 

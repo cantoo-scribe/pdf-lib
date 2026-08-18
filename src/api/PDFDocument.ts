@@ -1886,9 +1886,14 @@ export default class PDFDocument {
   }
 
   /**
-   * Encrypt this document with the given passwords and permissions. The
-   * security handler revision is picked from the document's PDF version
-   * (1.4/1.5 → RC4-128, 1.6/1.7 → AES-128, 1.7ext3 → AES-256).
+   * Encrypt this document with the given passwords and permissions.
+   *
+   * Defaults to AES-256 (`/V 5`, `/R 6`), the only algorithm ISO 32000-2 still
+   * recommends. The document's PDF version is not used to pick the cipher — an
+   * old document is encrypted just as strongly as a recent one, and the header
+   * is raised to the minimum version the chosen cipher requires. Pass
+   * {@link SecurityOptions.algorithm} to target an older viewer. RC4 requires
+   * {@link SecurityOptions.allowWeakCryptography}.
    *
    * > **NOTE:** This requires the Web Crypto API (`crypto.getRandomValues`) for
    * > secure randomness — present in modern browsers, Node (>= 18), Deno, and

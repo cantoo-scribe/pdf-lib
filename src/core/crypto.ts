@@ -15,7 +15,7 @@
 /* tslint:disable */
 
 import { arrayAsString, isArrayEqual } from '../utils/arrays';
-import { stringAsByteArray } from '../utils/strings';
+import { stringAsByteArray, toHexString } from '../utils/strings';
 import PDFBool from './objects/PDFBool';
 import PDFDict from './objects/PDFDict';
 import PDFName from './objects/PDFName';
@@ -23,6 +23,17 @@ import PDFNumber from './objects/PDFNumber';
 import PDFString from './objects/PDFString';
 import DecryptStream from './streams/DecryptStream';
 import { StreamType } from './streams/Stream';
+
+/** ISO 32000-2 §7.6.4.3.3: UTF-8, truncated to 127 bytes. Shared by encrypt and decrypt. */
+export const encodeRevision6Password = (password = ''): Uint8Array => {
+  let encoded = password;
+  try {
+    encoded = unescape(encodeURIComponent(password));
+  } catch {
+    // encodeURIComponent rejects lone surrogates; keep the raw units.
+  }
+  return stringAsByteArray(encoded).subarray(0, Math.min(127, encoded.length));
+};
 
 class ARCFourCipher {
   private s: Uint8Array;
@@ -1326,48 +1337,114 @@ class PDF17 {
   }
 }
 
+/** Optional Node OpenSSL bindings for Algorithm 2.B (`process.getBuiltinModule`). */
+export const getNodeCrypto = (() => {
+  type Digest = 'sha256' | 'sha384' | 'sha512';
+  type Primitives = {
+    hash(algorithm: Digest, data: Uint8Array): Uint8Array;
+    aes128CbcNoPadding(
+      key: Uint8Array,
+      iv: Uint8Array,
+      data: Uint8Array,
+    ): Uint8Array;
+  };
+
+  let resolved: Primitives | undefined | null = null;
+  const hex = (bytes: Uint8Array) =>
+    Array.from(bytes).map(toHexString).join('');
+
+  return (): Primitives | undefined => {
+    if (resolved !== null) return resolved;
+    try {
+      const module = (
+        globalThis as {
+          process?: { getBuiltinModule?: (id: string) => any };
+        }
+      ).process?.getBuiltinModule?.('crypto');
+      if (
+        typeof module?.createHash !== 'function' ||
+        typeof module?.createCipheriv !== 'function'
+      ) {
+        return (resolved = undefined);
+      }
+      const primitives: Primitives = {
+        hash: (algorithm, data) =>
+          new Uint8Array(module.createHash(algorithm).update(data).digest()),
+        aes128CbcNoPadding: (key, iv, data) => {
+          const cipher = module.createCipheriv('aes-128-cbc', key, iv);
+          cipher.setAutoPadding(false);
+          const body = cipher.update(data);
+          const tail = cipher.final();
+          const output = new Uint8Array(body.length + tail.length);
+          output.set(body, 0);
+          output.set(tail, body.length);
+          return output;
+        },
+      };
+      const empty = new Uint8Array(0);
+      const zeros = new Uint8Array(16);
+      const ok =
+        hex(primitives.hash('sha256', empty)) ===
+          'E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855' &&
+        hex(primitives.hash('sha384', empty)) ===
+          '38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA' +
+            '274EDEBFE76F65FBD51AD2F14898B95B' &&
+        hex(primitives.hash('sha512', empty)) ===
+          'CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE' +
+            '47D0D13C5D85F2B0FF8318D2877EEC2F63B931BD47417A81A538327AF927DA3E' &&
+        hex(primitives.aes128CbcNoPadding(zeros, zeros, zeros)) ===
+          '66E94BD4EF8A2C3B884CFA59CA342B2E';
+      return (resolved = ok ? primitives : undefined);
+    } catch {
+      return (resolved = undefined);
+    }
+  };
+})();
+
+const jsPdf20Hash = (
+  algorithm: 'sha256' | 'sha384' | 'sha512',
+  data: Uint8Array,
+) =>
+  algorithm === 'sha256'
+    ? calculateSHA256(data, 0, data.length)
+    : algorithm === 'sha384'
+      ? calculateSHA384(data, 0, data.length)
+      : calculateSHA512(data, 0, data.length);
+
+const jsPdf20Encrypt = (key: Uint8Array, iv: Uint8Array, data: Uint8Array) =>
+  new AES128Cipher(key).encrypt(data, iv);
+
 class PDF20 {
   calculatePDF20Hash(
     password: Uint8Array,
     input: Uint8Array,
     userBytes: Uint8Array,
   ) {
-    // This refers to Algorithm 2.B as defined in ISO 32000-2.
-    let k = calculateSHA256(input, 0, input.length).subarray(0, 32);
+    // ISO 32000-2 Algorithm 2.B. Prefer Node's OpenSSL bindings when present.
+    const native = getNodeCrypto();
+    const hash = native ? native.hash : jsPdf20Hash;
+    const encrypt = native ? native.aes128CbcNoPadding : jsPdf20Encrypt;
+
+    let k = hash('sha256', input).subarray(0, 32);
     let e: Uint8Array = new Uint8Array([0]);
     let i = 0;
     while (i < 64 || e[e.length - 1] > i - 32) {
-      const combinedLength = password.length + k.length + userBytes.length,
-        combinedArray = new Uint8Array(combinedLength);
-      let writeOffset = 0;
-      combinedArray.set(password, writeOffset);
-      writeOffset += password.length;
-      combinedArray.set(k, writeOffset);
-      writeOffset += k.length;
-      combinedArray.set(userBytes, writeOffset);
+      const combinedLength = password.length + k.length + userBytes.length;
+      const combinedArray = new Uint8Array(combinedLength);
+      combinedArray.set(password, 0);
+      combinedArray.set(k, password.length);
+      combinedArray.set(userBytes, password.length + k.length);
 
       const k1 = new Uint8Array(combinedLength * 64);
       for (let j = 0, pos = 0; j < 64; j++, pos += combinedLength) {
         k1.set(combinedArray, pos);
       }
-      // AES128 CBC NO PADDING with first 16 bytes of k as the key
-      // and the second 16 as the iv.
-      const cipher = new AES128Cipher(k.subarray(0, 16));
-      e = cipher.encrypt(k1, k.subarray(16, 32));
-      // Now we have to take the first 16 bytes of an unsigned big endian
-      // integer and compute the remainder modulo 3. That is a fairly large
-      // number and JavaScript isn't going to handle that well.
-      // The number is e0 + 256 * e1 + 256^2 * e2... and 256 % 3 === 1, hence
-      // the powers of 256 are === 1 modulo 3 and finally the number modulo 3
-      // is equal to the remainder modulo 3 of the sum of the e_n.
+      e = encrypt(k.subarray(0, 16), k.subarray(16, 32), k1);
       const remainder = e.slice(0, 16).reduce((a, b) => a + b, 0) % 3;
-      if (remainder === 0) {
-        k = calculateSHA256(e, 0, e.length);
-      } else if (remainder === 1) {
-        k = calculateSHA384(e, 0, e.length);
-      } else if (remainder === 2) {
-        k = calculateSHA512(e, 0, e.length);
-      }
+      k = hash(
+        remainder === 0 ? 'sha256' : remainder === 1 ? 'sha384' : 'sha512',
+        e,
+      );
       i++;
     }
     return k.subarray(0, 32);
@@ -1601,17 +1678,10 @@ class CipherTransformFactory {
 
     let passwordBytes: Uint8Array | undefined;
     if (password) {
-      if (revision === 6) {
-        try {
-          password = unescape(encodeURIComponent(password));
-        } catch (ex) {
-          console.warn(
-            'CipherTransformFactory: ' +
-              'Unable to convert UTF8 encoded password.',
-          );
-        }
-      }
-      passwordBytes = stringAsByteArray(password!);
+      passwordBytes =
+        revision === 6
+          ? encodeRevision6Password(password)
+          : stringAsByteArray(password);
     }
 
     let encryptionKey;

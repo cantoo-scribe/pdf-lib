@@ -290,6 +290,7 @@ const pdfBytes = Buffer.concatenate([ existingPdfBytes, pdfIncrementalBytes ])
 ```
 
 Loading an existing PDF forIncrementalUpdate, makes things easier:
+
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -319,7 +320,9 @@ const pdfBytes = await pdfDoc.save()
 //   • Downloaded from the browser
 //   • Rendered in an <iframe>
 ```
+
 You can force a rewrite of a PDF that was open for incremental update with the right parameter on save:
+
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument } from 'pdf-lib';
@@ -337,6 +340,7 @@ const pdfBytes = await pdfDoc.save({rewrite: true})
 ```
 
 #### Using pdf-lib to generate a placeholder for an electronic signature
+
 @signpdf includes a pdf-lib-placeholder component, but it is based on the pdf-lib package that has no incremental update functionality. This code is taken from that library and modified to use incremental update for not invalidating previous file signatures. Is an example, that can be seen in integration test #20, some @signpdf constants has been changed to arbitrary values for the example to work "out of the box".
 
 <!-- prettier-ignore -->
@@ -452,6 +456,7 @@ const pdfBytes = await pdfDoc.save()
 
 You can load a PDF for incremental update, and then generate multiple increments, over the original document, with commit() method.  
 This method simplifies the sequence:
+
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -471,7 +476,9 @@ const pdfDoc2 = await PDFDocument.load(firstUpdatedDoc,{forIncrementalUpdate:tru
 const secondUpdateDoc = await pdfDoc2.save()
 // etc, etc
 ```
-Allowing this:  
+
+Allowing this:
+
 <!-- prettier-ignore -->
 ```js
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -489,8 +496,8 @@ const firstUpdatedDoc = await pdfDoc.commit();
 const secondUpdateDoc = await pdfDoc.commit();
 // etc, etc
 ```
-The *commit* method has the same parameters than *save* method. If document is not loaded **forIncrementalUpdate**, an exception is raised. After calling *commit* an update section is added to the original document, and this replaces the original document, and a new snapshot is taken.  
 
+The _commit_ method has the same parameters than _save_ method. If document is not loaded **forIncrementalUpdate**, an exception is raised. After calling _commit_ an update section is added to the original document, and this replaces the original document, and a new snapshot is taken.
 
 ### Create Form
 
@@ -782,7 +789,6 @@ const pdfBytes = await pdfDoc.save()
 - `getForm()` removes XFA data unless the document was loaded with `preserveXFA: true`, so call the XFA helpers before `getForm()` (or load with `preserveXFA: true`).
 - Template XML is decoded as UTF-8 with a latin1 fallback; exotic encodings may not round-trip cleanly.
 
-
 ### Extract XFA JavaScript
 
 XFA forms often contain JavaScript for validation, calculations, and data import/export. You can extract all JavaScript from an XFA form:
@@ -875,6 +881,7 @@ const pdfBytes = await pdfDoc.save()
 ```
 
 **Use Cases:**
+
 - Add error handling to existing scripts
 - Modify validation rules
 - Add logging for debugging
@@ -1252,7 +1259,7 @@ const pdfBytes = await pdfDoc.save()
 ```
 
 After conversion, pdf-lib keeps the Info dictionary and XMP metadata in sync on
-`save()`, while preserving any *strictly foreign* XMP `rdf:Description` blocks
+`save()`, while preserving any _strictly foreign_ XMP `rdf:Description` blocks
 (for example Factur-X schemas passed via `extensions`). Descriptions that mix
 owned namespaces (`dc` / `xmp` / `pdf` / `pdfaid`) with custom ones are not
 preserved — re-supply them via `extensions` or `embedFacturX()`. Loading an
@@ -1548,32 +1555,33 @@ const pdfBytes = await pdfDoc.save()
 ### Draw SVG
 
 ```js
-import { PDFDocument, rgb } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib';
 
 // SVG of a square inside a square
 const svg = `<svg width="100" height="100">
   <rect y="0" x="0" width="100" height="100" fill="none" stroke="black"/>
   <rect y="25" x="25" width="50" height="50" fill="black"/>
 </svg>`;
-const svg2 = '<svg><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQYV2NgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII="/></svg>'
+const svg2 =
+  '<svg><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQYV2NgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII="/></svg>';
 
 // Create a new PDFDocument
-const pdfDoc = await PDFDocument.create()
+const pdfDoc = await PDFDocument.create();
 
 // Add a blank page to the document
-const page = pdfDoc.addPage()
+const page = pdfDoc.addPage();
 
 // drawSvg can accept the svg as a string, as long as there are no images in it
-page.moveTo(100, 10)
-page.drawSvg(svg)
+page.moveTo(100, 10);
+page.drawSvg(svg);
 
 // If the svg has images, or if you don't know if it does, you should call embedSVG first
-page.moveTo(200, 10)
-const pdfSvg = await pdfDoc.embedSvg(svg2)
-page.drawSvg(pdfSvg)
+page.moveTo(200, 10);
+const pdfSvg = await pdfDoc.embedSvg(svg2);
+page.drawSvg(pdfSvg);
 
 // Serialize the PDFDocument to bytes (a Uint8Array)
-const pdfBytes = await pdfDoc.save()
+const pdfBytes = await pdfDoc.save();
 ```
 
 ## Deno Usage
@@ -2003,8 +2011,8 @@ If you do not have a password yet, you can load the document without decrypting 
 
 ```js
 // Load without decrypting (encrypted content will not be readable):
-const doc = await PDFDocument.load(content, { ignoreEncryption: true })
-const isEncrypted = doc.isEncrypted
+const doc = await PDFDocument.load(content, { ignoreEncryption: true });
+const isEncrypted = doc.isEncrypted;
 // If isEncrypted is true, ask the user for the password.
 ```
 
@@ -2012,32 +2020,34 @@ To decrypt and load the document, pass the password. `ignoreEncryption` is not r
 
 ```js
 // Load and decrypt an encrypted document:
-const doc = await PDFDocument.load(content, { password: 'The password' })
+const doc = await PDFDocument.load(content, { password: 'The password' });
 ```
 
 An empty password is valid for some PDFs. Pass it explicitly — do not omit the option or treat `''` as "no password":
 
 ```js
-const doc = await PDFDocument.load(content, { password: '' })
+const doc = await PDFDocument.load(content, { password: '' });
 ```
 
 If the password is wrong, `PDFDocument.load` throws an error.
 
-To encrypt a document, call `encrypt()` before saving. The security handler is
-chosen from the document's PDF version — 1.4/1.5 uses RC4-128, 1.6/1.7 uses
-AES-128, and 1.7ext3 uses AES-256:
+To encrypt a document, call `encrypt()` before saving. The default cipher is
+**AES-256** (ISO 32000-2 revision 6). The document's PDF version is not used to
+pick the algorithm — pass `algorithm` if you must target an older viewer.
+RC4 is refused unless you also set `allowWeakCryptography: true`:
 
 ```js
-const doc = await PDFDocument.create()
-doc.addPage().drawText('Hello!')
+const doc = await PDFDocument.create();
+doc.addPage().drawText('Hello!');
 
 doc.encrypt({
   userPassword: 'user-pw',
   ownerPassword: 'owner-pw',
   permissions: { printing: 'highResolution' },
-})
+  // algorithm: 'AES-128', // optional; default is 'AES-256'
+});
 
-const bytes = await doc.save()
+const bytes = await doc.save();
 ```
 
 > **Requirement:** `encrypt()` needs the Web Crypto API
