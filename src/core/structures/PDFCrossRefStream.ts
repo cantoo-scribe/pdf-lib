@@ -64,12 +64,25 @@ class PDFCrossRefStream extends PDFFlateStream {
     dict.set(PDFName.of('Type'), PDFName.of('XRef'));
   }
 
+  // Writers add entries in ascending object number order, so the common case
+  // is a push. Otherwise binary search keeps this O(log n) rather than O(n),
+  // which made saving documents with many objects quadratic.
   private appendEntry(entry: Entry) {
-    const eind = this.entries.findIndex(
-      (e) => e.ref.objectNumber > entry.ref.objectNumber,
-    );
-    if (eind < 0 || eind > this.entries.length) this.entries.push(entry);
-    else this.entries.splice(eind, 0, entry);
+    const { entries } = this;
+    const objectNumber = entry.ref.objectNumber;
+    const last = entries[entries.length - 1];
+    if (!last || last.ref.objectNumber <= objectNumber) {
+      entries.push(entry);
+      return;
+    }
+    let low = 0;
+    let high = entries.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (entries[mid].ref.objectNumber > objectNumber) high = mid;
+      else low = mid + 1;
+    }
+    entries.splice(low, 0, entry);
   }
 
   addDeletedEntry(ref: PDFRef, nextFreeObjectNumber: number) {
