@@ -6,6 +6,51 @@ const MIN_FONT_SIZE = 4;
 const MAX_FONT_SIZE = 500;
 
 describe('layoutMultilineText', () => {
+  it('should break a paragraph at the same words as before', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const text =
+      'The quick brown fox jumps over the lazy dog, then naps in the warm ' +
+      'afternoon sun beside the old stone wall.';
+
+    const layout = layoutMultilineText(text, {
+      alignment: TextAlignment.Left,
+      fontSize: 12,
+      font,
+      bounds: { x: 0, y: 0, width: 150, height: 200 },
+    });
+
+    expect(layout.lines.map((line) => line.text)).toStrictEqual([
+      'The quick brown fox jumps',
+      'over the lazy dog, then',
+      'naps in the warm afternoon',
+      'sun beside the old stone',
+      'wall.',
+    ]);
+  });
+
+  it('should not re-measure a long paragraph once per word on every line', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const text =
+      'Ada grew up on the edge of the oldest ruin, where her mother ' +
+      'scavenged for a living. ';
+    const paragraph = text.repeat(40).trim(); // 3,399 characters, 56 lines
+
+    const measure = jest.spyOn(font, 'widthOfTextAtSize');
+    const layout = layoutMultilineText(paragraph, {
+      alignment: TextAlignment.Left,
+      fontSize: 8,
+      font,
+      bounds: { x: 0, y: 0, width: 220, height: 300 },
+    });
+
+    expect(layout.lines.length).toStrictEqual(56);
+    // 508 with binary search; the previous implementation made 18,661.
+    expect(measure.mock.calls.length).toBeLessThan(1000);
+    measure.mockRestore();
+  });
+
   it('should layout the text on one line when it fits near-perfectly', async () => {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
