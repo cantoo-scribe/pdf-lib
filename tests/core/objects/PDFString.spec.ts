@@ -103,6 +103,15 @@ describe('PDFString', () => {
       ));
     });
 
+    it('ignores a CRLF line continuation', () => {
+      const literal = 'a\\\r\nb\\\r\n\\\r\nc';
+
+      // prettier-ignore
+      expect(PDFString.of(literal).asBytes()).toEqual(Uint8Array.of(
+        toCharCode('a'), toCharCode('b'), toCharCode('c'),
+      ));
+    });
+
     it('can interpret invalid escapes', () => {
       const literal = 'a\nb\rc\\xd\\;';
 
