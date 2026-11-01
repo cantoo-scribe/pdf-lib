@@ -195,6 +195,7 @@ export default class PDFDocument {
       password,
       forIncrementalUpdate = false,
       preserveXFA = false,
+      copyStreams = true,
     } = options;
 
     assertIs(pdf, 'pdf', ['string', ArrayBuffer, 'ArrayBufferView']);
@@ -204,6 +205,7 @@ export default class PDFDocument {
     assertIs(warnOnInvalidObjects, 'warnOnInvalidObjects', ['boolean']);
     assertIs(password, 'password', ['string', 'undefined']);
     assertIs(forIncrementalUpdate, 'forIncrementalUpdate', ['boolean']);
+    assertIs(copyStreams, 'copyStreams', ['boolean']);
 
     const bytes = toUint8Array(pdf);
     const context = await PDFParser.forBytesWithOptions(
@@ -214,6 +216,7 @@ export default class PDFDocument {
       capNumbers,
       undefined,
       forIncrementalUpdate,
+      copyStreams,
     ).parseDocument();
     if (
       !!context.lookup(context.trailerInfo.Encrypt) &&
@@ -234,6 +237,7 @@ export default class PDFDocument {
           password,
         ),
         forIncrementalUpdate,
+        copyStreams,
       ).parseDocument();
       const pdfDoc = new PDFDocument(
         decryptedContext,

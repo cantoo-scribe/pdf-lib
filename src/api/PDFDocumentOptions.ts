@@ -37,6 +37,14 @@ export interface LoadOptions {
   password?: string;
   forIncrementalUpdate?: boolean;
   preserveXFA?: boolean;
+  /**
+   * Copy each stream's bytes out of the input while parsing (the default).
+   * With `false`, streams are views into the input instead, so a large PDF
+   * is held in memory once rather than twice. The input must then not be
+   * modified while the document is in use, and stays in memory as long as
+   * the document does.
+   */
+  copyStreams?: boolean;
 }
 
 export interface CreateOptions {
