@@ -58,6 +58,8 @@ export interface Font {
   xHeight: number;
   bbox: BoundingBox;
   characterSet: number[];
+  numGlyphs?: number;
+  getGlyph?(glyphId: number): Glyph | null;
   /** Present on CFF/OTF fonts; often absent on TrueType. */
   cff?: any;
   'OS/2'?: { sFamilyClass: number };
