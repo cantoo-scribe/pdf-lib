@@ -1035,6 +1035,7 @@ export default class PDFPage {
     assertOrUndefined(options.maxWidth, 'options.maxWidth', ['number']);
     assertOrUndefined(options.wordBreaks, 'options.wordBreaks', [Array]);
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
     assertOrUndefined(options.characterSpacing, 'options.characterSpacing', [
       'number',
     ]);
@@ -1065,6 +1066,7 @@ export default class PDFPage {
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       opacity: options.opacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
     });
 
     const contentStream = this.getContentStream();
@@ -1132,12 +1134,14 @@ export default class PDFPage {
     assertOrUndefined(options.ySkew, 'options.ySkew', [[Object, 'Rotation']]);
     assertRangeOrUndefined(options.opacity, 'opacity.opacity', 0, 1);
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
 
     const xObjectKey = this.node.newXObject('Image', image.ref);
 
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       opacity: options.opacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
     });
 
     const contentStream = this.getContentStream();
@@ -1208,6 +1212,7 @@ export default class PDFPage {
     assertOrUndefined(options.ySkew, 'options.ySkew', [[Object, 'Rotation']]);
     assertRangeOrUndefined(options.opacity, 'opacity.opacity', 0, 1);
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
 
     const xObjectKey = this.node.newXObject(
       'EmbeddedPdfPage',
@@ -1217,6 +1222,7 @@ export default class PDFPage {
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       opacity: options.opacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
     });
 
     // prettier-ignore
@@ -1315,12 +1321,20 @@ export default class PDFPage {
       1,
     );
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
+    assertOrUndefined(
+      options.nonStrokingOverprint,
+      'options.nonStrokingOverprint',
+      ['boolean'],
+    );
     assertIsOneOfOrUndefined(options.fillRule, 'options.fillRule', FillRule);
 
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       opacity: options.opacity,
       borderOpacity: options.borderOpacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
+      nonStrokingOverprint: options.nonStrokingOverprint,
     });
 
     if (!('color' in options) && !('borderColor' in options)) {
@@ -1381,10 +1395,12 @@ export default class PDFPage {
     assertIsOneOfOrUndefined(options.lineCap, 'options.lineCap', LineCapStyle);
     assertRangeOrUndefined(options.opacity, 'opacity.opacity', 0, 1);
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
 
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       borderOpacity: options.opacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
     });
 
     if (!('color' in options)) {
@@ -1464,11 +1480,19 @@ export default class PDFPage {
       1,
     );
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
+    assertOrUndefined(
+      options.nonStrokingOverprint,
+      'options.nonStrokingOverprint',
+      ['boolean'],
+    );
 
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       opacity: options.opacity,
       borderOpacity: options.borderOpacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
+      nonStrokingOverprint: options.nonStrokingOverprint,
     });
 
     if (!('color' in options) && !('borderColor' in options)) {
@@ -1574,10 +1598,18 @@ export default class PDFPage {
       LineCapStyle,
     );
     assertIsOneOfOrUndefined(options.blendMode, 'options.blendMode', BlendMode);
+    assertOrUndefined(options.overprint, 'options.overprint', ['boolean']);
+    assertOrUndefined(
+      options.nonStrokingOverprint,
+      'options.nonStrokingOverprint',
+      ['boolean'],
+    );
     const graphicsStateKey = this.maybeEmbedGraphicsState({
       opacity: options.opacity,
       borderOpacity: options.borderOpacity,
       blendMode: options.blendMode,
+      overprint: options.overprint,
+      nonStrokingOverprint: options.nonStrokingOverprint,
     });
 
     if (!('color' in options) && !('borderColor' in options)) {
@@ -1714,13 +1746,23 @@ export default class PDFPage {
     opacity?: number;
     borderOpacity?: number;
     blendMode?: BlendMode;
+    overprint?: boolean;
+    nonStrokingOverprint?: boolean;
   }): PDFName | undefined {
-    const { opacity, borderOpacity, blendMode } = options;
+    const {
+      opacity,
+      borderOpacity,
+      blendMode,
+      overprint,
+      nonStrokingOverprint,
+    } = options;
 
     if (
       opacity === undefined &&
       borderOpacity === undefined &&
-      blendMode === undefined
+      blendMode === undefined &&
+      overprint === undefined &&
+      nonStrokingOverprint === undefined
     ) {
       return undefined;
     }
@@ -1730,6 +1772,8 @@ export default class PDFPage {
       ca: opacity,
       CA: borderOpacity,
       BM: blendMode,
+      OP: overprint,
+      op: nonStrokingOverprint,
     });
 
     const key = this.node.newExtGState('GS', graphicsState);
