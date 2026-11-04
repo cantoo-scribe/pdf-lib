@@ -20,6 +20,7 @@ import {
   rgb,
   componentsToColor,
   setFillingColor,
+  setFillingColorspaceOrUndefined,
   grayscale,
   cmyk,
   Color,
@@ -159,9 +160,12 @@ const updateDefaultAppearance = (
   fontSize: number = 0,
 ) => {
   const da = [
+    setFillingColorspaceOrUndefined(color)?.toString(),
     setFillingColor(color).toString(),
     setFontAndSize(font?.name ?? 'dummy__noop', fontSize).toString(),
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
   field.setDefaultAppearance(da);
 };
 
