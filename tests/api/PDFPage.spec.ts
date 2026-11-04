@@ -1,8 +1,25 @@
 import fs from 'fs';
-import { PDFArray, PDFDocument, PDFName, StandardFonts } from '../../src/index';
+import {
+  PDFArray,
+  PDFBool,
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFPage,
+  StandardFonts,
+} from '../../src/index';
 
 const birdPng = fs.readFileSync('assets/images/greyscale_bird.png');
 const simplePDF = fs.readFileSync('assets/pdfs/simple.pdf');
+
+const graphicsStatesOf = (page: PDFPage) => {
+  const ExtGState = page.node
+    .Resources()!
+    .lookupMaybe(PDFName.of('ExtGState'), PDFDict);
+  return (ExtGState?.values() ?? []).map((gs) =>
+    page.doc.context.lookup(gs, PDFDict),
+  );
+};
 
 describe('PDFDocument', () => {
   describe('getSize() method', () => {
@@ -284,6 +301,119 @@ describe('PDFDocument', () => {
       const actions = page.getJavaScriptActions();
 
       expect(actions?.pageOpen?.getScript()).toBe('console.println("Test");');
+    });
+  });
+
+  describe('overprint options', () => {
+    const OP = PDFName.of('OP');
+    const op = PDFName.of('op');
+
+    const draws: [string, (page: PDFPage, options: any) => Promise<void>][] = [
+      [
+        'drawText',
+        async (page, options) => {
+          const font = page.doc.embedStandardFont(StandardFonts.Helvetica);
+          page.drawText('overprint', { font, ...options });
+        },
+      ],
+      [
+        'drawImage',
+        async (page, options) =>
+          page.drawImage(await page.doc.embedPng(birdPng), options),
+      ],
+      [
+        'drawPage',
+        async (page, options) => {
+          const [embeddedPage] = await page.doc.embedPdf(simplePDF);
+          page.drawPage(embeddedPage, options);
+        },
+      ],
+      [
+        'drawSvgPath',
+        async (page, options) => page.drawSvgPath('M 0,0 L 10,10', options),
+      ],
+      [
+        'drawLine',
+        async (page, options) =>
+          page.drawLine({
+            start: { x: 0, y: 0 },
+            end: { x: 10, y: 10 },
+            ...options,
+          }),
+      ],
+      ['drawRectangle', async (page, options) => page.drawRectangle(options)],
+      ['drawSquare', async (page, options) => page.drawSquare(options)],
+      ['drawEllipse', async (page, options) => page.drawEllipse(options)],
+      ['drawCircle', async (page, options) => page.drawCircle(options)],
+    ];
+
+    it.each(draws)(
+      '%s sets the OP entry of the graphics state',
+      async (_name, draw) => {
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage();
+
+        await draw(page, { overprint: true });
+
+        const [graphicsState] = graphicsStatesOf(page);
+        expect(graphicsState.get(OP)).toBe(PDFBool.True);
+        expect(graphicsState.has(op)).toBe(false);
+      },
+    );
+
+    it.each(draws)(
+      '%s does not add a graphics state without overprint option',
+      async (_name, draw) => {
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage();
+
+        await draw(page, {});
+
+        expect(graphicsStatesOf(page)).toEqual([]);
+      },
+    );
+
+    it.each(draws)(
+      '%s rejects a non boolean overprint option',
+      async (_name, draw) => {
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage();
+
+        await expect(draw(page, { overprint: 'yes' })).rejects.toThrow();
+      },
+    );
+
+    const shapeDraws = draws.filter(([name]) =>
+      [
+        'drawSvgPath',
+        'drawRectangle',
+        'drawSquare',
+        'drawEllipse',
+        'drawCircle',
+      ].includes(name),
+    );
+
+    it.each(shapeDraws)(
+      '%s sets the OP and op entries of the graphics state independently',
+      async (_name, draw) => {
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage();
+
+        await draw(page, { overprint: false, nonStrokingOverprint: true });
+
+        const [graphicsState] = graphicsStatesOf(page);
+        expect(graphicsState.get(OP)).toBe(PDFBool.False);
+        expect(graphicsState.get(op)).toBe(PDFBool.True);
+      },
+    );
+
+    it('rejects a non boolean nonStrokingOverprint option', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+
+      expect(() =>
+        page.drawRectangle({ nonStrokingOverprint: 'yes' as any }),
+      ).toThrow();
     });
   });
 });
