@@ -14,6 +14,7 @@ export { default as PDFCrossRefSection } from './document/PDFCrossRefSection';
 export { default as StandardFontEmbedder } from './embedders/StandardFontEmbedder';
 export { default as CustomFontEmbedder } from './embedders/CustomFontEmbedder';
 export { default as CustomFontSubsetEmbedder } from './embedders/CustomFontSubsetEmbedder';
+export { default as SeparationEmbedder } from './embedders/SeparationEmbedder';
 export {
   default as FileEmbedder,
   AFRelationship,

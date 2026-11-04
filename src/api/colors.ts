@@ -3,11 +3,16 @@ import {
   setFillingCmykColor,
   setFillingGrayscaleColor,
   setFillingRgbColor,
+  setFillingSpecialColor,
+  setFillingColorspace,
   setStrokingCmykColor,
   setStrokingGrayscaleColor,
   setStrokingRgbColor,
+  setStrokingSpecialColor,
+  setStrokingColorspace,
 } from './operators';
 import { assertRange, assertIs, error } from '../utils';
+import { PDFName } from '../core';
 
 const toRgb = converter('rgb');
 
@@ -15,6 +20,7 @@ export enum ColorTypes {
   Grayscale = 'Grayscale',
   RGB = 'RGB',
   CMYK = 'CMYK',
+  Separation = 'Separation',
 }
 
 export interface Grayscale {
@@ -37,7 +43,13 @@ export interface CMYK {
   key: number;
 }
 
-export type Color = Grayscale | RGB | CMYK;
+export interface Separation {
+  type: ColorTypes.Separation;
+  name: PDFName;
+  tint: number;
+}
+
+export type Color = Grayscale | RGB | CMYK | Separation;
 
 export const grayscale = (gray: number): Grayscale => {
   assertRange(gray, 'gray', 0.0, 1.0);
@@ -64,6 +76,11 @@ export const cmyk = (
   return { type: ColorTypes.CMYK, cyan, magenta, yellow, key };
 };
 
+export const separation = (name: PDFName, tint: number): Separation => {
+  assertRange(tint, 'tint', 0, 1);
+  return { type: ColorTypes.Separation, name, tint };
+};
+
 export const colorString = (color: string): { rgb: Color; alpha?: number } => {
   assertIs(color, 'color', ['string']);
   const parsed = toRgb(color);
@@ -76,11 +93,22 @@ export const colorString = (color: string): { rgb: Color; alpha?: number } => {
   };
 };
 
+export const setFillingColorspaceOrUndefined = (color: Color) =>
+  color.type === ColorTypes.Separation
+    ? setFillingColorspace(color.name)
+    : undefined;
+
+export const setStrokingColorspaceOrUndefined = (color: Color) =>
+  color.type === ColorTypes.Separation
+    ? setStrokingColorspace(color.name)
+    : undefined;
+
 // prettier-ignore
 export const setFillingColor = (color: Color) =>
     color.type === ColorTypes.Grayscale ? setFillingGrayscaleColor(color.gray)
   : color.type === ColorTypes.RGB       ? setFillingRgbColor(color.red, color.green, color.blue)
   : color.type === ColorTypes.CMYK      ? setFillingCmykColor(color.cyan, color.magenta, color.yellow, color.key)
+  : color.type === ColorTypes.Separation ? setFillingSpecialColor(color.tint)
   : error(`Invalid color: ${JSON.stringify(color)}`);
 
 // prettier-ignore
@@ -88,6 +116,7 @@ export const setStrokingColor = (color: Color) =>
     color.type === ColorTypes.Grayscale ? setStrokingGrayscaleColor(color.gray)
   : color.type === ColorTypes.RGB       ? setStrokingRgbColor(color.red, color.green, color.blue)
   : color.type === ColorTypes.CMYK      ? setStrokingCmykColor(color.cyan, color.magenta, color.yellow, color.key)
+  : color.type === ColorTypes.Separation ? setStrokingSpecialColor(color.tint)
   : error(`Invalid color: ${JSON.stringify(color)}`);
 
 // prettier-ignore

@@ -1,4 +1,4 @@
-import { Color, rgb } from './colors';
+import { Color, rgb, separation } from './colors';
 import {
   drawImage,
   drawLine,
@@ -21,6 +21,7 @@ import PDFEmbeddedPage from './PDFEmbeddedPage';
 import PDFFont from './PDFFont';
 import PDFImage from './PDFImage';
 import PDFSvg from './PDFSvg';
+import PDFSeparation from './PDFSeparation';
 import {
   JavaScriptActionMap,
   extractAdditionalActions,
@@ -109,6 +110,13 @@ export default class PDFPage {
 
   /** The document to which this page belongs. */
   readonly doc: PDFDocument;
+
+  getSeparationColor(pdfSeparation: PDFSeparation, tint: number): Color {
+    return separation(
+      this.node.newColorSpace(pdfSeparation.name, pdfSeparation.ref),
+      tint,
+    );
+  }
 
   private fontKey?: PDFName;
   private font?: PDFFont;
