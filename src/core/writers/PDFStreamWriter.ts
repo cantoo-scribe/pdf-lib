@@ -118,6 +118,14 @@ class PDFStreamWriter extends PDFWriter {
         continue;
       }
 
+      // Signature dictionaries must stay out of object streams: the signed
+      // /ByteRange has to leave out their /Contents as plain bytes of the file.
+      // A document timestamp (/DocTimeStamp) is signed the same way as a /Sig.
+      const dictType =
+        object instanceof PDFDict
+          ? object.lookup(PDFName.of('Type'))
+          : undefined;
+
       const shouldNotCompress =
         ref === this.context.trailerInfo.Encrypt ||
         object instanceof PDFStream ||
@@ -126,8 +134,8 @@ class PDFStreamWriter extends PDFWriter {
         object instanceof PDFPageTree ||
         object instanceof PDFPageLeaf ||
         ref.generationNumber !== 0 ||
-        (object instanceof PDFDict &&
-          (object as PDFDict).lookup(PDFName.of('Type')) === PDFName.of('Sig'));
+        dictType === PDFName.of('Sig') ||
+        dictType === PDFName.of('DocTimeStamp');
 
       if (shouldNotCompress) {
         uncompressedObjects.push(indirectObject);
