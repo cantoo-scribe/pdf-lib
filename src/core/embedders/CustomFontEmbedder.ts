@@ -81,8 +81,7 @@ class CustomFontEmbedder {
     return glyphs.length;
   }
 
-  // The advanceWidth takes into account kerning automatically, so we don't
-  // have to do that manually like we do for the standard fonts.
+  // Unkerned advance widths, matching encodeText, which emits no glyph positioning.
   widthOfTextAtSize(text: string, size: number): number {
     const { glyphs } = this.font.layout(text, this.fontFeatures);
     let totalWidth = 0;

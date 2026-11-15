@@ -65,6 +65,16 @@ describe('StandardFontEmbedder', () => {
     expect(embedder.widthOfTextAtSize(text, 24)).toBe(189.312);
   });
 
+  it('measures text without kerning, since drawText does not apply it', () => {
+    const text = 'AVATAR WAVE To Yo';
+    const embedder = StandardFontEmbedder.for(FontNames.Helvetica);
+    const sumOfGlyphs = text
+      .split('')
+      .reduce((total, c) => total + embedder.widthOfTextAtSize(c, 24), 0);
+    expect(embedder.widthOfTextAtSize(text, 24)).toBeCloseTo(sumOfGlyphs, 6);
+    expect(embedder.widthOfTextAtSize(text, 24)).toBeCloseTo(244.08, 6);
+  });
+
   it('can measure the height of the font at the given size', () => {
     const embedder = StandardFontEmbedder.for(FontNames.HelveticaBold);
     expect(embedder.heightOfFontAtSize(12)).toBeCloseTo(11.1);
