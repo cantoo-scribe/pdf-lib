@@ -28,6 +28,7 @@ export interface PDFPageDrawTextOptions extends SvgOptions {
   color?: Color;
   opacity?: number;
   blendMode?: BlendMode;
+  overprint?: boolean;
   font?: PDFFont;
   size?: number;
   rotate?: Rotation;
@@ -54,6 +55,7 @@ export interface PDFPageDrawImageOptions extends SvgOptions {
   ySkew?: Rotation;
   opacity?: number;
   blendMode?: BlendMode;
+  overprint?: boolean;
 }
 
 export interface PDFPageDrawPageOptions {
@@ -68,6 +70,7 @@ export interface PDFPageDrawPageOptions {
   ySkew?: Rotation;
   opacity?: number;
   blendMode?: BlendMode;
+  overprint?: boolean;
 }
 
 export interface PDFPageDrawSVGOptions extends SvgOptions {
@@ -84,6 +87,8 @@ export interface PDFPageDrawSVGOptions extends SvgOptions {
   borderDashPhase?: number;
   borderLineCap?: LineCapStyle;
   blendMode?: BlendMode;
+  overprint?: boolean;
+  nonStrokingOverprint?: boolean;
   fillRule?: FillRule;
 }
 
@@ -97,6 +102,7 @@ export interface PDFPageDrawLineOptions extends SvgOptions {
   dashArray?: number[];
   dashPhase?: number;
   blendMode?: BlendMode;
+  overprint?: boolean;
 }
 
 export interface PDFPageDrawRectangleOptions extends SvgOptions {
@@ -118,6 +124,8 @@ export interface PDFPageDrawRectangleOptions extends SvgOptions {
   borderDashPhase?: number;
   borderLineCap?: LineCapStyle;
   blendMode?: BlendMode;
+  overprint?: boolean;
+  nonStrokingOverprint?: boolean;
 }
 
 export interface PDFPageDrawSquareOptions extends SvgOptions {
@@ -136,6 +144,8 @@ export interface PDFPageDrawSquareOptions extends SvgOptions {
   borderDashPhase?: number;
   borderLineCap?: LineCapStyle;
   blendMode?: BlendMode;
+  overprint?: boolean;
+  nonStrokingOverprint?: boolean;
 }
 
 export interface PDFPageDrawEllipseOptions extends SvgOptions {
@@ -153,6 +163,8 @@ export interface PDFPageDrawEllipseOptions extends SvgOptions {
   borderDashPhase?: number;
   borderLineCap?: LineCapStyle;
   blendMode?: BlendMode;
+  overprint?: boolean;
+  nonStrokingOverprint?: boolean;
 }
 
 export interface PDFPageDrawCircleOptions extends SvgOptions {
@@ -168,6 +180,8 @@ export interface PDFPageDrawCircleOptions extends SvgOptions {
   borderDashPhase?: number;
   borderLineCap?: LineCapStyle;
   blendMode?: BlendMode;
+  overprint?: boolean;
+  nonStrokingOverprint?: boolean;
 }
 
 export interface PDFPageDrawSVGElementOptions {
