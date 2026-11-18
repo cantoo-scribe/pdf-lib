@@ -3,13 +3,17 @@ import fs from 'fs';
 import { asUint8Array } from '../../asUint8Array';
 
 import {
+  arrayAsString,
+  decodePDFRawStream,
   CharCodes,
   mergeIntoTypedArray,
   PDFDict,
+  PDFDocument,
   PDFHeader,
   PDFInvalidObject,
   PDFPageLeaf,
   PDFParser,
+  PDFRawStream,
   PDFRef,
   PDFString,
   ReparseError,
@@ -510,5 +514,116 @@ describe('PDFParser', () => {
     expect(context.pdfFileDetails.originalBytes?.toString()).toEqual(
       pdfBytes.toString(),
     );
+  });
+
+  describe('xref-directed recovery after a sequential scan', () => {
+    type Options = {
+      prefix?: string;
+      generation?: number;
+      entry?: 'missing' | 'free' | 'wrong offset' | 'wrong generation';
+      trailer?: string;
+      missingEnd?: boolean;
+    };
+    const drawing = '40 40 120 60 re f\n';
+    function makePdf({
+      prefix = '%%ULC:1.01.01 ',
+      generation = 0,
+      entry,
+      trailer = '',
+      missingEnd = false,
+    }: Options = {}) {
+      let text = '%PDF-1.7\n' + prefix;
+      const offsets: number[] = [0];
+      const objects = [
+        `<< /Length ${drawing.length} >>\nstream\n${drawing}endstream`,
+        '<< /Type /Catalog /Pages 3 0 R >>',
+        '<< /Type /Pages /Kids [4 0 R] /Count 1 >>',
+        `<< /Type /Page /Parent 3 0 R /MediaBox [0 0 200 140] /Resources << >> /Contents 1 ${generation} R >>`,
+      ];
+      objects.forEach((body, index) => {
+        offsets.push(text.length);
+        text += `${index + 1} ${index === 0 ? generation : 0} obj\n${body}\n`;
+        if (!missingEnd || index !== 0) text += 'endobj\n';
+      });
+      const xref = text.length;
+      text += `xref\n0 ${entry === 'missing' ? 1 : 5}\n0000000000 65535 f \n`;
+      if (entry === 'missing') text += '2 3\n';
+      for (let id = entry === 'missing' ? 2 : 1; id <= 4; id++) {
+        const offset = offsets[id === 1 && entry === 'wrong offset' ? 2 : id];
+        const gen =
+          id === 1 ? (entry === 'wrong generation' ? 1 : generation) : 0;
+        const state = id === 1 && entry === 'free' ? 'f' : 'n';
+        text += `${String(offset).padStart(10, '0')} ${String(gen).padStart(5, '0')} ${state} \n`;
+      }
+      text += `trailer\n<< /Size 5 /Root 2 0 R ${trailer} >>\nstartxref\n${xref}\n%%EOF\n`;
+      return typedArrayFor(text);
+    }
+    async function load(bytes: Uint8Array) {
+      return PDFDocument.load(bytes, {
+        updateMetadata: false,
+        throwOnInvalidObject: true,
+      });
+    }
+    function hasDrawing(doc: PDFDocument) {
+      const stream = doc.getPage(0).node.Contents();
+      return (
+        stream instanceof PDFRawStream &&
+        arrayAsString(decodePDFRawStream(stream).decode()) === drawing
+      );
+    }
+
+    const cases: [string, Options, boolean][] = [
+      ['ULC inline content', {}, true],
+      ['another inline vendor comment', { prefix: '% AnyVendor ' }, true],
+      ['normal header', { prefix: '%%ULC:1.01.01\n' }, true],
+      ['nonzero generation', { generation: 2 }, true],
+      ['unindexed object', { entry: 'missing' }, false],
+      ['free object', { entry: 'free' }, false],
+      ['wrong offset/header', { entry: 'wrong offset' }, false],
+      ['wrong generation', { entry: 'wrong generation' }, false],
+      ['incremental layout', { trailer: '/Prev 0' }, false],
+      ['hybrid layout', { trailer: '/XRefStm 0' }, false],
+      ['incomplete object', { missingEnd: true }, false],
+    ];
+    it.each(cases)('%s', async (_name, options, expected) => {
+      const bytes = makePdf(options);
+      const original = bytes.slice();
+      expect(hasDrawing(await load(bytes))).toBe(expected);
+      expect(bytes).toEqual(original);
+    });
+
+    it('does not recover across multiple xref sections', async () => {
+      let text = arrayAsString(makePdf());
+      const offset = text.length;
+      text +=
+        'xref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 5 /Root 2 0 R >>\nstartxref\n' +
+        offset +
+        '\n%%EOF\n';
+      expect(hasDrawing(await load(typedArrayFor(text)))).toBe(false);
+    });
+
+    it('does not overwrite already parsed objects', async () => {
+      expect(
+        hasDrawing(await load(makePdf({ prefix: '', entry: 'wrong offset' }))),
+      ).toBe(true);
+    });
+
+    it('leaves ordinary xref-stream PDFs on their existing parsing path', async () => {
+      const doc = await PDFDocument.create();
+      doc
+        .addPage([200, 140])
+        .drawRectangle({ x: 40, y: 40, width: 120, height: 60 });
+      const loaded = await load(await doc.save());
+      expect(loaded.getPageCount()).toBe(1);
+      expect(loaded.getPage(0).node.Contents()).toBeDefined();
+    });
+
+    it('retains the recovered drawing after save and copyPages', async () => {
+      const doc = await load(makePdf());
+      expect(hasDrawing(await load(await doc.save()))).toBe(true);
+      const copy = await PDFDocument.create();
+      for (const page of await copy.copyPages(doc, [0])) copy.addPage(page);
+      expect(hasDrawing(await load(await copy.save()))).toBe(true);
+    });
   });
 });

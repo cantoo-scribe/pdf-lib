@@ -50,6 +50,13 @@ class PDFParser extends PDFObjectParser {
   private readonly warnOnInvalidObjects: boolean;
   private alreadyParsed = false;
   private parsedObjects = 0;
+  // undefined: unseen; false: unsupported layout or incomplete xref.
+  private recoveryXRef?:
+    | {
+        offset: number;
+        entries: Map<number, { ref: PDFRef; offset: number }>;
+      }
+    | false;
 
   constructor(
     pdfBytes: Uint8Array,
@@ -94,6 +101,7 @@ class PDFParser extends PDFObjectParser {
       prevOffset = offset;
     }
 
+    await this.recoverMissingXRefObjects();
     this.maybeRecoverRoot();
 
     if (this.context.lookup(PDFRef.of(0))) {
@@ -195,6 +203,7 @@ class PDFParser extends PDFObjectParser {
       object instanceof PDFRawStream &&
       object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')
     ) {
+      this.recoveryXRef = false;
       PDFXRefStreamParser.forStream(object).parseIntoContext();
     }
     // always register the object and the ref, to properly handle object numeration
@@ -268,11 +277,15 @@ class PDFParser extends PDFObjectParser {
 
   private maybeParseCrossRefSection(): PDFCrossRefSection | void {
     this.skipWhitespaceAndComments();
+    const xrefOffset = this.bytes.offset();
     if (!this.matchKeyword(Keywords.xref)) return;
+    const firstXRef = this.recoveryXRef === undefined;
+    this.recoveryXRef = false;
     this.skipWhitespaceAndComments();
 
     let objectNumber = -1;
     const xref = PDFCrossRefSection.createEmpty();
+    const entries = new Map<number, { ref: PDFRef; offset: number }>();
 
     while (!this.bytes.done() && IsDigit[this.bytes.peek()]) {
       const firstInt = this.parseRawInt();
@@ -289,8 +302,10 @@ class PDFParser extends PDFObjectParser {
       const byte = this.bytes.peek();
       if (byte === CharCodes.n || byte === CharCodes.f) {
         const ref = PDFRef.of(objectNumber, secondInt);
+        entries.delete(objectNumber);
         if (this.bytes.next() === CharCodes.n) {
           xref.addEntry(ref, firstInt);
+          entries.set(objectNumber, { ref, offset: firstInt });
         } else {
           // this.context.delete(ref);
           xref.addDeletedEntry(ref, firstInt);
@@ -302,6 +317,7 @@ class PDFParser extends PDFObjectParser {
       this.skipWhitespaceAndComments();
     }
 
+    if (firstXRef) this.recoveryXRef = { offset: xrefOffset, entries };
     return xref;
   }
 
@@ -311,6 +327,9 @@ class PDFParser extends PDFObjectParser {
     this.skipWhitespaceAndComments();
 
     const dict = this.parseDict();
+    if (dict.has(PDFName.of('Prev')) || dict.has(PDFName.of('XRefStm'))) {
+      this.recoveryXRef = false;
+    }
 
     const { context } = this;
     context.trailerInfo = {
@@ -357,6 +376,59 @@ class PDFParser extends PDFObjectParser {
 
     // TODO: Can this be done only when needed, to avoid harming performance?
     this.skipJibberish();
+  }
+
+  /**
+   * Recover objects skipped by the sequential scan at verified xref offsets.
+   * This deliberately excludes incremental/hybrid/compressed xref layouts:
+   * those require resolving the active /Prev chain before recovering anything.
+   */
+  private async recoverMissingXRefObjects(): Promise<void> {
+    const xref = this.recoveryXRef;
+    if (!xref || xref.offset !== this.context.pdfFileDetails.prevStartXRef) {
+      return;
+    }
+
+    const resumeOffset = this.bytes.offset();
+    for (const { ref, offset } of xref.entries.values()) {
+      if (
+        ref.objectNumber === 0 ||
+        this.context.lookup(ref) !== undefined ||
+        !Number.isSafeInteger(offset) ||
+        offset < 0 ||
+        offset >= this.context.pdfFileDetails.pdfSize
+      ) {
+        continue;
+      }
+
+      try {
+        this.bytes.moveTo(offset);
+        if (!IsDigit[this.bytes.peek()]) continue;
+        if (this.parseIndirectObjectHeader() !== ref) continue;
+        const object = this.parseObject(ref);
+        this.skipWhitespaceAndComments();
+        if (!this.matchKeyword(Keywords.endobj)) continue;
+
+        // Do not expand containers here or overwrite objects they may contain.
+        if (object instanceof PDFRawStream) {
+          const type = object.dict.lookup(PDFName.of('Type'));
+          if (type === PDFName.of('ObjStm') || type === PDFName.of('XRef')) {
+            continue;
+          }
+        }
+        this.context.assign(ref, object);
+        if (this.shouldWaitForTick()) await waitForTick();
+      } catch (error) {
+        if (this.throwOnInvalidObject) throw error;
+        if (this.warnOnInvalidObjects) {
+          console.warn(
+            `Unable to recover object ${ref} at xref offset ${offset}`,
+          );
+        }
+      } finally {
+        this.bytes.moveTo(resumeOffset);
+      }
+    }
   }
 
   /**
