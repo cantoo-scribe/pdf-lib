@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `widthOfTextAtSize` no longer adds kerning for the standard 14 fonts.
+  `drawText` never applies kerning, so the measured width was shorter than
+  the drawn text for pairs such as "AV" or "To", which misplaced centred and
+  right-aligned text and wrapped lines too late. Custom fonts already measured
+  without kerning.
+
 ## [2.11.0]
 
 - Keep the modular TypeScript UPNG rewrite and port Photopea's current
