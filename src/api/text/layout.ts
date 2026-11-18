@@ -124,29 +124,31 @@ export interface MultilineTextLayout {
   lineHeight: number;
 }
 
-const lastIndexOfWhitespace = (line: string) => {
-  for (let idx = line.length; idx > 0; idx--) {
-    if (/\s/.test(line[idx])) return idx;
-  }
-  return undefined;
-};
-
 const splitOutLines = (
   input: string,
   maxWidth: number,
   font: PDFFont,
   fontSize: number,
 ) => {
-  let lastWhitespaceIdx = input.length;
-  while (lastWhitespaceIdx > 0) {
-    const line = input.substring(0, lastWhitespaceIdx);
-    const encoded = font.encodeText(line);
-    const width = font.widthOfTextAtSize(line, fontSize);
-    if (width < maxWidth) {
-      const remainder = input.substring(lastWhitespaceIdx) || undefined;
-      return { line, encoded, width, remainder };
-    }
-    lastWhitespaceIdx = lastIndexOfWhitespace(line) ?? 0;
+  // Grow the line one word at a time until it no longer fits. Previously,
+  // working backwards from the whole input measured the entire remaining text
+  // for every word, which grew increasingly expensive for long inputs.
+  let end: number | undefined;
+  for (let idx = 1; idx <= input.length; idx++) {
+    if (idx < input.length && !/\s/.test(input[idx])) continue;
+    const width = font.widthOfTextAtSize(input.substring(0, idx), fontSize);
+    if (width >= maxWidth) break;
+    end = idx;
+  }
+
+  if (end !== undefined) {
+    const line = input.substring(0, end);
+    return {
+      line,
+      encoded: font.encodeText(line),
+      width: font.widthOfTextAtSize(line, fontSize),
+      remainder: input.substring(end) || undefined,
+    };
   }
 
   // We were unable to split the input enough to get a chunk that would fit

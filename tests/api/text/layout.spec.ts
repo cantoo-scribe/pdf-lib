@@ -163,4 +163,98 @@ describe('layoutMultilineText', () => {
       expect(multilineTextLayout.lines.length).toStrictEqual(3);
     }
   });
+
+  it('should break each line after the last word that fits', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const alignment = TextAlignment.Left;
+    const fontSize = 12;
+    const text = 'The quick brown fox jumps over the lazy dog';
+    const width = font.widthOfTextAtSize('The quick brown fox', fontSize) + 1;
+    const bounds = { x: 0, y: 0, width, height: Number.MAX_VALUE };
+
+    const multilineTextLayout = layoutMultilineText(text, {
+      alignment,
+      bounds,
+      font,
+      fontSize,
+    });
+
+    expect(multilineTextLayout.lines.map((line) => line.text)).toStrictEqual([
+      'The quick brown fox',
+      'jumps over the lazy',
+      'dog',
+    ]);
+    multilineTextLayout.lines.forEach((line) =>
+      expect(line.width).toBeLessThan(width),
+    );
+  });
+
+  it('should move a word to the next line when it would exactly fill the width', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const alignment = TextAlignment.Left;
+    const fontSize = 12;
+    const text = 'The quick brown fox jumps over the lazy dog';
+    const width = font.widthOfTextAtSize('The quick brown fox', fontSize);
+    const bounds = { x: 0, y: 0, width, height: Number.MAX_VALUE };
+
+    const multilineTextLayout = layoutMultilineText(text, {
+      alignment,
+      bounds,
+      font,
+      fontSize,
+    });
+
+    expect(multilineTextLayout.lines.map((line) => line.text)).toStrictEqual([
+      'The quick brown',
+      'fox jumps over the',
+      'lazy dog',
+    ]);
+  });
+
+  it('should put a word wider than the bounds on its own line', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const alignment = TextAlignment.Left;
+    const fontSize = 12;
+    const text = 'a supercalifragilisticexpialidocious';
+    const width = font.widthOfTextAtSize('a b c', fontSize);
+    const bounds = { x: 0, y: 0, width, height: Number.MAX_VALUE };
+
+    const multilineTextLayout = layoutMultilineText(text, {
+      alignment,
+      bounds,
+      font,
+      fontSize,
+    });
+
+    expect(multilineTextLayout.lines.map((line) => line.text)).toStrictEqual([
+      'a',
+      'supercalifragilisticexpialidocious',
+    ]);
+  });
+
+  it('should not re-measure the remaining text for every word of a long paragraph', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const alignment = TextAlignment.Left;
+    const fontSize = 12;
+    const words = Array.from({ length: 700 }, (_, idx) => `word${idx}`);
+    const text = words.join(' ');
+    const bounds = { x: 0, y: 0, width: 200, height: Number.MAX_VALUE };
+    const widthOfTextAtSize = jest.spyOn(font, 'widthOfTextAtSize');
+
+    const multilineTextLayout = layoutMultilineText(text, {
+      alignment,
+      bounds,
+      font,
+      fontSize,
+    });
+
+    const lines = multilineTextLayout.lines.map((line) => line.text);
+    expect(lines.join(' ')).toStrictEqual(text);
+    // roughly one measurement per word, rather than one per word per line
+    expect(widthOfTextAtSize.mock.calls.length).toBeLessThan(words.length * 2);
+  });
 });
