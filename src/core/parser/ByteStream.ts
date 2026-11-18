@@ -5,21 +5,24 @@ import CharCodes from '../syntax/CharCodes';
 
 // TODO: See how line/col tracking affects performance
 class ByteStream {
-  static of = (bytes: Uint8Array) => new ByteStream(bytes);
+  static of = (bytes: Uint8Array, copySlices = true) =>
+    new ByteStream(bytes, copySlices);
 
   static fromPDFRawStream = (rawStream: PDFRawStream) =>
     ByteStream.of(decodePDFRawStream(rawStream).decode());
 
   private readonly bytes: Uint8Array;
   private readonly length: number;
+  private readonly copySlices: boolean;
 
   private idx = 0;
   private line = 0;
   private column = 0;
 
-  constructor(bytes: Uint8Array) {
+  constructor(bytes: Uint8Array, copySlices = true) {
     this.bytes = bytes;
     this.length = this.bytes.length;
+    this.copySlices = copySlices;
   }
 
   moveTo(offset: number): void {
@@ -65,7 +68,9 @@ class ByteStream {
   }
 
   slice(start: number, end: number): Uint8Array {
-    return this.bytes.slice(start, end);
+    return this.copySlices
+      ? this.bytes.slice(start, end)
+      : this.bytes.subarray(start, end);
   }
 
   position(): { line: number; column: number; offset: number } {

@@ -10,6 +10,7 @@ import {
   PDFName,
   PDFNumber,
   PDFPage,
+  PDFRawStream,
   Duplex,
   NonFullScreenPageMode,
   PrintScaling,
@@ -57,6 +58,12 @@ const v15PdfBytes = fs.readFileSync('assets/pdfs/v15xref.pdf');
 const v14PdfBytes = fs.readFileSync('assets/pdfs/bixby_guide.pdf');
 const v13PdfBytes = normalPdfBytes;
 
+const rawStreamsOf = (pdfDoc: PDFDocument) =>
+  pdfDoc.context
+    .enumerateIndirectObjects()
+    .map(([, object]) => object)
+    .filter((object): object is PDFRawStream => object instanceof PDFRawStream);
+
 describe('PDFDocument', () => {
   describe('load() method', () => {
     const origConsoleWarn = console.warn;
@@ -78,6 +85,45 @@ describe('PDFDocument', () => {
 
     afterAll(() => {
       console.warn = origConsoleWarn;
+    });
+
+    it('copies stream bytes out of the input by default', async () => {
+      const input = new Uint8Array(v15PdfBytes);
+      const pdfDoc = await PDFDocument.load(input);
+      const streams = rawStreamsOf(pdfDoc);
+      expect(streams.length).toBeGreaterThan(0);
+      for (const stream of streams) {
+        expect(stream.getContents().buffer).not.toBe(input.buffer);
+      }
+    });
+
+    it('reads streams as views into the input when copyStreams=false', async () => {
+      const input = new Uint8Array(v15PdfBytes);
+      const pdfDoc = await PDFDocument.load(input, { copyStreams: false });
+      const streams = rawStreamsOf(pdfDoc);
+      expect(streams.length).toBeGreaterThan(0);
+      for (const stream of streams) {
+        expect(stream.getContents().buffer).toBe(input.buffer);
+      }
+    });
+
+    it('saves the same bytes with copyStreams=false', async () => {
+      for (const bytes of [v15PdfBytes, unencryptedPdfBytes]) {
+        const options = {
+          parseSpeed: ParseSpeeds.Fastest,
+          updateMetadata: false,
+        };
+        const copied = await PDFDocument.load(bytes, options);
+        const viewed = await PDFDocument.load(bytes, {
+          ...options,
+          copyStreams: false,
+        });
+        const [fromViews, fromCopies] = [
+          await viewed.save(),
+          await copied.save(),
+        ];
+        expect(Buffer.compare(fromViews, fromCopies)).toBe(0);
+      }
     });
 
     it('does not throw an error for unencrypted PDFs', async () => {

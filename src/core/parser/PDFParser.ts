@@ -34,6 +34,7 @@ class PDFParser extends PDFObjectParser {
     capNumbers?: boolean,
     cryptoFactory?: CipherTransformFactory,
     forIncrementalUpdate?: boolean,
+    copyStreams?: boolean,
   ) =>
     new PDFParser(
       pdfBytes,
@@ -43,6 +44,7 @@ class PDFParser extends PDFObjectParser {
       capNumbers,
       cryptoFactory,
       forIncrementalUpdate,
+      copyStreams,
     );
 
   private readonly objectsPerTick: number;
@@ -59,9 +61,10 @@ class PDFParser extends PDFObjectParser {
     capNumbers = false,
     cryptoFactory?: CipherTransformFactory,
     forIncrementalUpdate = false,
+    copyStreams = true,
   ) {
     super(
-      ByteStream.of(pdfBytes),
+      ByteStream.of(pdfBytes, copyStreams),
       PDFContext.create(),
       capNumbers,
       cryptoFactory,
