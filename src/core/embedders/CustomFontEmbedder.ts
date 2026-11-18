@@ -210,7 +210,10 @@ class CustomFontEmbedder {
   }
 
   protected embedUnicodeCmap(context: PDFContext): PDFRef {
-    const cmap = createCmap(this.glyphCache.access(), this.glyphId.bind(this));
+    const glyphs = this.glyphCache
+      .access()
+      .filter((glyph) => glyph.codePoints.length > 0);
+    const cmap = createCmap(glyphs, this.glyphId.bind(this));
     const cmapStream = context.flateStream(cmap);
     return context.register(cmapStream);
   }
@@ -250,9 +253,16 @@ class CustomFontEmbedder {
 
   private allGlyphsInFontSortedById = (): Glyph[] => {
     const glyphs: Glyph[] = [];
-    for (let idx = 0, len = this.font.characterSet.length; idx < len; idx++) {
-      const glyph = this.font.glyphForCodePoint(this.font.characterSet[idx]);
-      if (glyph) glyphs.push(glyph);
+    if (this.font.numGlyphs !== undefined && this.font.getGlyph) {
+      for (let idx = 0; idx < this.font.numGlyphs; idx++) {
+        const glyph = this.font.getGlyph(idx);
+        if (glyph) glyphs.push(glyph);
+      }
+    } else {
+      for (const codePoint of this.font.characterSet) {
+        const glyph = this.font.glyphForCodePoint(codePoint);
+        if (glyph) glyphs.push(glyph);
+      }
     }
     return sortedUniq(glyphs.sort(byAscendingId), (g) => g.id);
   };
