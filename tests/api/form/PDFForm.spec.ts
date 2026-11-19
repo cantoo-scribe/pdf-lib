@@ -118,6 +118,23 @@ describe('PDFForm', () => {
     expect(fieldDicts).toContain(getFieldDict('Choose A Gundam 🤖'));
   });
 
+  it('finds a nested field by its fully qualified name', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const form = pdfDoc.getForm();
+    const deep = form.createTextField('a.b.c');
+    const sibling = form.createTextField('a.b.d');
+    const shallow = form.createTextField('a.e');
+    const top = form.createTextField('f');
+
+    expect(form.getField('a.b.c').ref).toBe(deep.ref);
+    expect(form.getField('a.b.d').ref).toBe(sibling.ref);
+    expect(form.getField('a.e').ref).toBe(shallow.ref);
+    expect(form.getField('f').ref).toBe(top.ref);
+    for (const name of ['a', 'a.b', 'a.bc', 'a.b.cd', 'b.c', '']) {
+      expect(form.getFieldMaybe(name)).toBeUndefined();
+    }
+  });
+
   // Need to also run this test with assets/pdfs/with_xfa_fields.pdf as it has "partial/50%" APs for checkboxes (is only missing the /Off APs)
   it('does not override existing appearance streams for check boxes and radio groups if they already exist', async () => {
     const pdfDoc = await PDFDocument.load(fancyFieldsPdfBytes);

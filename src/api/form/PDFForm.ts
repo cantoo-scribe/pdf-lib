@@ -190,12 +190,38 @@ export default class PDFForm {
    */
   getFieldMaybe(name: string): PDFField | undefined {
     assertIs(name, 'name', ['string']);
-    const fields = this.getFields();
-    for (let idx = 0, len = fields.length; idx < len; idx++) {
-      const field = fields[idx];
-      if (field.getName() === name) return field;
-    }
-    return undefined;
+
+    // Walk the field tree in the order getFields() lists it, building each
+    // name from its parent's and descending only where the name can be, so a
+    // lookup doesn't convert every field in the form.
+    const find = (
+      fields: [PDFAcroField, PDFRef][],
+      parentName?: string,
+    ): PDFField | undefined => {
+      for (let idx = 0, len = fields.length; idx < len; idx++) {
+        const [acroField, ref] = fields[idx];
+        const partialName = acroField.getPartialName();
+        const fullName =
+          parentName === undefined
+            ? partialName
+            : `${parentName}.${partialName}`;
+        if ((fullName ?? '') === name) {
+          const field = convertToPDFField(acroField, ref, this.doc);
+          if (field) return field;
+        }
+        if (
+          acroField instanceof PDFAcroNonTerminal &&
+          name.startsWith(`${fullName}.`)
+        ) {
+          const kids = createPDFAcroFields(acroField.Kids());
+          const field = find(kids, `${fullName}`);
+          if (field) return field;
+        }
+      }
+      return undefined;
+    };
+
+    return find(this.acroForm.getFields());
   }
 
   /**
