@@ -124,29 +124,49 @@ export interface MultilineTextLayout {
   lineHeight: number;
 }
 
-const lastIndexOfWhitespace = (line: string) => {
-  for (let idx = line.length; idx > 0; idx--) {
-    if (/\s/.test(line[idx])) return idx;
-  }
-  return undefined;
-};
-
 const splitOutLines = (
   input: string,
   maxWidth: number,
   font: PDFFont,
   fontSize: number,
 ) => {
-  let lastWhitespaceIdx = input.length;
-  while (lastWhitespaceIdx > 0) {
-    const line = input.substring(0, lastWhitespaceIdx);
-    const encoded = font.encodeText(line);
-    const width = font.widthOfTextAtSize(line, fontSize);
+  // The candidate breaks, shortest first: every whitespace index after the
+  // first character, then the whole input. These are the positions the
+  // previous implementation tried from the longest down, re-measuring and
+  // re-encoding the full prefix at each one; a prefix only grows wider, so the
+  // longest one that fits is found by binary search instead.
+  const breaks: number[] = [];
+  for (let idx = 1; idx < input.length; idx++) {
+    if (/\s/.test(input[idx])) breaks.push(idx);
+  }
+  breaks.push(input.length);
+
+  let low = 0;
+  let high = breaks.length - 1;
+  let found = -1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    const width = font.widthOfTextAtSize(
+      input.substring(0, breaks[middle]),
+      fontSize,
+    );
     if (width < maxWidth) {
-      const remainder = input.substring(lastWhitespaceIdx) || undefined;
-      return { line, encoded, width, remainder };
+      found = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
     }
-    lastWhitespaceIdx = lastIndexOfWhitespace(line) ?? 0;
+  }
+
+  if (found >= 0) {
+    const line = input.substring(0, breaks[found]);
+    const remainder = input.substring(breaks[found]) || undefined;
+    return {
+      line,
+      encoded: font.encodeText(line),
+      width: font.widthOfTextAtSize(line, fontSize),
+      remainder,
+    };
   }
 
   // We were unable to split the input enough to get a chunk that would fit
