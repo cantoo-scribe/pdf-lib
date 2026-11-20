@@ -471,6 +471,27 @@ describe('PDFForm', () => {
     expect(page.node.Annots()?.size() ?? 0).toBe(0);
   });
 
+  it('skips terminal fields that have no /FT instead of throwing', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const form = pdfDoc.getForm();
+
+    form.createTextField('typed').addToPage(page);
+
+    const untyped = form.createTextField('untyped');
+    untyped.addToPage(page);
+    untyped.acroField.dict.delete(PDFName.of('FT'));
+
+    expect(form.getFields().map((field) => field.getName())).toEqual(['typed']);
+    expect(() => form.updateFieldAppearances()).not.toThrow();
+    expect(() => form.flatten()).not.toThrow();
+    expect(form.getFields()).toHaveLength(0);
+
+    await expect(
+      pdfDoc.save({ updateFieldAppearances: true }),
+    ).resolves.toBeInstanceOf(Uint8Array);
+  });
+
   // TODO: Add method to remove APs and use `NeedsAppearances`? How would this
   //       work with RadioGroups? Just set the APs to `null`but keep the keys?
 });
