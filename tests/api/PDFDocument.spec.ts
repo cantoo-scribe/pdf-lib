@@ -38,6 +38,9 @@ const newEncryptedPdfBytes = fs.readFileSync('assets/pdfs/encrypted_new.pdf');
 const encryptedLiteralStringsPdfBytes = fs.readFileSync(
   'assets/pdfs/encrypted_literal_strings.pdf',
 );
+const encryptedLineContinuationPdfBytes = fs.readFileSync(
+  'assets/pdfs/encrypted_line_continuation.pdf',
+);
 const invalidObjectsPdfBytes = fs.readFileSync(
   'assets/pdfs/with_invalid_objects.pdf',
 );
@@ -150,6 +153,15 @@ describe('PDFDocument', () => {
       expect(pdfDoc.getCreationDate()).toStrictEqual(
         new Date('2025-12-07T01:14:12Z'),
       );
+    });
+
+    it('decrypts a PDF whose encryption dictionary strings use CRLF line continuations', async () => {
+      const pdfDoc = await PDFDocument.load(encryptedLineContinuationPdfBytes, {
+        password: '',
+        parseSpeed: ParseSpeeds.Fastest,
+      });
+      expect(pdfDoc.isEncrypted).toBe(false);
+      expect(pdfDoc.getTitle()).toBe('Line continuation in /U');
     });
 
     it('does not throw an error for invalid PDFs when throwOnInvalidObject=false', async () => {
