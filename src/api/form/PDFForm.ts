@@ -36,6 +36,7 @@ import {
   PDFAcroNonTerminal,
   PDFDict,
   PDFRef,
+  PDFStream,
   createPDFAcroFields,
   PDFName,
   PDFWidgetAnnotation,
@@ -968,6 +969,7 @@ export default class PDFForm {
     widget: PDFWidgetAnnotation,
     appearanceRef: PDFRef,
   ) {
+    this.ensureFormXObject(appearanceRef);
     const rectangle = widget.getRectangle();
     const xObjectKey = page.node.newXObject('FlatWidget', appearanceRef);
     page.pushOperators(
@@ -977,6 +979,24 @@ export default class PDFForm {
       drawObject(xObjectKey),
       popGraphicsState(),
     );
+  }
+
+  /**
+   * Appearance streams are implicitly form XObjects inside /AP, so some
+   * producers (e.g. Acrobat) omit /Type and /Subtype. Once drawn onto a page
+   * with `Do`, viewers such as PDF.js and Preview require /Subtype /Form and
+   * skip the XObject without it.
+   */
+  private ensureFormXObject(appearanceRef: PDFRef) {
+    const appearance = this.doc.context.lookup(appearanceRef);
+    if (!(appearance instanceof PDFStream)) return;
+    const { dict } = appearance;
+    if (!dict.has(PDFName.of('Type'))) {
+      dict.set(PDFName.of('Type'), PDFName.of('XObject'));
+    }
+    if (!dict.has(PDFName.of('Subtype'))) {
+      dict.set(PDFName.of('Subtype'), PDFName.of('Form'));
+    }
   }
 
   /**

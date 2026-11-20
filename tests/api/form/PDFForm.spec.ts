@@ -13,6 +13,7 @@ import {
   PDFForm,
   PDFAcroForm,
   PDFRef,
+  PDFStream,
 } from '../../../src/index';
 
 const getWidgets = (pdfDoc: PDFDocument) =>
@@ -469,6 +470,38 @@ describe('PDFForm', () => {
 
     expect(form.getFields()).toHaveLength(0);
     expect(page.node.Annots()?.size() ?? 0).toBe(0);
+  });
+
+  it('marks reused appearance streams missing /Subtype as form XObjects when flattening', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const form = pdfDoc.getForm();
+    const { context } = pdfDoc;
+
+    const tf = form.createTextField('acrobat.filled');
+    tf.addToPage(page);
+
+    // Acrobat writes /AP /N streams with no /Type or /Subtype
+    const content = 'BT /Helv 12 Tf 2 4 Td (test) Tj ET';
+    const apRef = context.register(
+      context.stream(content, { BBox: [0, 0, 200, 20] }),
+    );
+    tf.acroField
+      .getWidgets()[0]
+      .dict.set(PDFName.of('AP'), context.obj({ N: apRef }));
+    form.markFieldAsClean(tf.ref);
+
+    form.flatten();
+
+    const ap = context.lookup(apRef, PDFStream);
+    expect(ap.dict.get(PDFName.of('Type'))).toBe(PDFName.of('XObject'));
+    expect(ap.dict.get(PDFName.of('Subtype'))).toBe(PDFName.of('Form'));
+    // The original appearance is reused, not regenerated
+    expect(Buffer.from(ap.getContents()).toString('latin1')).toBe(content);
+    const xObjects = page.node
+      .Resources()!
+      .lookup(PDFName.of('XObject'), PDFDict);
+    expect(xObjects.values()).toContain(apRef);
   });
 
   // TODO: Add method to remove APs and use `NeedsAppearances`? How would this
