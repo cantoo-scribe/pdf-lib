@@ -142,4 +142,20 @@ describe('PDFCrossRefStream', () => {
       ),
     );
   });
+
+  it('keeps entries sorted when they are added out of order', () => {
+    const inOrder = PDFCrossRefStream.create(dict, false);
+    const outOfOrder = PDFCrossRefStream.create(dict, false);
+    const numbers = [7, 3, 12, 1, 9, 3, 20, 2];
+    [...numbers]
+      .map((objectNumber, at) => ({ objectNumber, at }))
+      .sort((a, b) => a.objectNumber - b.objectNumber || a.at - b.at)
+      .forEach(({ objectNumber, at }) =>
+        inOrder.addUncompressedEntry(PDFRef.of(objectNumber), at),
+      );
+    numbers.forEach((objectNumber, at) =>
+      outOfOrder.addUncompressedEntry(PDFRef.of(objectNumber), at),
+    );
+    expect(String(outOfOrder)).toBe(String(inOrder));
+  });
 });
