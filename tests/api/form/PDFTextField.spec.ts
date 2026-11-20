@@ -116,6 +116,17 @@ describe('PDFTextField', () => {
     expect(widgets()[0].hasFlag(AnnotationFlags.Print)).toBe(true);
   });
 
+  it('writes a default appearance without an empty first line', async () => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+
+    const textField = pdfDoc.getForm().createTextField('a.new.text.field');
+    textField.addToPage(page);
+
+    const da = textField.acroField.getDefaultAppearance();
+    expect(da?.startsWith('0 0 0 rg\n')).toBe(true);
+  });
+
   it('sets page reference when added to a page', async () => {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();

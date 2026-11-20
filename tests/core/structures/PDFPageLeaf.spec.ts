@@ -287,6 +287,35 @@ describe('PDFPageLeaf', () => {
     );
   });
 
+  it('can set ColorSpace refs', () => {
+    const context = PDFContext.create();
+    const parentRef = PDFRef.of(1);
+    const pageTree = PDFPageLeaf.withContextAndParent(context, parentRef);
+
+    const ColorSpace = PDFName.of('ColorSpace');
+    pageTree.setColorSpace(PDFName.of('Foo'), PDFRef.of(21));
+    expect(pageTree.Resources()!.get(ColorSpace)!.toString()).toBe(
+      '<<\n/Foo 21 0 R\n>>',
+    );
+    pageTree.setColorSpace(PDFName.of('Bar'), PDFRef.of(99));
+    expect(pageTree.Resources()!.get(ColorSpace)!.toString()).toBe(
+      '<<\n/Foo 21 0 R\n/Bar 99 0 R\n>>',
+    );
+  });
+
+  it('reuses the ColorSpace key of an already registered ref', () => {
+    const context = PDFContext.create();
+    const parentRef = PDFRef.of(1);
+    const pageTree = PDFPageLeaf.withContextAndParent(context, parentRef);
+
+    const key1 = pageTree.newColorSpace('CS', PDFRef.of(21));
+    const key2 = pageTree.newColorSpace('CS', PDFRef.of(21));
+    const key3 = pageTree.newColorSpace('CS', PDFRef.of(99));
+
+    expect(key2).toBe(key1);
+    expect(key3).not.toBe(key1);
+  });
+
   it('can be ascended', () => {
     const context = PDFContext.create();
 

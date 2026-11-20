@@ -1,8 +1,30 @@
 import fs from 'fs';
-import { PDFArray, PDFDocument, PDFName, StandardFonts } from '../../src/index';
+import {
+  cmyk,
+  ColorTypes,
+  PDFArray,
+  PDFContentStream,
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFPage,
+  Separation,
+  StandardFonts,
+} from '../../src/index';
 
 const birdPng = fs.readFileSync('assets/images/greyscale_bird.png');
 const simplePDF = fs.readFileSync('assets/pdfs/simple.pdf');
+
+const contentsOf = (page: PDFPage) =>
+  (page.node.Contents() as PDFArray)
+    .asArray()
+    .map((ref) =>
+      (page.doc.context.lookup(ref) as PDFContentStream).getContentsString(),
+    )
+    .join('');
+
+const colorSpacesOf = (page: PDFPage) =>
+  page.node.Resources()!.lookup(PDFName.of('ColorSpace'), PDFDict);
 
 describe('PDFDocument', () => {
   describe('getSize() method', () => {
@@ -284,6 +306,102 @@ describe('PDFDocument', () => {
       const actions = page.getJavaScriptActions();
 
       expect(actions?.pageOpen?.getScript()).toBe('console.println("Test");');
+    });
+  });
+
+  describe('getSeparationColor() method', () => {
+    const embedPantone = (pdfDoc: PDFDocument) =>
+      pdfDoc.embedSeparation('PANTONE 123 C', cmyk(0, 0.22, 0.83, 0));
+
+    it('returns a separation color with the given tint', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const color = page.getSeparationColor(embedPantone(pdfDoc), 0.5);
+      expect(color.type).toBe(ColorTypes.Separation);
+      expect((color as Separation).tint).toBe(0.5);
+    });
+
+    it('rejects a tint outside of [0, 1]', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const pdfSeparation = embedPantone(pdfDoc);
+      expect(() => page.getSeparationColor(pdfSeparation, -0.1)).toThrow();
+      expect(() => page.getSeparationColor(pdfSeparation, 1.1)).toThrow();
+    });
+
+    it('adds the separation color space to the page resources', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const pdfSeparation = embedPantone(pdfDoc);
+      const color = page.getSeparationColor(pdfSeparation, 0.5) as Separation;
+      const colorSpaces = colorSpacesOf(page);
+      expect(colorSpaces.keys()).toEqual([color.name]);
+      expect(colorSpaces.get(color.name)).toBe(pdfSeparation.ref);
+    });
+
+    it('does not add the same separation color space twice', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const pdfSeparation = embedPantone(pdfDoc);
+      const color1 = page.getSeparationColor(pdfSeparation, 0.5) as Separation;
+      const color2 = page.getSeparationColor(pdfSeparation, 1) as Separation;
+      expect(color2.name).toBe(color1.name);
+      expect(colorSpacesOf(page).keys()).toEqual([color1.name]);
+    });
+
+    it('selects the color space before setting the tint when filling', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const font = pdfDoc.embedStandardFont(StandardFonts.Helvetica);
+      const color = page.getSeparationColor(
+        embedPantone(pdfDoc),
+        0.5,
+      ) as Separation;
+
+      page.drawText('spot', { font, color });
+      page.drawRectangle({ width: 10, height: 10, color });
+
+      const contents = contentsOf(page);
+      expect(contents).toContain(`BT\n${color.name} cs\n0.5 scn\n`);
+      expect(
+        contents.match(new RegExp(`${color.name} cs\n0.5 scn\n`, 'g')),
+      ).toHaveLength(2);
+    });
+
+    it('selects the color space before setting the tint when stroking', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const color = page.getSeparationColor(
+        embedPantone(pdfDoc),
+        0.25,
+      ) as Separation;
+
+      page.drawLine({ start: { x: 0, y: 0 }, end: { x: 10, y: 10 }, color });
+      page.drawRectangle({
+        width: 10,
+        height: 10,
+        borderColor: color,
+        borderWidth: 1,
+      });
+
+      const contents = contentsOf(page);
+      expect(
+        contents.match(new RegExp(`${color.name} CS\n0.25 SCN\n`, 'g')),
+      ).toHaveLength(2);
+    });
+
+    it('embeds the separation color space when the document is saved', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage();
+      const pdfSeparation = embedPantone(pdfDoc);
+      page.getSeparationColor(pdfSeparation, 1);
+
+      const savedDoc = await PDFDocument.load(await pdfDoc.save());
+      const savedPage = savedDoc.getPage(0);
+      const [[, colorSpaceRef]] = colorSpacesOf(savedPage).entries();
+      const colorSpace = savedDoc.context.lookup(colorSpaceRef, PDFArray);
+      expect(colorSpace.get(0)).toBe(PDFName.of('Separation'));
+      expect(colorSpace.get(1)).toBe(PDFName.of('PANTONE 123 C'));
     });
   });
 });

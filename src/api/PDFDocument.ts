@@ -14,6 +14,7 @@ import PDFEmbeddedPage from './PDFEmbeddedPage';
 import PDFFont from './PDFFont';
 import PDFImage from './PDFImage';
 import PDFPage from './PDFPage';
+import PDFSeparation from './PDFSeparation';
 import PDFForm from './form/PDFForm';
 import { PageSizes } from './sizes';
 import { StandardFonts } from './StandardFonts';
@@ -73,6 +74,7 @@ import {
   pluckIndices,
   range,
   toUint8Array,
+  error,
   utf8Encode,
 } from '../utils';
 import FileEmbedder, { AFRelationship } from '../core/embedders/FileEmbedder';
@@ -105,6 +107,8 @@ import type {
   PDFOptionalContentGroup,
   OptionalContentVisibilityUpdate,
 } from '../core/interactive/OptionalContent';
+import SeparationEmbedder from '../core/embedders/SeparationEmbedder';
+import { Color, ColorTypes, colorToComponents } from './colors';
 
 export type BasePDFAttachment = {
   name: string;
@@ -295,6 +299,7 @@ export default class PDFDocument {
   private readonly formCache: Cache<PDFForm>;
   private readonly fonts: PDFFont[];
   private readonly images: PDFImage[];
+  private readonly separationColorSpaces: PDFSeparation[];
   private readonly embeddedPages: PDFEmbeddedPage[];
   private readonly embeddedFiles: PDFEmbeddedFile[];
   private readonly javaScripts: PDFJavaScript[];
@@ -324,6 +329,7 @@ export default class PDFDocument {
     this.formCache = Cache.populatedBy(this.getOrCreateForm);
     this.fonts = [];
     this.images = [];
+    this.separationColorSpaces = [];
     this.embeddedPages = [];
     this.embeddedFiles = [];
     this.javaScripts = [];
@@ -1914,6 +1920,19 @@ export default class PDFDocument {
     this.context.security = PDFSecurity.create(this.context, options).encrypt();
   }
 
+  embedSeparation(name: string, alternate: Color): PDFSeparation {
+    const ref = this.context.nextRef();
+    const alternateColorSpace = getColorSpace(alternate);
+    const embedder = SeparationEmbedder.for(
+      name,
+      alternateColorSpace,
+      colorToComponents(alternate),
+    );
+    const separation = PDFSeparation.of(ref, this, embedder);
+    this.separationColorSpaces.push(separation);
+    return separation;
+  }
+
   /**
    * > **NOTE:** You shouldn't need to call this method directly. The [[save]]
    * > and [[saveAsBase64]] methods will automatically ensure that all embedded
@@ -1927,6 +1946,7 @@ export default class PDFDocument {
   async flush(): Promise<void> {
     await this.embedAll(this.fonts);
     await this.embedAll(this.images);
+    await this.embedAll(this.separationColorSpaces);
     await this.embedAll(this.embeddedPages);
     await this.embedAll(this.embeddedFiles);
     await this.embedAll(this.javaScripts);
@@ -2332,6 +2352,15 @@ export default class PDFDocument {
     return PDFForm.of(acroForm, this);
   }
 }
+
+const getColorSpace = (color: Color) =>
+  color.type === ColorTypes.Grayscale
+    ? 'DeviceGray'
+    : color.type === ColorTypes.RGB
+      ? 'DeviceRGB'
+      : color.type === ColorTypes.CMYK
+        ? 'DeviceCMYK'
+        : error(`Invalid alternate color: ${JSON.stringify(color)}`);
 
 /* tslint:disable-next-line only-arrow-functions */
 function assertIsLiteralOrHexString(

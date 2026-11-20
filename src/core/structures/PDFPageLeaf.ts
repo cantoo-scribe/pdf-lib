@@ -195,6 +195,35 @@ class PDFPageLeaf extends PDFDict {
     return key;
   }
 
+  private getOrCreateColorSpace(): PDFDict {
+    const { Resources } = this.normalizedEntries();
+    const existing = Resources.lookupMaybe(PDFName.ColorSpace, PDFDict);
+    if (existing) return existing;
+    const colorSpace = this.context.obj({});
+    Resources.set(PDFName.ColorSpace, colorSpace);
+    return colorSpace;
+  }
+
+  setColorSpace(name: PDFName, colorSpaceRef: PDFRef): void {
+    const ColorSpace = this.getOrCreateColorSpace();
+    ColorSpace.set(name, colorSpaceRef);
+  }
+
+  newColorSpaceKey(tag: string): PDFName {
+    const ColorSpace = this.getOrCreateColorSpace();
+    return ColorSpace.uniqueKey(tag);
+  }
+
+  newColorSpace(tag: string, colorSpaceRef: PDFRef): PDFName {
+    const ColorSpace = this.getOrCreateColorSpace();
+    for (const [key, value] of ColorSpace.entries()) {
+      if (value === colorSpaceRef) return key;
+    }
+    const newKey = this.newColorSpaceKey(tag);
+    this.setColorSpace(newKey, colorSpaceRef);
+    return newKey;
+  }
+
   ascend(visitor: (node: PDFPageTree | PDFPageLeaf) => any): void {
     visitor(this);
     const Parent = this.Parent();

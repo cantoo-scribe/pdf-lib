@@ -18,6 +18,7 @@ export { default as PDFDocument } from './PDFDocument';
 export * from './pdfa/facturx';
 export { default as PDFFont } from './PDFFont';
 export { default as PDFImage } from './PDFImage';
+export { default as PDFSeparation } from './PDFSeparation';
 export { default as PDFPage } from './PDFPage';
 export { default as PDFEmbeddedPage } from './PDFEmbeddedPage';
 export { default as PDFJavaScript } from './PDFJavaScript';

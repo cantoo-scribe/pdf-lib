@@ -1,4 +1,10 @@
-import { Color, setFillingColor, setStrokingColor } from './colors';
+import {
+  Color,
+  setFillingColor,
+  setFillingColorspaceOrUndefined,
+  setStrokingColor,
+  setStrokingColorspaceOrUndefined,
+} from './colors';
 import {
   beginText,
   closePath,
@@ -82,11 +88,14 @@ export const drawText = (
     pushGraphicsState(),
     options.graphicsState && setGraphicsState(options.graphicsState),
     beginText(),
+    setFillingColorspaceOrUndefined(options.color),
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
     options.characterSpacing !== undefined &&
       setCharacterSpacing(options.characterSpacing),
     options.strokeWidth && setLineWidth(options.strokeWidth),
+    options.strokeColor &&
+      setStrokingColorspaceOrUndefined(options.strokeColor),
     options.strokeColor && setStrokingColor(options.strokeColor),
     options.renderMode && setTextRenderingMode(options.renderMode),
     rotateAndSkewTextRadiansAndTranslate(
@@ -115,12 +124,15 @@ export const drawLinesOfText = (
     ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
     options.matrix && concatTransformationMatrix(...options.matrix),
     beginText(),
+    setFillingColorspaceOrUndefined(options.color),
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
     setLineHeight(options.lineHeight),
     options.characterSpacing !== undefined &&
       setCharacterSpacing(options.characterSpacing),
     options.strokeWidth && setLineWidth(options.strokeWidth),
+    options.strokeColor &&
+      setStrokingColorspaceOrUndefined(options.strokeColor),
     options.strokeColor && setStrokingColor(options.strokeColor),
     options.renderMode && setTextRenderingMode(options.renderMode),
     rotateAndSkewTextRadiansAndTranslate(
@@ -209,6 +221,7 @@ export const drawLine = (options: {
     options.graphicsState && setGraphicsState(options.graphicsState),
     ...(options.clipSpaces ? clipSpaces(options.clipSpaces) : []),
     options.matrix && concatTransformationMatrix(...options.matrix),
+    options.color && setStrokingColorspaceOrUndefined(options.color),
     options.color && setStrokingColor(options.color),
     setLineWidth(options.thickness),
     setDashPattern(options.dashArray ?? [], options.dashPhase ?? 0),
@@ -404,7 +417,10 @@ export const drawSvgPath = (
 
     // SVG path Y axis is opposite pdf-lib's
     options.scale ? scale(options.scale, -options.scale) : scale(1, -1),
+    options.color && setFillingColorspaceOrUndefined(options.color),
     options.color && setFillingColor(options.color),
+    options.borderColor &&
+      setStrokingColorspaceOrUndefined(options.borderColor),
     options.borderColor && setStrokingColor(options.borderColor),
     options.borderWidth && setLineWidth(options.borderWidth),
     options.borderLineCap && setLineCap(options.borderLineCap),
@@ -464,6 +480,7 @@ export const drawCheckMark = (options: {
 
   return [
     pushGraphicsState(),
+    options.color && setStrokingColorspaceOrUndefined(options.color),
     options.color && setStrokingColor(options.color),
     setLineWidth(options.thickness),
 
@@ -643,9 +660,10 @@ export const drawTextLines = (
 ): PDFOperator[] => {
   const operators = [
     beginText(),
+    setFillingColorspaceOrUndefined(options.color),
     setFillingColor(options.color),
     setFontAndSize(options.font, options.size),
-  ];
+  ].filter((operator): operator is PDFOperator => operator !== undefined);
 
   for (let idx = 0, len = lines.length; idx < len; idx++) {
     const { encoded, x, y } = lines[idx];

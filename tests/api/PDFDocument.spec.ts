@@ -17,6 +17,7 @@ import {
   ViewerPreferences,
   StandardFonts,
   AFRelationship,
+  rgb,
 } from '../../src/index';
 import { PDFAttachment } from '../../src/api/PDFDocument';
 import { PDFHeader } from '../../src/core';
@@ -241,6 +242,31 @@ describe('PDFDocument', () => {
       const savedDoc2 = await pdfDoc2.save();
 
       expect(savedDoc1).toEqual(savedDoc2);
+    });
+  });
+
+  describe('embedSeparation() method', () => {
+    it('serializes the same value on every save', async () => {
+      const pdfDoc1 = await PDFDocument.create({ updateMetadata: false });
+      const pdfDoc2 = await PDFDocument.create({ updateMetadata: false });
+
+      pdfDoc1.embedSeparation('PANTONE 123 C', rgb(1, 0, 0));
+      pdfDoc2.embedSeparation('PANTONE 123 C', rgb(1, 0, 0));
+
+      const savedDoc1 = await pdfDoc1.save();
+      const savedDoc2 = await pdfDoc2.save();
+
+      expect(savedDoc1).toEqual(savedDoc2);
+    });
+
+    it('uses the color space of the alternate color', async () => {
+      const pdfDoc = await PDFDocument.create();
+      const pdfSeparation = pdfDoc.embedSeparation('Spot', rgb(1, 0.5, 0));
+      await pdfDoc.flush();
+
+      const colorSpace = pdfDoc.context.lookup(pdfSeparation.ref, PDFArray);
+      expect(colorSpace.get(2)).toBe(PDFName.of('DeviceRGB'));
+      expect(colorSpace.get(3).toString()).toContain('/C1 [ 1 0.5 0 ]');
     });
   });
 
