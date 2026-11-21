@@ -78,7 +78,7 @@ const isNonTerminalAcroField = (dict: PDFDict): boolean => {
 
 const createPDFAcroTerminal = (dict: PDFDict, ref: PDFRef): PDFAcroTerminal => {
   const ftNameOrRef = getInheritableAttribute(dict, PDFName.of('FT'));
-  const type = dict.context.lookup(ftNameOrRef, PDFName);
+  const type = dict.context.lookupMaybe(ftNameOrRef, PDFName);
 
   if (type === PDFName.of('Btn')) return createPDFAcroButton(dict, ref);
   if (type === PDFName.of('Ch')) return createPDFAcroChoice(dict, ref);
