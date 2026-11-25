@@ -130,8 +130,10 @@ class PDFStreamWriter extends PDFWriter {
           (object as PDFDict).lookup(PDFName.of('Type')) === PDFName.of('Sig'));
 
       if (shouldNotCompress) {
+        if (security) {
+          indirectObject[1] = this.encrypt(ref, object, security);
+        }
         uncompressedObjects.push(indirectObject);
-        if (security) this.encrypt(ref, object, security);
         xrefStream.addUncompressedEntry(ref, size);
         size += this.computeIndirectObjectSize(indirectObject);
         if (this.shouldWaitForTick(1)) await waitForTick();
