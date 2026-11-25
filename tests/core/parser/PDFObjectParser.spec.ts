@@ -19,6 +19,8 @@ import {
   numberToString,
 } from '../../../src/index';
 
+import ByteStream from '../../../src/core/parser/ByteStream';
+
 type ParseOptions = { capNumbers?: boolean };
 
 const parse = (value: string | Uint8Array, options: ParseOptions = {}) => {
@@ -727,6 +729,35 @@ describe('PDFObjectParser', () => {
       const object3 = parser.parseObject();
       expect(object3).toBeInstanceOf(PDFNumber);
       expect(object3.toString()).toBe('42');
+    });
+  });
+
+  describe('strings in an encrypted document', () => {
+    // Decrypts to the bytes it is given (the unescaped literal), so only the
+    // way the parser stores the decrypted bytes is under test.
+    const identity = {
+      createCipherTransform: () => ({ decryptBytes: (b: Uint8Array) => b }),
+    } as any;
+    const ref = PDFRef.of(7, 0);
+
+    it('stores a decrypted literal string so that it survives being written and parsed again', () => {
+      const context = PDFContext.create();
+      const parser = new PDFObjectParser(
+        ByteStream.of(typedArrayFor('(a\\)b\\\\c\\(d)')),
+        context,
+        false,
+        identity,
+      );
+      const decrypted = parser.parseObject(ref) as PDFString | PDFHexString;
+      const written = decrypted.toString();
+
+      const again = PDFObjectParser.forBytes(
+        typedArrayFor(written),
+        context,
+      ).parseObject();
+      expect(Array.from((again as PDFString | PDFHexString).asBytes())).toEqual(
+        Array.from(typedArrayFor('a)b\\c(d')),
+      );
     });
   });
 });
