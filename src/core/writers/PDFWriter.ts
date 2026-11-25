@@ -2,13 +2,17 @@ import PDFCrossRefSection from '../document/PDFCrossRefSection';
 import PDFHeader from '../document/PDFHeader';
 import PDFTrailer from '../document/PDFTrailer';
 import PDFTrailerDict from '../document/PDFTrailerDict';
+import PDFArray from '../objects/PDFArray';
 import PDFDict from '../objects/PDFDict';
+import PDFHexString from '../objects/PDFHexString';
+import PDFString from '../objects/PDFString';
 import PDFObject from '../objects/PDFObject';
 import PDFRef from '../objects/PDFRef';
 import PDFStream from '../objects/PDFStream';
 import PDFContext from '../PDFContext';
 import PDFObjectStream from '../structures/PDFObjectStream';
 import PDFSecurity from '../security/PDFSecurity';
+import type { EncryptFn } from '../security/PDFSecurity';
 import CharCodes from '../syntax/CharCodes';
 import { copyStringIntoBuffer, waitForTick } from '../../utils';
 import {
@@ -19,6 +23,43 @@ import type { DocumentSnapshot } from '../../api/snapshot';
 import PDFNumber from '../objects/PDFNumber';
 import PDFName from '../objects/PDFName';
 import PDFRawStream from '../objects/PDFRawStream';
+
+// The /Contents of a signature is written as it is (ISO 32000-2 7.6.2).
+// /Type is optional there, /ByteRange marks a signature that has none.
+const isSignature = (dict: PDFDict): boolean => {
+  const type = dict.get(PDFName.of('Type'));
+  return (
+    type === PDFName.of('Sig') ||
+    type === PDFName.of('DocTimeStamp') ||
+    dict.has(PDFName.of('ByteRange'))
+  );
+};
+
+// Encrypts every string of an object, however deep it sits in dictionaries and
+// arrays, in a copy: the object itself may be shared, or saved again.
+const encryptStrings = (object: PDFObject, encryptFn: EncryptFn): PDFObject => {
+  if (object instanceof PDFString || object instanceof PDFHexString) {
+    return PDFHexString.fromBytes(encryptFn(object.asBytes()));
+  }
+  if (object instanceof PDFDict) return encryptDict(object, encryptFn);
+  if (object instanceof PDFArray) {
+    const copy = object.clone();
+    object
+      .asArray()
+      .forEach((item, idx) => copy.set(idx, encryptStrings(item, encryptFn)));
+    return copy;
+  }
+  return object;
+};
+
+const encryptDict = (dict: PDFDict, encryptFn: EncryptFn): PDFDict => {
+  const exempt = isSignature(dict) ? PDFName.of('Contents') : undefined;
+  const copy = new Map<PDFName, PDFObject>();
+  dict.entries().forEach(([key, value]) => {
+    copy.set(key, key === exempt ? value : encryptStrings(value, encryptFn));
+  });
+  return PDFDict.fromMapWithContext(copy, dict.context);
+};
 
 export interface SerializationInfo {
   size: number;
@@ -241,7 +282,9 @@ class PDFWriter {
       if (!incremental && this.shouldSkipCopiedObjectStream(object)) {
         continue;
       }
-      if (security) this.encrypt(ref, object, security);
+      if (security) {
+        indirectObject[1] = this.encrypt(ref, object, security);
+      }
       xref.addEntry(ref, size);
       size += this.computeIndirectObjectSize(indirectObject);
       if (this.shouldWaitForTick(1)) await waitForTick();
@@ -273,16 +316,32 @@ class PDFWriter {
     return { size, header, indirectObjects, xref, trailerDict, trailer };
   }
 
-  protected encrypt(ref: PDFRef, object: PDFObject, security: PDFSecurity) {
-    if (object instanceof PDFStream) {
-      const encryptFn = security.getEncryptFn(
-        ref.objectNumber,
-        ref.generationNumber,
-      );
-      const unencryptedContents = object.getContents();
-      const encryptedContents = encryptFn(unencryptedContents);
-      object.updateContents(encryptedContents);
+  /** The object to write in place of `object`, which can then be saved again. */
+  protected encrypt(
+    ref: PDFRef,
+    object: PDFObject,
+    security: PDFSecurity,
+  ): PDFObject {
+    // The encryption dictionary itself is never encrypted.
+    if (ref === this.context.trailerInfo.Encrypt) return object;
+
+    const encryptFn = security.getEncryptFn(
+      ref.objectNumber,
+      ref.generationNumber,
+    );
+    // An object stream is made for this save and holds no strings in its dict.
+    // As a PDFRawStream it would be taken for one copied from the source file.
+    if (object instanceof PDFObjectStream) {
+      object.updateContents(encryptFn(object.getContents()));
+      return object;
     }
+    if (object instanceof PDFStream) {
+      return PDFRawStream.of(
+        encryptDict(object.dict, encryptFn),
+        encryptFn(object.getContents()),
+      );
+    }
+    return encryptStrings(object, encryptFn);
   }
 
   protected shouldSkipCopiedObjectStream(object: PDFObject): boolean {

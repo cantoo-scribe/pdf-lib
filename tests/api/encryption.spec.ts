@@ -1,7 +1,10 @@
 import { PDFDocument, StandardFonts } from '../../src/api';
+import PDFHexString from '../../src/core/objects/PDFHexString';
+import PDFString from '../../src/core/objects/PDFString';
 import type { EncryptionAlgorithm } from '../../src/core';
 import PDFHeader from '../../src/core/document/PDFHeader';
 import PDFName from '../../src/core/objects/PDFName';
+import PDFArray from '../../src/core/objects/PDFArray';
 import PDFDict from '../../src/core/objects/PDFDict';
 import PDFNumber from '../../src/core/objects/PDFNumber';
 import PDFRawStream from '../../src/core/objects/PDFRawStream';
@@ -166,5 +169,153 @@ describe('PDFDocument.encrypt', () => {
 
     const reopened = await PDFDocument.load(bytes, { password: '' });
     expect(decodedContentStreams(reopened)[0]).toContain(SECRET_HEX);
+  });
+
+  describe('objects written outside object streams', () => {
+    const LANG = PDFName.of('Lang');
+
+    [true, false].forEach((useObjectStreams) => {
+      it(`encrypts their strings (useObjectStreams: ${useObjectStreams})`, async () => {
+        const pdfDoc = await PDFDocument.create();
+        pdfDoc.addPage();
+        pdfDoc.catalog.set(LANG, PDFString.of('en-GB'));
+        pdfDoc.encrypt({
+          userPassword: USER_PASSWORD,
+          ownerPassword: OWNER_PASSWORD,
+        });
+        const bytes = await pdfDoc.save({ useObjectStreams });
+
+        expect(Buffer.from(bytes).toString('latin1')).not.toContain('(en-GB)');
+        const reopened = await PDFDocument.load(bytes, {
+          password: USER_PASSWORD,
+        });
+        expect(
+          reopened.catalog.lookup(LANG, PDFString, PDFHexString).decodeText(),
+        ).toBe('en-GB');
+      });
+    });
+
+    it('encrypts strings nested in arrays and stream dictionaries', async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.addPage();
+      const { context } = pdfDoc;
+      const nested = context.obj({ Items: [PDFString.of('inside array')] });
+      pdfDoc.catalog.set(PDFName.of('Nested'), context.register(nested));
+      const stream = context.stream('contents', {
+        Desc: PDFString.of('inside stream dict'),
+      });
+      pdfDoc.catalog.set(PDFName.of('Stream'), context.register(stream));
+      pdfDoc.encrypt({ userPassword: USER_PASSWORD });
+      const bytes = await pdfDoc.save({ useObjectStreams: false });
+
+      const text = Buffer.from(bytes).toString('latin1');
+      expect(text).not.toContain('inside array');
+      expect(text).not.toContain('inside stream dict');
+      const reopened = await PDFDocument.load(bytes, {
+        password: USER_PASSWORD,
+      });
+      expect(
+        reopened.catalog
+          .lookup(PDFName.of('Nested'), PDFDict)
+          .lookup(PDFName.of('Items'), PDFArray)
+          .lookup(0, PDFString, PDFHexString)
+          .decodeText(),
+      ).toBe('inside array');
+      expect(
+        (reopened.catalog.lookup(PDFName.of('Stream')) as PDFRawStream).dict
+          .lookup(PDFName.of('Desc'), PDFString, PDFHexString)
+          .decodeText(),
+      ).toBe('inside stream dict');
+    });
+
+    const signatures: [string, Record<string, unknown>][] = [
+      ['/Type /Sig', { Type: 'Sig' }],
+      ['/Type /DocTimeStamp', { Type: 'DocTimeStamp' }],
+      ['no /Type and a /ByteRange', { ByteRange: [0, 0, 0, 0] }],
+    ];
+    signatures.forEach(([name, entries]) => {
+      it(`leaves a signature's /Contents as it is (${name})`, async () => {
+        const pdfDoc = await PDFDocument.create();
+        pdfDoc.addPage();
+        const signature = pdfDoc.context.obj({
+          ...(entries as Record<string, string>),
+          Contents: PDFHexString.of('AABBCCDD'),
+          Reason: PDFString.of('a reason'),
+        });
+        pdfDoc.catalog.set(
+          PDFName.of('Signature'),
+          pdfDoc.context.register(signature),
+        );
+        pdfDoc.encrypt({ userPassword: USER_PASSWORD });
+        const bytes = await pdfDoc.save({ useObjectStreams: false });
+
+        const text = Buffer.from(bytes).toString('latin1');
+        expect(text).toContain('/Contents <AABBCCDD>');
+        expect(text).not.toContain('a reason');
+      });
+    });
+  });
+
+  describe('saving leaves the document as it was', () => {
+    const open = (bytes: Uint8Array) =>
+      PDFDocument.load(bytes, { password: USER_PASSWORD });
+    const LANG = PDFName.of('Lang');
+
+    [true, false].forEach((useObjectStreams) => {
+      it(`writes the same text when saved twice (useObjectStreams: ${useObjectStreams})`, async () => {
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        pdfDoc.addPage([300, 200]).drawText(SECRET, { font, size: 12 });
+        pdfDoc.catalog.set(LANG, PDFString.of('en-GB'));
+        pdfDoc.encrypt({ userPassword: USER_PASSWORD });
+
+        await pdfDoc.save({ useObjectStreams });
+        const reopened = await open(await pdfDoc.save({ useObjectStreams }));
+
+        expect(
+          reopened.catalog.lookup(LANG, PDFString, PDFHexString).decodeText(),
+        ).toBe('en-GB');
+        expect(decodedContentStreams(reopened)[0]).toContain(SECRET_HEX);
+      });
+    });
+
+    it('encrypts an array used by two objects with the key of each', async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.addPage();
+      const { context } = pdfDoc;
+      const shared = context.obj([PDFString.of('shared text')]);
+      const keys = ['First', 'Second'].map((name) => PDFName.of(name));
+      keys.forEach((key) =>
+        pdfDoc.catalog.set(key, context.register(context.obj({ shared }))),
+      );
+      pdfDoc.encrypt({ userPassword: USER_PASSWORD });
+      const reopened = await open(
+        await pdfDoc.save({ useObjectStreams: false }),
+      );
+
+      keys.forEach((key) => {
+        const array = reopened.catalog
+          .lookup(key, PDFDict)
+          .lookup(PDFName.of('shared'), PDFArray);
+        expect(array.lookup(0, PDFString, PDFHexString).decodeText()).toBe(
+          'shared text',
+        );
+      });
+    });
+
+    it('encrypts a string that is an object of its own', async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.addPage();
+      const ref = pdfDoc.context.register(PDFString.of('on its own'));
+      pdfDoc.catalog.set(LANG, ref);
+      pdfDoc.encrypt({ userPassword: USER_PASSWORD });
+      const bytes = await pdfDoc.save({ useObjectStreams: false });
+
+      expect(Buffer.from(bytes).toString('latin1')).not.toContain('on its own');
+      const reopened = await open(bytes);
+      expect(
+        reopened.catalog.lookup(LANG, PDFString, PDFHexString).decodeText(),
+      ).toBe('on its own');
+    });
   });
 });
