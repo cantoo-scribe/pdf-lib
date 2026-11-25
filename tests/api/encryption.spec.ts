@@ -100,6 +100,33 @@ describe('PDFDocument.encrypt', () => {
     });
   });
 
+  describe('unlocking a file with a cross-reference stream', () => {
+    it('keeps the trailer /Info, /ID and the title', async () => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.addPage();
+      pdfDoc.setTitle('My Title');
+      pdfDoc.encrypt({
+        userPassword: USER_PASSWORD,
+        ownerPassword: OWNER_PASSWORD,
+      });
+      const protectedBytes = await pdfDoc.save({ useObjectStreams: true });
+      expect(Buffer.from(protectedBytes).toString('latin1')).toMatch(
+        /\/Type\s*\/XRef/,
+      );
+
+      const unlocked = await PDFDocument.load(protectedBytes, {
+        password: USER_PASSWORD,
+      });
+      expect(unlocked.getTitle()).toBe('My Title');
+      const id = pdfDoc.context.trailerInfo.ID;
+      expect(String(id)).toMatch(/<[0-9A-F]{32}>/i);
+      expect(String(unlocked.context.trailerInfo.ID)).toBe(String(id));
+      const reopened = await PDFDocument.load(await unlocked.save());
+      expect(reopened.isEncrypted).toBe(false);
+      expect(reopened.getTitle()).toBe('My Title');
+    });
+  });
+
   it('defaults to AES-256 and raises an older header', async () => {
     const pdfDoc = await PDFDocument.create();
     pdfDoc.context.header = PDFHeader.forVersion(1, 3);

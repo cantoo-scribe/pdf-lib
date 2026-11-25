@@ -159,7 +159,12 @@ class PDFObjectParser extends BaseParser {
           const decrypted = transformer.decryptBytes(
             PDFString.of(actualValue).asBytes(),
           );
-          actualValue = arrayAsString(decrypted);
+          // The decrypted bytes are arbitrary, but `actualValue` holds the escaped
+          // form of a literal string: escape them again, or an unbalanced
+          // parenthesis or a backslash breaks the next parse.
+          actualValue = arrayAsString(decrypted).replace(/[\\()\r]/g, (c) =>
+            c === '\r' ? '\\r' : `\\${c}`,
+          );
         }
         // Remove the outer parens so they aren't part of the contents
         return PDFString.of(actualValue);
@@ -237,7 +242,15 @@ class PDFObjectParser extends BaseParser {
   protected parseDictOrStream(ref?: PDFRef): PDFDict | PDFStream {
     const startPos = this.bytes.position();
 
-    const dict = this.parseDict(ref);
+    let dict = this.parseDict(ref);
+
+    // A cross-reference stream is never encrypted (ISO 32000-1 7.5.8.2), and
+    // neither are the strings in its dictionary, such as the ones in /ID.
+    const isXRefStream = dict.get(PDFName.of('Type')) === PDFName.of('XRef');
+    if (this.cryptoFactory && ref && isXRefStream) {
+      this.bytes.moveTo(startPos.offset);
+      dict = this.parseDict();
+    }
 
     this.skipWhitespaceAndComments();
 
@@ -269,7 +282,7 @@ class PDFObjectParser extends BaseParser {
 
     let contents = this.bytes.slice(start, end);
 
-    if (this.cryptoFactory && ref) {
+    if (this.cryptoFactory && ref && !isXRefStream) {
       const transform = this.cryptoFactory.createCipherTransform(
         ref.objectNumber,
         ref.generationNumber,
